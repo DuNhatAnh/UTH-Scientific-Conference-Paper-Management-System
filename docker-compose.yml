@@ -6,8 +6,8 @@ services:
     container_name: uth_db
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=uth_password
-      - POSTGRES_DB=UTHConfDB
+      - POSTGRES_PASSWORD=123456
+      - POSTGRES_DB=UTHConfMS
     ports:
       - "5432:5432"
     volumes:
@@ -19,7 +19,7 @@ services:
       dockerfile: Dockerfile
     container_name: uth_backend
     environment:
-      - ConnectionStrings__DefaultConnection=Server=db;Database=UTHConfDB;User Id=postgres;Password=uth_password;
+      - ConnectionStrings__DefaultConnection=Server=db;Database=UTHConfMS;User Id=postgres;Password=123456;
       - ASPNETCORE_ENVIRONMENT=Development
     ports:
       - "5000:8080" 

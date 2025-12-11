@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: uth_db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=uth_password
+      - POSTGRES_DB=UTHConfDB
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./UTH-ConfMS-Backend
+      dockerfile: Dockerfile
+    container_name: uth_backend
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=db;Database=UTHConfDB;User Id=postgres;Password=uth_password;
+      - ASPNETCORE_ENVIRONMENT=Development
+    ports:
+      - "5000:8080" 
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      context: ./UTH-ConfMS-Frontend
+      dockerfile: Dockerfile
+    container_name: uth_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

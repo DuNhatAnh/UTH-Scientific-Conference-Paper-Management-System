@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using UTHConfMS.Infra.Data;
 
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();

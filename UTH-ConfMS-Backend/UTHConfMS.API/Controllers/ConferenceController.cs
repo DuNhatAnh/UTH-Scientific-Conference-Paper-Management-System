@@ -31,5 +31,52 @@ namespace UTHConfMS.API.Controllers
             await _context.SaveChangesAsync();
             return CreatedAtAction(nameof(GetConferences), new { id = conference.Id }, conference);
         }
+
+        // xoa
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteConference(int id)
+        {
+            var conference = await _context.Conferences.FindAsync(id);
+            if (conference == null)
+            {
+                return NotFound();
+            }
+
+            _context.Conferences.Remove(conference);
+            await _context.SaveChangesAsync();
+
+            return NoContent(); // thành công, trả về 204 (No Content)
+        }
+
+        // sửa
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateConference(int id, Conference conference)
+        {
+            if (id != conference.Id)
+            {
+                return BadRequest("ID không khớp!");
+            }
+
+            // Đánh dấu trạng thái đã sửa đổi
+            _context.Entry(conference).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!_context.Conferences.Any(e => e.Id == id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+            return NoContent(); 
+        }
     }
 }

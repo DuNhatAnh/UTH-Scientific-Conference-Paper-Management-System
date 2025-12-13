@@ -1,53 +1,41 @@
 export default function Home() {
   return (
-    <div className="bg-[#DFF4E5] min-h-screen">
+    <div style={{ padding: "40px", fontFamily: "Arial, sans-serif" }}>
       {/* Header */}
-      <header className="bg-white shadow-sm py-4 px-8 flex justify-between">
-        <h1 className="text-2xl font-bold text-[#4FAD62]">UTH-ConfMS</h1>
-        <nav className="flex gap-6 text-gray-700">
-          <a href="#">Home</a>
-          <a href="#">CFP</a>
-          <a href="#">Submit</a>
-          <a href="#">Committee</a>
-        </nav>
-        <button className="bg-[#4FAD62] text-white px-4 py-2 rounded-lg">
-          Đăng nhập
-        </button>
+      <header style={{ marginBottom: "40px" }}>
+        <h1>Hội nghị Khoa học UTH 2025</h1>
+        <p>
+          Hệ thống quản lý bài báo khoa học – Trường Đại học Giao thông Vận tải
+        </p>
       </header>
 
-      {/* Hero */}
-      <section className="text-center py-20">
-        <h2 className="text-4xl font-bold text-[#4FAD62]">
-          Hệ thống Quản lý Hội nghị Khoa học UTH
-        </h2>
-        <p className="text-gray-700 mt-4 max-w-2xl mx-auto">
-          Tích hợp toàn bộ quy trình hội nghị từ nộp bài đến xuất chương trình.
+      {/* Giới thiệu */}
+      <section style={{ marginBottom: "30px" }}>
+        <h2>Giới thiệu</h2>
+        <p>
+          Đây là cổng thông tin chính thức để nộp bài, phản biện và quản lý
+          các bài báo khoa học cho hội nghị UTH.
         </p>
-
-        <div className="mt-8 flex justify-center gap-4">
-          <button className="bg-[#4FAD62] text-white px-6 py-3 rounded-lg">
-            Xem CFP
-          </button>
-          <button className="bg-white text-[#4FAD62] border border-[#4FAD62] px-6 py-3 rounded-lg">
-            Nộp bài ngay
-          </button>
-        </div>
       </section>
 
-      {/* Workflow */}
-      <section className="bg-white py-16 px-8 rounded-t-3xl">
-        <h3 className="text-3xl font-semibold text-center text-[#4FAD62]">
-          Quy trình hội nghị
-        </h3>
+      {/* Thông tin quan trọng */}
+      <section style={{ marginBottom: "30px" }}>
+        <h2>Thông tin quan trọng</h2>
+        <ul>
+          <li>Hạn nộp bài: 30/03/2025</li>
+          <li>Thông báo kết quả: 20/04/2025</li>
+          <li>Ngày tổ chức hội nghị: 15/05/2025</li>
+        </ul>
+      </section>
 
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-4 mt-10">
-          {["CFP","Nộp bài","Phân công","Đánh giá","Quyết định","Camera-ready"]
-            .map((step, i) => (
-              <div key={i} className="p-4 bg-white border border-[#DFF4E5] rounded-xl text-center">
-                <p className="font-medium text-gray-700">{step}</p>
-              </div>
-          ))}
-        </div>
+      {/* Hành động */}
+      <section>
+        <button style={{ padding: "10px 20px", marginRight: "10px" }}>
+          Đăng nhập
+        </button>
+        <button style={{ padding: "10px 20px" }}>
+          Nộp bài báo
+        </button>
       </section>
     </div>
   );

@@ -9,6 +9,7 @@ namespace UTHConfMS.Infra.Data
             : base(options) { }
 
         public DbSet<User> Users { get; set; }
+        public DbSet<Author> Authors { get; set; }
         public DbSet<Conference> Conferences { get; set; }
         public DbSet<Paper> Papers { get; set; }
         public DbSet<Review> Reviews { get; set; }

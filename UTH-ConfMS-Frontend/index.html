@@ -1,339 +1,67 @@
+
 <!DOCTYPE html>
-<html lang="vi">
+<html class="light" lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trang chủ | UTH-ConfMS</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>UTH-ConfMS - Trang Chủ</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0056b3",
+                        "primary-hover": "#004494",
+                        "background-light": "#f8f9fa",
+                        "background-dark": "#1a1d21",
+                        "card-light": "#ffffff",
+                        "card-dark": "#212529",
+                        "text-main-light": "#212529",
+                        "text-main-dark": "#e9ecef",
+                        "text-sec-light": "#6c757d",
+                        "text-sec-dark": "#adb5bd",
+                        "border-light": "#dee2e6",
+                        "border-dark": "#343a40",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem", 
+                        "lg": "0.5rem", 
+                        "xl": "0.75rem", 
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
     <style>
-        :root {
-            --primary-uth: #002147; /* Xanh đậm truyền thống */
-            --secondary-uth: #f39c12; /* Vàng cam điểm nhấn */
-            --light-bg: #f8f9fa;
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
-
         body {
-            font-family: 'Roboto', sans-serif;
-            color: #333;
-        }
-
-        /* 1. Navbar */
-        .navbar-brand {
-            font-weight: 700;
-            color: var(--primary-uth) !important;
-        }
-
-        /* 2. Hero Section */
-        .hero-section {
-            background: linear-gradient(135deg, rgba(0, 33, 71, 0.95), rgba(0, 50, 100, 0.8)), 
-                        url('https://cdn.pixabay.com/photo/2015/07/17/22/43/student-849825_1280.jpg');
-            background-size: cover;
-            background-position: center;
-            color: white;
-            padding: 120px 0;
-        }
-
-        .btn-cta-primary {
-            background-color: var(--secondary-uth);
-            color: white;
-            padding: 10px 25px;
-            border-radius: 5px;
-            font-weight: 600;
-            text-decoration: none;
-            transition: 0.3s;
-        }
-
-        .btn-cta-primary:hover {
-            background-color: #d35400;
-            color: white;
-        }
-
-        /* 3. Workflow Steps */
-        .step-circle {
-            width: 60px;
-            height: 60px;
-            background-color: var(--primary-uth);
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            margin: 0 auto 15px;
-        }
-        
-        /* 4. Tech Stack Section */
-        .tech-badge {
-            font-size: 0.9rem;
-            padding: 8px 15px;
-            border-radius: 20px;
-            margin: 5px;
-        }
-        .bg-react { background-color: #61DAFB; color: #000; }
-        .bg-dotnet { background-color: #512BD4; color: #fff; }
-        .bg-postgres { background-color: #336791; color: #fff; }
-
-        /* General Utilities */
-        .section-title {
-            color: var(--primary-uth);
-            font-weight: 700;
-            margin-bottom: 40px;
-            text-transform: uppercase;
-            text-align: center;
-            position: relative;
-        }
-        
-        .section-title::after {
-            content: '';
-            width: 60px;
-            height: 3px;
-            background: var(--secondary-uth);
-            position: absolute;
-            bottom: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-
-        .role-card {
-            border: 1px solid #eee;
-            transition: 0.3s;
-        }
-        .role-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-            border-color: var(--secondary-uth);
+            font-family: 'Inter', sans-serif;
         }
     </style>
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+  }
+}
+</script>
 </head>
-<body>
-
-    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top">
-        <div class="container">
-            <a class="navbar-brand" href="#">
-                <i class="fa-solid fa-book-open-reader me-2"></i>UTH-ConfMS
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="mainNav">
-                <ul class="navbar-nav ms-auto align-items-center">
-                    <li class="nav-item"><a class="nav-link active" href="#">Trang chủ</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#cfp">Call for Papers</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#process">Quy trình</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#tech">Về dự án</a></li>
-                    <li class="nav-item ms-3">
-                        <a href="#" class="btn btn-outline-primary btn-sm">Đăng nhập</a>
-                        <a href="#" class="btn btn-primary btn-sm ms-2">Đăng ký</a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
-
-    <section class="hero-section text-center">
-        <div class="container">
-            <h1 class="display-4 fw-bold mb-3">UTH-ConfMS</h1>
-            <h2 class="h4 mb-4 fw-light">Hệ thống Quản lý Bài báo Hội nghị Khoa học</h2>
-            <p class="lead mb-5 mx-auto" style="max-width: 700px;">
-                Nền tảng hỗ trợ nộp bài, phản biện và quản lý toàn bộ quy trình hội nghị khoa học trực tuyến tại Trường Đại học Giao thông Vận tải TP.HCM.
-            </p>
-            <div class="d-flex justify-content-center gap-3">
-                <a href="#" class="btn-cta-primary"><i class="fa-solid fa-right-to-bracket"></i> Đăng nhập</a>
-                <a href="#cfp" class="btn btn-outline-light"><i class="fa-regular fa-file-lines"></i> Xem Call for Papers</a>
-            </div>
-        </div>
-    </section>
-
-    <section id="cfp" class="py-5">
-        <div class="container">
-            <h3 class="section-title">Thông tin Hội nghị & Mốc thời gian</h3>
-            <div class="row g-4 align-items-center">
-                <div class="col-md-7">
-                    <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body">
-                            <h4 class="fw-bold text-primary mb-3">Hội nghị Khoa học Công nghệ UTH 2025</h4>
-                            <p><strong>Lĩnh vực nghiên cứu:</strong> Công nghệ thông tin, Kỹ thuật xây dựng, Điện - Điện tử, Kinh tế vận tải.</p>
-                            <p><strong>Đối tượng tham gia:</strong> Giảng viên, Nghiên cứu sinh, Sinh viên và các nhà khoa học trong/ngoài trường.</p>
-                            <hr>
-                            <div class="alert alert-info">
-                                <i class="fa-solid fa-circle-info"></i> Hệ thống đang mở tiếp nhận bài báo cho phiên tháng 06/2025.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-5">
-                    <div class="list-group">
-                        <div class="list-group-item d-flex justify-content-between align-items-center bg-light">
-                            <strong><i class="fa-regular fa-calendar-check me-2"></i> Hạn nộp bài (Abstract)</strong>
-                            <span class="badge bg-danger rounded-pill">15/03/2025</span>
-                        </div>
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <span><i class="fa-solid fa-users-viewfinder me-2"></i> Hạn phản biện</span>
-                            <span>30/04/2025</span>
-                        </div>
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <span><i class="fa-solid fa-envelope-open-text me-2"></i> Thông báo kết quả</span>
-                            <span>15/05/2025</span>
-                        </div>
-                        <div class="list-group-item d-flex justify-content-between align-items-center">
-                            <span><i class="fa-solid fa-book me-2"></i> Xuất bản kỷ yếu</span>
-                            <span>01/06/2025</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section id="process" class="py-5 bg-light">
-        <div class="container">
-            <h3 class="section-title">Quy trình tham gia</h3>
-            <div class="row text-center mt-5">
-                <div class="col-md">
-                    <div class="step-circle"><i class="fa-solid fa-user-plus"></i></div>
-                    <h5 class="fw-bold">1. Đăng ký</h5>
-                    <p class="small text-muted">Tạo tài khoản tác giả trên hệ thống.</p>
-                </div>
-                <div class="col-md d-none d-md-block pt-3"><i class="fa-solid fa-arrow-right text-muted fa-2x"></i></div>
-                
-                <div class="col-md">
-                    <div class="step-circle"><i class="fa-solid fa-file-upload"></i></div>
-                    <h5 class="fw-bold">2. Nộp bài</h5>
-                    <p class="small text-muted">Upload file PDF theo mẫu quy định.</p>
-                </div>
-                <div class="col-md d-none d-md-block pt-3"><i class="fa-solid fa-arrow-right text-muted fa-2x"></i></div>
-                
-                <div class="col-md">
-                    <div class="step-circle"><i class="fa-solid fa-glasses"></i></div>
-                    <h5 class="fw-bold">3. Phản biện</h5>
-                    <p class="small text-muted">Bài báo được đánh giá kín bởi chuyên gia.</p>
-                </div>
-                <div class="col-md d-none d-md-block pt-3"><i class="fa-solid fa-arrow-right text-muted fa-2x"></i></div>
-                
-                <div class="col-md">
-                    <div class="step-circle"><i class="fa-solid fa-check-double"></i></div>
-                    <h5 class="fw-bold">4. Kết quả</h5>
-                    <p class="small text-muted">Nhận thông báo Chấp nhận hoặc Từ chối.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="py-5">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-6 mb-4">
-                    <h4 class="mb-4 fw-bold" style="color: var(--primary-uth)">Tính năng nổi bật</h4>
-                    <div class="row g-3">
-                        <div class="col-sm-6">
-                            <div class="d-flex align-items-start">
-                                <i class="fa-solid fa-cloud-arrow-up text-primary mt-1 me-2"></i>
-                                <div><strong>Nộp trực tuyến</strong><br><small>Hỗ trợ kéo thả, quản lý phiên bản.</small></div>
-                            </div>
-                        </div>
-                        <div class="col-sm-6">
-                            <div class="d-flex align-items-start">
-                                <i class="fa-solid fa-user-shield text-primary mt-1 me-2"></i>
-                                <div><strong>Phản biện kín</strong><br><small>Ẩn danh tính, tránh xung đột (COI).</small></div>
-                            </div>
-                        </div>
-                        <div class="col-sm-6">
-                            <div class="d-flex align-items-start">
-                                <i class="fa-solid fa-chart-pie text-primary mt-1 me-2"></i>
-                                <div><strong>Thống kê & Báo cáo</strong><br><small>Dashboard trực quan cho Admin.</small></div>
-                            </div>
-                        </div>
-                        <div class="col-sm-6">
-                            <div class="d-flex align-items-start">
-                                <i class="fa-solid fa-robot text-primary mt-1 me-2"></i>
-                                <div><strong>Hỗ trợ AI</strong><br><small>Gợi ý chỉnh sửa ngữ pháp cơ bản.</small></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="col-lg-6">
-                    <h4 class="mb-4 fw-bold" style="color: var(--primary-uth)">Đối tượng người dùng</h4>
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <div class="p-3 bg-white role-card text-center rounded">
-                                <i class="fa-solid fa-pen-nib text-secondary mb-2"></i>
-                                <h6 class="fw-bold">Tác giả (Author)</h6>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="p-3 bg-white role-card text-center rounded">
-                                <i class="fa-solid fa-magnifying-glass text-secondary mb-2"></i>
-                                <h6 class="fw-bold">Phản biện (Reviewer)</h6>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="p-3 bg-white role-card text-center rounded">
-                                <i class="fa-solid fa-gavel text-secondary mb-2"></i>
-                                <h6 class="fw-bold">Chủ tịch (Chair)</h6>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="p-3 bg-white role-card text-center rounded">
-                                <i class="fa-solid fa-user-gear text-secondary mb-2"></i>
-                                <h6 class="fw-bold">Quản trị (Admin)</h6>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section id="tech" class="py-5 bg-dark text-white">
-        <div class="container text-center">
-            <h3 class="mb-4">Thông tin Dự án & Công nghệ</h3>
-            <p class="mx-auto mb-4 text-white-50" style="max-width: 800px;">
-                Dự án được xây dựng với mục tiêu số hóa quy trình quản lý khoa học, phục vụ học tập môn "Phát triển Ứng dụng Web" và nghiên cứu triển khai tại UTH.
-            </p>
-            <div class="d-flex justify-content-center flex-wrap">
-                <span class="badge tech-badge bg-react"><i class="fa-brands fa-react"></i> Frontend: ReactJS</span>
-                <span class="badge tech-badge bg-dotnet"><i class="fa-brands fa-microsoft"></i> Backend: C# .NET Core</span>
-                <span class="badge tech-badge bg-postgres"><i class="fa-solid fa-database"></i> DB: PostgreSQL</span>
-                <span class="badge tech-badge bg-secondary"><i class="fa-brands fa-docker"></i> Docker</span>
-            </div>
-        </div>
-    </section>
-
-    <footer class="bg-light pt-5 pb-3 border-top">
-        <div class="container">
-            <div class="row">
-                <div class="col-md-5 mb-4">
-                    <h5 class="fw-bold text-uppercase" style="color: var(--primary-uth);">Trường ĐH Giao thông Vận tải TP.HCM</h5>
-                    <p class="small text-muted">Hệ thống UTH-ConfMS hỗ trợ công tác quản lý, lưu trữ và xuất bản các công trình nghiên cứu khoa học của cán bộ, giảng viên và sinh viên.</p>
-                </div>
-                <div class="col-md-3 mb-4">
-                    <h5 class="fw-bold">Liên kết</h5>
-                    <ul class="list-unstyled small">
-                        <li><a href="#" class="text-decoration-none text-secondary">Trang chủ</a></li>
-                        <li><a href="#" class="text-decoration-none text-secondary">Hướng dẫn sử dụng</a></li>
-                        <li><a href="#" class="text-decoration-none text-secondary">Câu hỏi thường gặp (FAQ)</a></li>
-                    </ul>
-                </div>
-                <div class="col-md-4 mb-4">
-                    <h5 class="fw-bold">Liên hệ</h5>
-                    <ul class="list-unstyled small text-muted">
-                        <li><i class="fa-solid fa-location-dot me-2"></i> Số 2, Võ Oanh, P.25, Q. Bình Thạnh, TP.HCM</li>
-                        <li><i class="fa-solid fa-envelope me-2"></i> conf-support@uth.edu.vn</li>
-                        <li><i class="fa-brands fa-github me-2"></i> <a href="#" class="text-secondary">github.com/anh-uth/confms</a></li>
-                    </ul>
-                </div>
-            </div>
-            <hr>
-            <div class="text-center small text-muted">
-                &copy; 2025 Developed by Anh (UTH Student). All rights reserved.
-            </div>
-        </div>
-    </footer>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<body class="font-display bg-background-light dark:bg-background-dark text-text-main-light dark:text-text-main-dark transition-colors duration-200">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using UTHConfMS.Infra.Data;
 using UTHConfMS.Core.Entities;
+using UTHConfMS.Core.Interfaces;
 
 namespace UTHConfMS.API.Controllers
 {
@@ -9,74 +9,74 @@ namespace UTHConfMS.API.Controllers
     [ApiController]
     public class ConferenceController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IConferenceService _service;
 
-        public ConferenceController(AppDbContext context)
+        public ConferenceController(IConferenceService service)
         {
-            _context = context;
+            _service = service;
         }
 
         // lấy
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Conference>>> GetConferences()
         {
-            return await _context.Conferences.ToListAsync();
+            var list = await _service.GetAllConferencesAsync();
+            return Ok(list);
         }
-
-        // thêm
-        [HttpPost]
-        public async Task<ActionResult<Conference>> CreateConference(Conference conference)
+    
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Conference>> GetConference(int id)
         {
-            _context.Conferences.Add(conference);
-            await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(GetConferences), new { id = conference.Id }, conference);
-        }
-
-        // xoa
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteConference(int id)
-        {
-            var conference = await _context.Conferences.FindAsync(id);
+            var conference = await _service.GetConferenceByIdAsync(id);
             if (conference == null)
             {
                 return NotFound();
             }
-
-            _context.Conferences.Remove(conference);
-            await _context.SaveChangesAsync();
-
-            return NoContent(); // thành công, trả về 204 (No Content)
+            return Ok(conference);
+        }
+        
+        // thêm
+        [HttpPost]
+        public async Task<ActionResult<Conference>> CreateConference(Conference conference)
+        {
+            var (isSuccess, errorMessage, data) = await _service.CreateConferenceAsync(conference);
+            if (!isSuccess)
+            {
+                return BadRequest(errorMessage);
+            }
+            if (data == null)
+            {
+                return BadRequest("Failed to create conference.");
+            }
+            return CreatedAtAction(nameof(GetConferences), new { id = data.Id }, data);
         }
 
         // sửa
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateConference(int id, Conference conference)
         {
-            if (id != conference.Id)
+            var result = await _service.UpdateConferenceAsync(id, conference);
+
+            if (!result.IsSuccess)
             {
-                return BadRequest("ID không khớp!");
+                return BadRequest(new { message = result.ErrorMessage });
             }
 
-            // Đánh dấu trạng thái đã sửa đổi
-            _context.Entry(conference).State = EntityState.Modified;
+            return NoContent();
+        }
 
-            try
+        // xóa
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteConference(int id)
+        {
+            var result = await _service.DeleteConferenceAsync(id);
+
+            if (!result.IsSuccess)
             {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!_context.Conferences.Any(e => e.Id == id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+                return BadRequest(new { message = result.ErrorMessage });
             }
 
-            return NoContent(); 
+            return NoContent(); // thành công, trả về 204 (No Content)
         }
     }
 }

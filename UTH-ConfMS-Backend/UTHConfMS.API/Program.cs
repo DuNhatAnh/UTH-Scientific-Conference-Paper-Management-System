@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using UTHConfMS.Infra.Data;
+using UTHConfMS.Core.Interfaces;
+using UTHConfMS.Infra.Services;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -22,6 +24,8 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader()
               .AllowAnyMethod());
 });
+
+builder.Services.AddScoped<IConferenceService, ConferenceService>();
 
 var app = builder.Build();
 

@@ -1,71 +1,61 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using BCrypt.Net;
 using UTHConfMS.Infra.Data;
 using UTHConfMS.Core.Entities;
+using UTHConfMS.Core.DTOs;
 
 namespace UTHConfMS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class AuthorController : ControllerBase
+    public class AuthController : ControllerBase
     {
         private readonly AppDbContext _context;
 
-        public AuthorController(AppDbContext context)
+        public AuthController(AppDbContext context)
         {
             _context = context;
         }
 
-        // GET: api/Author
-        [HttpGet]
-        public async Task<IActionResult> GetAuthors()
+        // POST: api/Auth/register
+        [HttpPost("register")]
+        public async Task<IActionResult> Register(RegisterDTO dto)
         {
-            return Ok(await _context.Authors.ToListAsync());
-        }
+            if (await _context.Users.AnyAsync(x => x.Email == dto.Email))
+                return BadRequest("Email already exists");
 
-        // GET: api/Author/{id}
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetAuthor(int id)
-        {
-            var author = await _context.Authors.FindAsync(id);
-            if (author == null)
-                return NotFound();
+            var user = new User
+            {
+                Email = dto.Email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password)
+            };
 
-            return Ok(author);
-        }
-
-        // POST: api/Author
-        [HttpPost]
-        public async Task<IActionResult> CreateAuthor(Author author)
-        {
-            _context.Authors.Add(author);
+            _context.Users.Add(user);
             await _context.SaveChangesAsync();
-            return Ok(author);
+
+            return Ok("Register success");
         }
 
-        // PUT: api/Author/{id}
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateAuthor(int id, Author author)
+        // POST: api/Auth/login
+        [HttpPost("login")]
+        public async Task<IActionResult> Login(LoginDTO dto)
         {
-            if (id != author.Id)
-                return BadRequest();
+            var user = await _context.Users
+                .FirstOrDefaultAsync(x => x.Email == dto.Email);
 
-            _context.Entry(author).State = EntityState.Modified;
-            await _context.SaveChangesAsync();
-            return NoContent();
-        }
+            if (user == null)
+                return Unauthorized("Invalid email");
 
-        // DELETE: api/Author/{id}
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteAuthor(int id)
-        {
-            var author = await _context.Authors.FindAsync(id);
-            if (author == null)
-                return NotFound();
+            if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
+                return Unauthorized("Invalid password");
 
-            _context.Authors.Remove(author);
-            await _context.SaveChangesAsync();
-            return NoContent();
+            return Ok(new
+            {
+                user.Id,
+                user.Email,
+                user.Role
+            });
         }
     }
 }

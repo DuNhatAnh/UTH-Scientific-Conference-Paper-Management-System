@@ -7,37 +7,54 @@ AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 var builder = WebApplication.CreateBuilder(args);
 
+// =====================
+// SERVICES
+// =====================
 builder.Services.AddControllers();
 
-// CẤU HÌNH SWAGGER
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// 2. CẤU HÌNH DATABASE
+// DATABASE
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// CORS (React)
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowReactApp",
-        b => b.WithOrigins("http://localhost:3000")
+    options.AddPolicy("AllowReactApp", policy =>
+        policy.WithOrigins("http://localhost:3000")
               .AllowAnyHeader()
               .AllowAnyMethod());
 });
 
+// DI
 builder.Services.AddScoped<IConferenceService, ConferenceService>();
+
+// (CHUẨN BỊ CHO LOGIN / JWT – dù chưa dùng token)
+builder.Services.AddAuthentication();
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+// =====================
+// MIDDLEWARE
+// =====================
 app.UseCors("AllowReactApp");
 
-// Tự động tạo Database khi chạy (Migration)
+app.UseHttpsRedirection();
+
+// 🔥 QUAN TRỌNG
+app.UseAuthentication();
+app.UseAuthorization();
+
+// AUTO MIGRATION
 using (var scope = app.Services.CreateScope())
 {
-    var services = scope.ServiceProvider;
     try
     {
-        var context = services.GetRequiredService<AppDbContext>();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         context.Database.Migrate();
         Console.WriteLine("--> Database Migration Successful!");
     }
@@ -47,13 +64,12 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+// SWAGGER
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-app.UseAuthorization();
 
 app.MapControllers();
 

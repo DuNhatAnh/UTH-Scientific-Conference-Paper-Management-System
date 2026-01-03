@@ -1,9 +1,6 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using BCrypt.Net;
-using UTHConfMS.Infra.Data;
-using UTHConfMS.Core.Entities;
+﻿using Microsoft.AspNetCore.Mvc;
 using UTHConfMS.Core.DTOs;
+using UTHConfMS.Core.Interfaces;
 
 namespace UTHConfMS.API.Controllers
 {
@@ -11,50 +8,45 @@ namespace UTHConfMS.API.Controllers
     [ApiController]
     public class AuthController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IAuthService _authService;
 
-        public AuthController(AppDbContext context)
+        public AuthController(IAuthService authService)
         {
-            _context = context;
+            _authService = authService;
         }
 
-        // POST: api/Auth/register
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterDTO dto)
         {
-            if (await _context.Users.AnyAsync(x => x.Email == dto.Email))
-                return BadRequest("Email already exists");
+            var result = await _authService.RegisterAsync(dto);
 
-            var user = new User
+            if (!result.IsSuccess)
             {
-                Email = dto.Email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password)
-            };
-
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-
-            return Ok("Register success");
-        }
-
-        // POST: api/Auth/login
-        [HttpPost("login")]
-        public async Task<IActionResult> Login(LoginDTO dto)
-        {
-            var user = await _context.Users
-                .FirstOrDefaultAsync(x => x.Email == dto.Email);
-
-            if (user == null)
-                return Unauthorized("Invalid email");
-
-            if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
-                return Unauthorized("Invalid password");
+                return BadRequest(new { message = result.ErrorMessage });
+            }
 
             return Ok(new
             {
-                user.Id,
-                user.Email,
-                user.Role
+                message = "Đăng ký thành công!",
+                userId = result.User?.Id,
+                email = result.User?.Email
+            });
+        }
+
+        [HttpPost("login")]
+        public async Task<IActionResult> Login(LoginDTO dto)
+        {
+            var result = await _authService.LoginAsync(dto);
+
+            if (!result.IsSuccess)
+            {
+                return Unauthorized(new { message = result.ErrorMessage });
+            }
+
+            return Ok(new
+            {
+                message = "Đăng nhập thành công!",
+                token = result.Token // Trả về token JWT cho Frontend sử dụng
             });
         }
     }

@@ -12,10 +12,13 @@ namespace UTHConfMS.Core.Entities
 
         [Column("name")]
         [Required]
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
 
         [Column("description")]
         public string? Description { get; set; }
+
+        [Column("topic_keywords")]
+        public string? TopicKeywords { get; set; }
 
         [Column("start_date")]
         public DateTime? StartDate { get; set; }
@@ -27,7 +30,7 @@ namespace UTHConfMS.Core.Entities
         public bool AiEnabled { get; set; }
 
         // Navigation
-        public Deadline Deadline { get; set; }
-        public ICollection<Track> Tracks { get; set; }
+        public Deadline? Deadline { get; set; }
+        public ICollection<Track> Tracks { get; set; } = new List<Track>();
     }
 }

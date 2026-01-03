@@ -24,10 +24,10 @@ namespace UTHConfMS.Core.Entities
 
         // Navigation
         [ForeignKey("TrackId")]
-        public Track Track { get; set; }
-        public ICollection<PaperAuthor> Authors { get; set; }
-        public ICollection<Assignment> Assignments { get; set; }
-        public Rebuttal Rebuttal { get; set; }
-        public Decision Decision { get; set; }
+        public Track? Track { get; set; }
+        public ICollection<PaperAuthor> Authors { get; set; } = new List<PaperAuthor>();
+        public ICollection<Assignment> Assignments { get; set; } = new List<Assignment>();
+        public Rebuttal? Rebuttal { get; set; }
+        public Decision? Decision { get; set; }
     }
 }

@@ -24,6 +24,6 @@ namespace UTHConfMS.Core.Entities
 
         // Navigation
         [ForeignKey("ConfId")]
-        public Conference Conference { get; set; }
+        public Conference? Conference { get; set; }
     }
 }

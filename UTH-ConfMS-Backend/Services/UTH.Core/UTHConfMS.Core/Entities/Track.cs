@@ -15,14 +15,14 @@ namespace UTHConfMS.Core.Entities
 
         [Column("name")]
         [Required]
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
 
         [Column("topic_keywords")]
         public string? TopicKeywords { get; set; }
 
         // Navigation
         [ForeignKey("ConfId")]
-        public Conference Conference { get; set; }
-        public ICollection<Paper> Papers { get; set; }
+        public Conference? Conference { get; set; } 
+        public ICollection<Paper> Papers { get; set; } = new List<Paper>();
     }
 }

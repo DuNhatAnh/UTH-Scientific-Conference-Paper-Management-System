@@ -27,6 +27,6 @@ namespace UTHConfMS.Core.Entities
 
         // Navigation
         [ForeignKey("AssignmentId")]
-        public Assignment Assignment { get; set; }
+        public Assignment? Assignment { get; set; }
     }
 }

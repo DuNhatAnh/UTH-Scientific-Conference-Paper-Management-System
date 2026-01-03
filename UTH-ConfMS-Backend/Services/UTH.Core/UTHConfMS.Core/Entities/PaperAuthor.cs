@@ -19,9 +19,9 @@ namespace UTHConfMS.Core.Entities
 
         // Navigation
         [ForeignKey("PaperId")]
-        public Paper Paper { get; set; }
+        public Paper? Paper { get; set; }
 
         [ForeignKey("UserId")]
-        public User User { get; set; }
+        public User? User { get; set; }
     }
 }

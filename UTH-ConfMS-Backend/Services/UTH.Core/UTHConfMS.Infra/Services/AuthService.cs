@@ -61,14 +61,14 @@ namespace UTHConfMS.Infra.Services
 			var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
 			if (user == null)
 			{
-				return (false, "Email không tồn tại!", "");
+				return (false, "", "Email không tồn tại!");
 			}
 
 			// 2. Kiểm tra Mật khẩu
 			bool isPasswordValid = BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash);
 			if (!isPasswordValid)
 			{
-				return (false, "Sai mật khẩu!", "");
+				return (false, "", "Sai mật khẩu!");
 			}
 
 			// 3. Tạo Token (Cấp vòng tay)

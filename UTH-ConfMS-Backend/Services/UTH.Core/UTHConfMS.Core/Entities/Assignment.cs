@@ -27,11 +27,11 @@ namespace UTHConfMS.Core.Entities
 
         // Navigation
         [ForeignKey("PaperId")]
-        public Paper Paper { get; set; }
+        public Paper? Paper { get; set; }
 
         [ForeignKey("ReviewerId")]
-        public User Reviewer { get; set; } // Map về bảng Users
+        public User? Reviewer { get; set; } // Map về bảng Users
 
-        public Review Review { get; set; }
+        public Review? Review { get; set; }
     }
 }

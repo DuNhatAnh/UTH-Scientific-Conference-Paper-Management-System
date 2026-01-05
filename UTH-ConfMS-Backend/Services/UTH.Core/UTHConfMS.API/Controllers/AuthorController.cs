@@ -1,8 +1,7 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using UTHConfMS.Infra.Data;
 using UTHConfMS.Core.Entities;
-using UTHConfMS.Core.DTOs;
+using UTHConfMS.Infra.Data;
 
 namespace UTHConfMS.API.Controllers
 {
@@ -18,67 +17,92 @@ namespace UTHConfMS.API.Controllers
         }
 
         // GET: api/Author
+        // Lấy danh sách tất cả các Tác giả
         [HttpGet]
-        public async Task<IActionResult> GetAuthors()
+        public async Task<ActionResult<IEnumerable<User>>> GetAuthors()
         {
-            return Ok(await _context.Authors.ToListAsync());
+            return await _context.Users
+                .Where(u => u.Role == "Author")
+                .ToListAsync();
         }
 
-        // GET: api/Author/{id}
+        // GET: api/Author/5
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetAuthor(int id)
+        public async Task<ActionResult<User>> GetAuthor(int id)
         {
-            var author = await _context.Authors.FindAsync(id);
-            if (author == null)
-                return NotFound();
+            var author = await _context.Users.FindAsync(id);
 
-            return Ok(author);
+            if (author == null)
+            {
+                return NotFound();
+            }
+
+            return author;
         }
 
         // POST: api/Author
+        // Tạo tác giả mới
         [HttpPost]
-        public async Task<IActionResult> CreateAuthor(AuthorDTO dto)
+        public async Task<ActionResult<User>> CreateAuthor(User author)
         {
-            var author = new Author
-            {
-                FullName = dto.FullName,
-                Email = dto.Email,
-                Affiliation = dto.Affiliation
-            };
+            // Ép Role là Author
+            author.Role = "Author";
 
-            _context.Authors.Add(author);
+            _context.Users.Add(author);
             await _context.SaveChangesAsync();
 
-            return Ok(author);
+            return CreatedAtAction("GetAuthor", new { id = author.Id }, author);
         }
 
-        // PUT: api/Author/{id}
+        // PUT: api/Author/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateAuthor(int id, AuthorDTO dto)
+        public async Task<IActionResult> UpdateAuthor(int id, User author)
         {
-            var author = await _context.Authors.FindAsync(id);
-            if (author == null)
-                return NotFound();
+            if (id != author.Id)
+            {
+                return BadRequest();
+            }
 
-            author.FullName = dto.FullName;
-            author.Email = dto.Email;
-            author.Affiliation = dto.Affiliation;
+            _context.Entry(author).State = EntityState.Modified;
 
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!AuthorExists(id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
             return NoContent();
         }
 
-        // DELETE: api/Author/{id}
+        // DELETE: api/Author/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAuthor(int id)
         {
-            var author = await _context.Authors.FindAsync(id);
+            var author = await _context.Users.FindAsync(id);
             if (author == null)
+            {
                 return NotFound();
+            }
 
-            _context.Authors.Remove(author);
+            _context.Users.Remove(author);
             await _context.SaveChangesAsync();
+
             return NoContent();
-        }   
+        }
+
+        private bool AuthorExists(int id)
+        {
+            return _context.Users.Any(e => e.Id == id);
+        }
     }
 }

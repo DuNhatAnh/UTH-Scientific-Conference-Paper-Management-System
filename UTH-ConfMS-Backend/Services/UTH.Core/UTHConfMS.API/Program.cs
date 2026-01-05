@@ -36,6 +36,7 @@ builder.Services.AddCors(options =>
 // DI
 builder.Services.AddScoped<IConferenceService, ConferenceService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IPaperService, PaperService>();
 
 // 1. CẤU HÌNH AUTHENTICATION (Đặt trước builder.Build)
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");

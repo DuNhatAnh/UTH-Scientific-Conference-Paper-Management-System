@@ -22,6 +22,9 @@ namespace UTHConfMS.Core.Entities
         [Column("status")]
         public string? Status { get; set; }
 
+        [Column("file_path")]
+        public string? FilePath { get; set; }
+
         // Navigation
         [ForeignKey("TrackId")]
         public Track? Track { get; set; }

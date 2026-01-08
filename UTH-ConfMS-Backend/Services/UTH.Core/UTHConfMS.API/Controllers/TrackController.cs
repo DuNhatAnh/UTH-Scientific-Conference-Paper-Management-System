@@ -5,7 +5,7 @@ using UTHConfMS.Core.Interfaces;
 
 namespace UTHConfMS.API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/tracks")]
     [ApiController]
     public class TrackController : ControllerBase
     {

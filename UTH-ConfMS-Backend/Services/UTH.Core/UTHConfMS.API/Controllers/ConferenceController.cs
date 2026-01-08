@@ -7,7 +7,7 @@ using UTHConfMS.Core.Interfaces;
 
 namespace UTHConfMS.API.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/conferences")]
     [ApiController]
     public class ConferenceController : ControllerBase
     {

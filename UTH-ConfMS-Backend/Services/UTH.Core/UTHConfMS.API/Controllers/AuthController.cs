@@ -46,7 +46,7 @@ namespace UTHConfMS.API.Controllers
             return Ok(new
             {
                 message = "Đăng nhập thành công!",
-                token = result.Token // Trả về token JWT cho Frontend sử dụng
+                token = result.Token // Trả về token JWT cho Frontend sử dụng 
             });
         }
     }

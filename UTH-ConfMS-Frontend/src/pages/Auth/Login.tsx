@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ViewState } from '../../App';
 import { useAuth } from '../../contexts/AuthContext';
-import { authApi } from '../../services/api';
+import { authApi } from '../../services/authApi';
 import { jwtDecode } from 'jwt-decode';
 
 interface LoginProps {
@@ -11,7 +11,6 @@ interface LoginProps {
 export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
   const { login } = useAuth();
   
-  // State để lưu dữ liệu nhập và lỗi
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
@@ -21,7 +20,7 @@ export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
         ...formData,
         [e.target.id]: e.target.value
     });
-    setError(''); // Xóa lỗi khi người dùng nhập lại
+    setError('');
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -33,37 +32,35 @@ export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
           // 1. Gọi API Backend
           const response = await authApi.login(formData);
           
-          // --- PHẦN SỬA ĐỔI QUAN TRỌNG ---
-          // Backend trả về cấu trúc: { success: true, message: "...", data: { accessToken: "...", ... } }
-          const resBody = response.data;
+          // Dữ liệu thực tế trả về từ axios interceptor hoặc authApi
+          // authApi trả về response.data (tức là ApiResponse<LoginResponse>)
+          const resBody = response; 
 
-          // Kiểm tra xem request có thành công logic không (dựa vào field success của BE)
-          if (!resBody.success) {
+          if (!resBody.success || !resBody.data) {
              throw new Error(resBody.message || 'Đăng nhập không thành công');
           }
 
-          // Lấy token từ bên trong object 'data'. 
-          // Lưu ý: C# trả về JSON thường là camelCase (accessToken) nhưng ta cứ check cả 2 cho chắc
-          const token = resBody.data?.accessToken || resBody.data?.AccessToken;
+          // 2. Lấy token
+          const token = resBody.data.accessToken; 
 
           if (!token) {
-             throw new Error('Không tìm thấy token trong phản hồi từ server');
+             throw new Error('Không tìm thấy token hợp lệ từ server');
           }
-          // --------------------------------
 
-          // 3. Cập nhật Context
+          // 3. Cập nhật Context (Lưu token vào state chung)
           login(token);
 
-          // 4. Xử lý điều hướng dựa trên Role
+          // 4. Giải mã Token để điều hướng (Routing)
           const decoded: any = jwtDecode(token);
           
+          // Lấy role từ token (.NET identity claims)
           const rawRole = decoded.role || 
                           decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || 
                           '';
           
           const upperRole = rawRole.toString().toUpperCase();
 
-          // Logic điều hướng (Routing)
+          // Logic điều hướng dựa trên Role trong Token
           if (upperRole.includes('ADMIN')) {
               onNavigate('admin-dashboard');
           } else if (upperRole.includes('CHAIR')) {
@@ -76,7 +73,6 @@ export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
           
       } catch (err: any) {
           console.error("Login Error:", err);
-          // Ưu tiên lấy message từ response lỗi của server, hoặc message của Error object
           const msg = err.response?.data?.message || err.message || 'Đăng nhập thất bại. Vui lòng thử lại.';
           setError(msg);
       } finally {
@@ -101,7 +97,6 @@ export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
         <div className="px-8 pb-8">
             <form className="flex flex-col gap-5" onSubmit={handleLogin}>
                 
-                {/* Hiển thị lỗi nếu có */}
                 {error && (
                     <div className="p-3 text-sm text-red-600 bg-red-100 rounded-lg dark:bg-red-900/30 dark:text-red-400">
                         {error}

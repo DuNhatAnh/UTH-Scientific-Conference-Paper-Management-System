@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { ViewState } from '../../App';
-// import { useAuth } from '../../contexts/AuthContext'; // Không cần dùng useAuth ở đây nữa vì đăng ký xong phải login lại
-import { authApi } from '../../services/api'; // Đảm bảo bạn đã thêm register vào api.ts như hướng dẫn trước
+import { authApi } from '../../services/authApi';
 
 interface RegisterProps {
   onNavigate: (view: ViewState) => void;
@@ -18,12 +17,13 @@ export const Register: React.FC<RegisterProps> = ({ onNavigate }) => {
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(''); // Thêm state thông báo thành công
 
   // Hàm xử lý khi nhập liệu
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       setFormData({
           ...formData,
-          [e.target.id]: e.target.value // id của input phải trùng với key trong state (fullName, email...)
+          [e.target.id]: e.target.value
       });
       setError(''); // Xóa lỗi khi nhập lại
   };
@@ -32,6 +32,7 @@ export const Register: React.FC<RegisterProps> = ({ onNavigate }) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    setSuccess('');
 
     // 2. Validate phía Client
     if (formData.password !== formData.confirmPassword) {
@@ -40,24 +41,38 @@ export const Register: React.FC<RegisterProps> = ({ onNavigate }) => {
         return;
     }
 
+    if (formData.password.length < 6) {
+        setError('Mật khẩu phải có ít nhất 6 ký tự!');
+        setIsLoading(false);
+        return;
+    }
+
     try {
         // 3. Gọi API thật xuống Backend
-        // Backend mong đợi: { fullName, email, password }
         const payload = {
             fullName: formData.fullName,
             email: formData.email,
             password: formData.password
         };
 
-        await authApi.register(payload);
+        const response = await authApi.register(payload);
 
-        // 4. Thành công -> Chuyển sang trang Login
-        alert('Đăng ký thành công! Vui lòng đăng nhập.');
-        onNavigate('login');
+        // 4. Kiểm tra phản hồi từ Server
+        if (response.success) {
+            setSuccess('Đăng ký thành công! Đang chuyển hướng đến trang đăng nhập...');
+            
+            // Đợi 2 giây cho người dùng đọc thông báo rồi mới chuyển trang
+            setTimeout(() => {
+                onNavigate('login');
+            }, 2000);
+        } else {
+            setError(response.message || 'Đăng ký thất bại. Vui lòng thử lại.');
+        }
 
     } catch (err: any) {
         // 5. Xử lý lỗi từ Backend (ví dụ: Email trùng)
-        const msg = err.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại.';
+        console.error("Register Error:", err);
+        const msg = err.response?.data?.message || err.message || 'Đăng ký thất bại. Vui lòng kiểm tra lại kết nối.';
         setError(msg);
     } finally {
         setIsLoading(false);
@@ -70,7 +85,6 @@ export const Register: React.FC<RegisterProps> = ({ onNavigate }) => {
         
         {/* Header */}
         <div className="px-8 pt-8 pb-6 text-center">
-            {/* Logo SVG giữ nguyên */}
             <div className="size-12 text-primary mx-auto mb-4">
                 <svg className="w-full h-full" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
                 <path d="M24 4C12.95 4 4 12.95 4 24C4 35.05 12.95 44 24 44C35.05 44 44 35.05 44 24C44 12.95 35.05 4 24 4ZM14 32C14 30.9 14.9 30 16 30H32C33.1 30 34 30.9 34 32V34H14V32ZM24 26C21.79 26 20 24.21 20 22C20 19.79 21.79 18 24 18C26.21 18 28 19.79 28 22C28 24.21 26.21 26 24 26ZM34 16H14V14H34V16Z" fill="currentColor"></path>
@@ -84,10 +98,17 @@ export const Register: React.FC<RegisterProps> = ({ onNavigate }) => {
         <div className="px-8 pb-8">
             <form className="flex flex-col gap-4" onSubmit={handleRegister}>
                 
-                {/* Hiển thị lỗi nếu có */}
+                {/* Hiển thị lỗi màu đỏ */}
                 {error && (
                     <div className="p-3 text-sm text-red-600 bg-red-100 rounded-lg dark:bg-red-900/30 dark:text-red-400">
                         {error}
+                    </div>
+                )}
+
+                {/* Hiển thị thành công màu xanh */}
+                {success && (
+                    <div className="p-3 text-sm text-green-600 bg-green-100 rounded-lg dark:bg-green-900/30 dark:text-green-400">
+                        {success}
                     </div>
                 )}
 
@@ -98,7 +119,7 @@ export const Register: React.FC<RegisterProps> = ({ onNavigate }) => {
                             <span className="material-symbols-outlined text-[20px]">person</span>
                         </span>
                         <input 
-                            id="fullName" // Quan trọng: Phải khớp tên field trong state formData
+                            id="fullName" 
                             type="text" 
                             value={formData.fullName}
                             onChange={handleChange}
@@ -152,7 +173,7 @@ export const Register: React.FC<RegisterProps> = ({ onNavigate }) => {
                             <span className="material-symbols-outlined text-[20px]">lock_reset</span>
                         </span>
                         <input 
-                            id="confirmPassword" // Quan trọng: Khớp state
+                            id="confirmPassword" 
                             type="password" 
                             value={formData.confirmPassword}
                             onChange={handleChange}

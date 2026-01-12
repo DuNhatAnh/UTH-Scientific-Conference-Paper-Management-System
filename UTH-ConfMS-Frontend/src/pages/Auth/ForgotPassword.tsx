@@ -1,6 +1,6 @@
-
 import React, { useState } from 'react';
 import { ViewState } from '../../App';
+import { authApi } from '../../services/authApi';
 
 interface ForgotPasswordProps {
   onNavigate: (view: ViewState) => void;
@@ -10,16 +10,31 @@ export const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onNavigate }) =>
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(''); // Thêm state lỗi
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    // Simulate API delay
-    setTimeout(() => {
+    setError('');
+
+    try {
+      // Gọi API thật thay vì setTimeout
+      const response = await authApi.forgotPassword(email);
+
+      // Kiểm tra kết quả từ server
+      if (response.success) {
+        setIsSubmitted(true);
+      } else {
+        setError(response.message || 'Không thể gửi yêu cầu. Vui lòng thử lại.');
+      }
+    } catch (err: any) {
+      console.error("Forgot Password Error:", err);
+      // Lấy thông báo lỗi từ server (nếu có)
+      const msg = err.response?.data?.message || 'Có lỗi xảy ra. Vui lòng kiểm tra lại email.';
+      setError(msg);
+    } finally {
       setIsLoading(false);
-      setIsSubmitted(true);
-    }, 1500);
+    }
   };
 
   return (
@@ -39,6 +54,14 @@ export const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onNavigate }) =>
         <div className="px-8 pb-8">
             {!isSubmitted ? (
                 <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
+                    
+                    {/* Hiển thị lỗi nếu có */}
+                    {error && (
+                        <div className="p-3 text-sm text-red-600 bg-red-100 rounded-lg dark:bg-red-900/30 dark:text-red-400">
+                            {error}
+                        </div>
+                    )}
+
                     <div className="flex flex-col gap-1.5">
                         <label className="text-sm font-semibold text-text-main-light dark:text-text-main-dark" htmlFor="email">Email tài khoản</label>
                         <div className="relative">
@@ -49,7 +72,10 @@ export const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onNavigate }) =>
                                 id="email"
                                 type="email" 
                                 value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                onChange={(e) => {
+                                    setEmail(e.target.value);
+                                    setError(''); // Xóa lỗi khi người dùng nhập lại
+                                }}
                                 className="w-full h-11 pl-10 pr-4 rounded-lg border border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark text-text-main-light dark:text-text-main-dark text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                                 placeholder="example@gmail.com"
                                 required
@@ -60,7 +86,7 @@ export const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onNavigate }) =>
                     <button 
                         type="submit"
                         disabled={isLoading}
-                        className="w-full h-11 rounded-lg bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md hover:shadow-lg transition-all mt-2 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className={`w-full h-11 rounded-lg bg-primary text-white font-bold text-sm shadow-md transition-all mt-2 flex items-center justify-center gap-2 ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-hover hover:shadow-lg'}`}
                     >
                         {isLoading ? (
                             <>
@@ -87,7 +113,7 @@ export const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onNavigate }) =>
                     <div className="text-center space-y-2">
                         <h3 className="font-bold text-lg">Yêu cầu đã được gửi!</h3>
                         <p className="text-sm text-text-sec-light dark:text-text-sec-dark leading-relaxed">
-                            Mật khẩu mới đã được gửi về email <span className="font-bold text-text-main-light dark:text-text-main-dark">{email}</span>. Vui lòng kiểm tra hộp thư đến hoặc thư rác (Spam).
+                            Mật khẩu mới (hoặc link reset) đã được gửi về email <span className="font-bold text-text-main-light dark:text-text-main-dark">{email}</span>. Vui lòng kiểm tra hộp thư đến hoặc thư rác (Spam).
                         </p>
                     </div>
                     <button 

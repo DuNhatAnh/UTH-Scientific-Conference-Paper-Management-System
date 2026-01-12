@@ -8,10 +8,10 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using Identity.Service.Data;
 using Identity.Service.Services;
-// using Identity.Service.Validators; // TODO: Add validators
+using Identity.Service.Validators; // TODO: Add validators
 using Identity.Service.Interfaces;
-// using Identity.Service.Interfaces.Repositories; // TODO: Add interface repositories
-// using Identity.Service.Interfaces.Services; // TODO: Add interface services
+using Identity.Service.Interfaces.Repositories; // TODO: Add interface repositories
+using Identity.Service.Interfaces.Services; // TODO: Add interface services
 using Identity.Service.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -114,13 +114,13 @@ builder.Services.AddCors(options =>
 });
 
 // Register Application Services
-// builder.Services.AddScoped<IUnitOfWork, Identity.Service.Repositories.UnitOfWork>(); // TODO: Implement UnitOfWork
+builder.Services.AddScoped<IUnitOfWork, Identity.Service.Repositories.UnitOfWork>(); // TODO: Implement UnitOfWork
 builder.Services.AddScoped<IUserRepository, Identity.Service.Repositories.UserRepository>();
-// builder.Services.AddScoped<IRefreshTokenRepository, Identity.Service.Repositories.RefreshTokenRepository>(); // TODO: Implement RefreshTokenRepository
-// builder.Services.AddScoped<IRoleRepository, Identity.Service.Repositories.RoleRepository>(); // TODO: Implement RoleRepository
+builder.Services.AddScoped<IRefreshTokenRepository, Identity.Service.Repositories.RefreshTokenRepository>(); // TODO: Implement RefreshTokenRepository
+builder.Services.AddScoped<IRoleRepository, Identity.Service.Repositories.RoleRepository>(); // TODO: Implement RoleRepository
 builder.Services.AddScoped<IAuthService, Identity.Service.Services.AuthService>();
-// builder.Services.AddScoped<IUserService, Identity.Service.Services.UserService>(); // TODO: Implement UserService
-// builder.Services.AddScoped<IJwtTokenService, JwtTokenService>(); // TODO: Implement JwtTokenService
+builder.Services.AddScoped<IUserService, Identity.Service.Services.UserService>(); // TODO: Implement UserService
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>(); // TODO: Implement JwtTokenService
 
 // AutoMapper
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
@@ -128,7 +128,7 @@ builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 // FluentValidation
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddFluentValidationClientsideAdapters();
-// builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
 
 // MediatR
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));

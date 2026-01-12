@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { ViewState } from '../../App';
 import { useAuth } from '../../contexts/AuthContext';
-import { authApi } from '../../services/api'; // Import api service
+import { authApi } from '../../services/api';
+import { jwtDecode } from 'jwt-decode';
 
 interface LoginProps {
   onNavigate: (view: ViewState) => void;
@@ -32,21 +33,51 @@ export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
           // 1. Gọi API Backend
           const response = await authApi.login(formData);
           
-          // 2. Lấy token từ response (Cấu trúc: { message, token })
-          const { token } = response.data;
+          // --- PHẦN SỬA ĐỔI QUAN TRỌNG ---
+          // Backend trả về cấu trúc: { success: true, message: "...", data: { accessToken: "...", ... } }
+          const resBody = response.data;
+
+          // Kiểm tra xem request có thành công logic không (dựa vào field success của BE)
+          if (!resBody.success) {
+             throw new Error(resBody.message || 'Đăng nhập không thành công');
+          }
+
+          // Lấy token từ bên trong object 'data'. 
+          // Lưu ý: C# trả về JSON thường là camelCase (accessToken) nhưng ta cứ check cả 2 cho chắc
+          const token = resBody.data?.accessToken || resBody.data?.AccessToken;
+
+          if (!token) {
+             throw new Error('Không tìm thấy token trong phản hồi từ server');
+          }
+          // --------------------------------
 
           // 3. Cập nhật Context
           login(token);
 
-          // 4. Chuyển hướng (Context sẽ tự điều hướng hoặc ta gọi onNavigate tùy logic App)
-          // Ở đây tạm thời ta chuyển về trang dashboard của role tương ứng (logic này nên nằm ở App.tsx hoặc AuthContext nhưng ta xử lý tạm ở đây)
-          // Lưu ý: Sau khi login, user trong context sẽ được cập nhật, App sẽ re-render.
-          // Nếu onNavigate chỉ đổi view, ta có thể để mặc định là author-dashboard hoặc check role từ token decode (phức tạp hơn xíu tại đây)
-          onNavigate('author-dashboard'); 
+          // 4. Xử lý điều hướng dựa trên Role
+          const decoded: any = jwtDecode(token);
+          
+          const rawRole = decoded.role || 
+                          decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || 
+                          '';
+          
+          const upperRole = rawRole.toString().toUpperCase();
+
+          // Logic điều hướng (Routing)
+          if (upperRole.includes('ADMIN')) {
+              onNavigate('admin-dashboard');
+          } else if (upperRole.includes('CHAIR')) {
+              onNavigate('chair-dashboard');
+          } else if (upperRole === 'REVIEWER') {
+              onNavigate('reviewer-dashboard');
+          } else {
+              onNavigate('author-dashboard'); 
+          }
           
       } catch (err: any) {
-          // Xử lý lỗi từ BE trả về (thường là err.response.data.message)
-          const msg = err.response?.data?.message || 'Đăng nhập thất bại. Vui lòng thử lại.';
+          console.error("Login Error:", err);
+          // Ưu tiên lấy message từ response lỗi của server, hoặc message của Error object
+          const msg = err.response?.data?.message || err.message || 'Đăng nhập thất bại. Vui lòng thử lại.';
           setError(msg);
       } finally {
           setIsLoading(false);
@@ -58,7 +89,6 @@ export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
       <div className="w-full max-w-md bg-white dark:bg-card-dark rounded-2xl shadow-xl border border-border-light dark:border-border-dark overflow-hidden">
         
         <div className="px-8 pt-8 pb-6 text-center">
-            {/* ... (Giữ nguyên phần Logo SVG) ... */}
             <div className="size-12 text-primary mx-auto mb-4">
                 <svg className="w-full h-full" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
                 <path d="M24 4C12.95 4 4 12.95 4 24C4 35.05 12.95 44 24 44C35.05 44 44 35.05 44 24C44 12.95 35.05 4 24 4ZM14 32C14 30.9 14.9 30 16 30H32C33.1 30 34 30.9 34 32V34H14V32ZM24 26C21.79 26 20 24.21 20 22C20 19.79 21.79 18 24 18C26.21 18 28 19.79 28 22C28 24.21 26.21 26 24 26ZM34 16H14V14H34V16Z" fill="currentColor"></path>

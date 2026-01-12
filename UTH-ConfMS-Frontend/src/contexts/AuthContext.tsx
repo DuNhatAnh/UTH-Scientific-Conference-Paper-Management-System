@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { jwtDecode } from 'jwt-decode'; // Đảm bảo đã cài: npm install jwt-decode
 
+// Định nghĩa các Role chuẩn mà Frontend sử dụng
 export type UserRole = 'author' | 'reviewer' | 'chair' | 'admin';
 
 interface User {
@@ -13,7 +14,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (token: string) => void; // Login nhận vào token thay vì role
+  login: (token: string) => void;
   logout: () => void;
   isAuthenticated: boolean;
   isLoading: boolean;
@@ -21,14 +22,21 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Interface cho payload của Token giải mã được
-interface JwtPayload {
-  nameid: string; // Id user
-  email: string;
-  role: string;
-  unique_name: string; // FullName
-  exp: number;
-}
+// --- HÀM HELPER QUAN TRỌNG ---
+// Hàm này giúp map các Role từ Backend (thường viết hoa hoặc có tiền tố) 
+// sang 4 role chuẩn của Frontend định nghĩa ở trên.
+const mapToUserRole = (backendRole: string): UserRole => {
+  if (!backendRole) return 'author';
+  
+  const upperRole = backendRole.toString().toUpperCase();
+  
+  // Logic mapping dựa trên AppConstants.cs của backend
+  if (upperRole.includes('ADMIN')) return 'admin'; // Map SYSTEM_ADMIN -> admin
+  if (upperRole.includes('CHAIR')) return 'chair'; // Map CONFERENCE_CHAIR, TRACK_CHAIR -> chair
+  if (upperRole === 'REVIEWER') return 'reviewer';
+  
+  return 'author'; // Mặc định là author
+};
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -40,17 +48,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // 1. Lưu token
       localStorage.setItem('token', token);
 
-      // 2. Giải mã token lấy thông tin
-      const decoded = jwtDecode<any>(token); // Dùng any để linh hoạt map field
+      // 2. Giải mã token
+      const decoded = jwtDecode<any>(token);
 
-      // Mapping Claims từ BE sang object User của FE
-      // Lưu ý: Tên Claim trong token có thể là URI dài hoặc tên ngắn tùy config BE
+      // 3. Lấy role raw từ token (xử lý trường hợp key role có thể khác nhau)
+      const rawRole = decoded.role || 
+                      decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || 
+                      'author';
+
+      // 4. Mapping Claims sang object User
       const userData: User = {
         id: decoded.nameid || decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'],
         email: decoded.email || decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'],
         name: decoded.unique_name || decoded.name || decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'],
-        // Chuyển role về chữ thường để khớp với UserRole type
-        role: (decoded.role || decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || 'author').toLowerCase() as UserRole,
+        
+        // SỬ DỤNG HÀM MAP ROLE ĐÃ VIẾT Ở TRÊN
+        role: mapToUserRole(rawRole),
       };
 
       setUser(userData);

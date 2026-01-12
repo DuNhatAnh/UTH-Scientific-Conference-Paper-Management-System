@@ -20,7 +20,7 @@ services:
     networks:
       - uth-confms-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U confms_admin"]
+      test: ["CMD-SHELL", "pg_isready -U confms_admin -d uth_confms"]
       interval: 10s
       timeout: 5s
       retries: 5

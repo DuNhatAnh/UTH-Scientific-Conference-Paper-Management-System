@@ -1,0 +1,187 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
+using Identity.Service.DTOs.Common;
+using Identity.Service.DTOs.Requests;
+using Identity.Service.DTOs.Responses;
+using Identity.Service.Interfaces.Services;
+
+namespace Identity.Service.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public class UsersController : ControllerBase
+{
+    private readonly IUserService _userService;
+    private readonly ILogger<UsersController> _logger;
+
+    public UsersController(IUserService userService, ILogger<UsersController> logger)
+    {
+        _userService = userService;
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// Get current user profile
+    /// </summary>
+    [HttpGet("me")]
+    public async Task<IActionResult> GetCurrentUser()
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var user = await _userService.GetUserByIdAsync(Guid.Parse(userId!));
+            return Ok(new ApiResponse<UserDto>
+            {
+                Success = true,
+                Data = user
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Get current user failed");
+            return NotFound(new ApiResponse<object>
+            {
+                Success = false,
+                Message = "User not found"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Get user by ID
+    /// </summary>
+    [HttpGet("{userId:guid}")]
+    public async Task<IActionResult> GetUser(Guid userId)
+    {
+        try
+        {
+            var user = await _userService.GetUserByIdAsync(userId);
+            return Ok(new ApiResponse<UserDto>
+            {
+                Success = true,
+                Data = user
+            });
+        }
+        catch (Exception ex)
+        {
+            return NotFound(new ApiResponse<object>
+            {
+                Success = false,
+                Message = "User not found"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Update user profile
+    /// </summary>
+    [HttpPut("{userId:guid}")]
+    public async Task<IActionResult> UpdateUser(Guid userId, [FromBody] UpdateUserRequest request)
+    {
+        try
+        {
+            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userId.ToString() != currentUserId)
+            {
+                return Forbid();
+            }
+
+            var user = await _userService.UpdateUserAsync(userId, request);
+            return Ok(new ApiResponse<UserDto>
+            {
+                Success = true,
+                Message = "User updated successfully",
+                Data = user
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Update user failed for {UserId}", userId);
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// Search users
+    /// </summary>
+    [HttpGet("search")]
+    public async Task<IActionResult> SearchUsers([FromQuery] string query, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    {
+        try
+        {
+            var result = await _userService.SearchUsersAsync(query, page, pageSize);
+            return Ok(new ApiResponse<PagedResponse<UserDto>>
+            {
+                Success = true,
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Search users failed");
+            return StatusCode(500, new ApiResponse<object>
+            {
+                Success = false,
+                Message = "Internal server error"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Get user roles
+    /// </summary>
+    [HttpGet("{userId:guid}/roles")]
+    public async Task<IActionResult> GetUserRoles(Guid userId, [FromQuery] Guid? conferenceId = null)
+    {
+        try
+        {
+            var roles = await _userService.GetUserRolesAsync(userId, conferenceId);
+            return Ok(new ApiResponse<List<RoleDto>>
+            {
+                Success = true,
+                Data = roles
+            });
+        }
+        catch (Exception ex)
+        {
+            return NotFound(new ApiResponse<object>
+            {
+                Success = false,
+                Message = "User not found"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Assign role to user
+    /// </summary>
+    [HttpPost("{userId:guid}/roles")]
+    [Authorize(Policy = "RequireAdminRole")]
+    public async Task<IActionResult> AssignRole(Guid userId, [FromBody] AssignRoleRequest request)
+    {
+        try
+        {
+            await _userService.AssignRoleAsync(userId, request);
+            return Ok(new ApiResponse<object>
+            {
+                Success = true,
+                Message = "Role assigned successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Assign role failed");
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+    }
+}

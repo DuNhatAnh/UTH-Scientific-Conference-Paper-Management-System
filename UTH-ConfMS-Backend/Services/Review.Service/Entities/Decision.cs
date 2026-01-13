@@ -1,35 +1,56 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Review.Service.Entities
+namespace Review.Service.Entities;
+
+[Table("decisions")]
+public class Decision
 {
-    [Table("decision")]
-    public class Decision
-    {
-        [Key]
-        [Column("decision_id")]
-        public int Id { get; set; }
+    [Key]
+    [Column("decision_id")]
+    public Guid DecisionId { get; set; }
 
-        [Column("paper_id")]
-        public int PaperId { get; set; }
+    [Column("submission_id")]
+    public Guid SubmissionId { get; set; }
 
-        [Column("chair_id")]
-        public int? ChairId { get; set; }
+    [Column("conference_id")]
+    public Guid ConferenceId { get; set; }
 
-        [Column("result")]
-        public string? Result { get; set; }
+    [Column("decision_type")]
+    [MaxLength(50)]
+    public string DecisionType { get; set; } = string.Empty;
 
-        [Column("decision_date")]
-        public DateTime? DecisionDate { get; set; }
+    [Column("decision_subtype")]
+    [MaxLength(50)]
+    public string? DecisionSubtype { get; set; }
 
-        [Column("notification_text")]
-        public string? NotificationText { get; set; }
+    [Column("decision_text")]
+    public string DecisionText { get; set; } = string.Empty;
 
-        // Navigation
-        // [ForeignKey("PaperId")]
-        // public Paper? Paper { get; set; } // TODO: Add reference to Submission.Service
+    [Column("meta_review")]
+    public string? MetaReview { get; set; }
 
-        // [ForeignKey("ChairId")]
-        // public User? Chair { get; set; } // TODO: Add reference to Identity.Service
-    }
+    [Column("internal_notes")]
+    public string? InternalNotes { get; set; }
+
+    [Column("conditions")]
+    public string? Conditions { get; set; }
+
+    [Column("average_score", TypeName = "decimal(3,2)")]
+    public decimal? AverageScore { get; set; }
+
+    [Column("decided_by")]
+    public Guid DecidedBy { get; set; }
+
+    [Column("decided_at")]
+    public DateTime DecidedAt { get; set; } = DateTime.UtcNow;
+
+    [Column("notification_sent_at")]
+    public DateTime? NotificationSentAt { get; set; }
+
+    [Column("created_at")]
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    [Column("updated_at")]
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

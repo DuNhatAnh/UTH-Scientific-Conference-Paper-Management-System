@@ -25,26 +25,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
             </button>
           </div>
 
-          {/* Card 2: Cấu hình hội nghị - MỤC 3.3.6 */}
+          {/* Card 2: Cấu hình hệ thống */}
           <div className="bg-white dark:bg-card-dark p-6 rounded-xl border border-border-light shadow-sm flex flex-col">
             <span className="material-symbols-outlined text-4xl text-green-600 mb-2">settings_applications</span>
-            <h3 className="font-bold text-lg">Cấu hình hội nghị</h3>
-            <p className="text-sm text-text-sec-light mt-1">Cài đặt phân ban (Tracks), mốc thời gian nộp bài và phản biện.</p>
+            <h3 className="font-bold text-lg">Cấu hình hệ thống</h3>
+            <p className="text-sm text-text-sec-light mt-1">Cài đặt hạn nộp bài, email tự động, giao diện hội nghị.</p>
             <button 
-              onClick={() => onNavigate('admin-conferences')} // Đã sửa: Khớp với App.tsx
+              onClick={() => onNavigate('admin-config')} // Bổ sung điều hướng
               className="mt-auto pt-4 text-sm font-bold text-primary hover:underline text-left flex items-center gap-1"
             >
               Truy cập <span className="material-symbols-outlined text-sm">arrow_forward</span>
             </button>
           </div>
 
-          {/* Card 3: Hệ thống & Logs */}
+          {/* Card 3: Sao lưu & Dữ liệu */}
           <div className="bg-white dark:bg-card-dark p-6 rounded-xl border border-border-light shadow-sm flex flex-col">
             <span className="material-symbols-outlined text-4xl text-blue-600 mb-2">database</span>
-            <h3 className="font-bold text-lg">Cấu hình hệ thống</h3>
-            <p className="text-sm text-text-sec-light mt-1">Quản lý tham số hệ thống, lịch sử hoạt động và logs bảo mật.</p>
+            <h3 className="font-bold text-lg">Sao lưu & Dữ liệu</h3>
+            <p className="text-sm text-text-sec-light mt-1">Quản lý cơ sở dữ liệu, lịch sử hoạt động và logs hệ thống.</p>
             <button 
-              onClick={() => onNavigate('admin-system-config')} // Đã sửa: Khớp với App.tsx
+              onClick={() => onNavigate('admin-backup')} // Bổ sung điều hướng
               className="mt-auto pt-4 text-sm font-bold text-primary hover:underline text-left flex items-center gap-1"
             >
               Truy cập <span className="material-symbols-outlined text-sm">arrow_forward</span>

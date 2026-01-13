@@ -1,0 +1,37 @@
+2026-01-13 15:59:50.528 +07:00 [INF] Review Service starting...
+2026-01-13 16:33:31.483 +07:00 [INF] HTTP GET /api/reviews/discussion/3 responded 200 in 293.4804 ms
+2026-01-13 16:33:31.597 +07:00 [INF] HTTP GET /api/reviews/discussion/3 responded 200 in 111.8140 ms
+2026-01-13 16:33:59.936 +07:00 [INF] HTTP GET /api/reviews/discussion/1 responded 200 in 117.1645 ms
+2026-01-13 16:34:00.047 +07:00 [INF] HTTP GET /api/reviews/discussion/1 responded 200 in 109.2887 ms
+2026-01-13 16:35:06.942 +07:00 [INF] HTTP GET /api/reviews/discussion/2 responded 200 in 106.0030 ms
+2026-01-13 16:35:07.522 +07:00 [INF] HTTP GET /api/reviews/discussion/1 responded 200 in 107.1691 ms
+2026-01-13 16:35:44.625 +07:00 [INF] HTTP GET /api/reviews/discussion/2 responded 200 in 102.5721 ms
+2026-01-13 16:35:45.100 +07:00 [INF] HTTP GET /api/reviews/discussion/1 responded 200 in 103.6839 ms
+2026-01-13 16:35:46.925 +07:00 [INF] HTTP GET /api/reviews/discussion/2 responded 200 in 101.4637 ms
+2026-01-13 16:35:47.517 +07:00 [INF] HTTP GET /api/reviews/discussion/1 responded 200 in 104.6094 ms
+2026-01-13 16:36:55.886 +07:00 [INF] HTTP OPTIONS /api/reviews/submit responded 204 in 1.3422 ms
+2026-01-13 16:36:56.056 +07:00 [INF] [ReviewService] Reviewer 0 submitted review for Paper 1. Score: 3
+2026-01-13 16:36:56.067 +07:00 [INF] HTTP POST /api/reviews/submit responded 200 in 170.8687 ms
+2026-01-13 16:40:54.311 +07:00 [INF] HTTP OPTIONS /api/reviews/discussion responded 204 in 0.1588 ms
+2026-01-13 16:40:54.442 +07:00 [INF] [ReviewService] User Unknown commented on Paper 1: "Tôi đồng ý với nhận xét trên."
+2026-01-13 16:40:54.447 +07:00 [INF] HTTP POST /api/reviews/discussion responded 200 in 125.1890 ms
+2026-01-13 16:40:54.582 +07:00 [INF] HTTP GET /api/reviews/discussion/1 responded 200 in 125.2292 ms
+2026-01-13 16:41:19.355 +07:00 [INF] HTTP GET /api/reviews/discussion/1 responded 200 in 108.8662 ms
+2026-01-13 16:41:19.469 +07:00 [INF] HTTP GET /api/reviews/discussion/1 responded 200 in 112.1036 ms
+2026-01-13 16:47:46.803 +07:00 [INF] HTTP GET /api/reviews/discussion/3 responded 200 in 101.9940 ms
+2026-01-13 16:47:50.035 +07:00 [INF] HTTP GET /api/reviews/discussion/2 responded 200 in 104.5324 ms
+2026-01-13 16:47:50.935 +07:00 [INF] HTTP GET /api/reviews/discussion/3 responded 200 in 104.5390 ms
+2026-01-13 16:47:51.684 +07:00 [INF] HTTP GET /api/reviews/discussion/1 responded 200 in 103.5457 ms
+2026-01-13 16:47:53.440 +07:00 [INF] HTTP GET /api/reviews/discussion/3 responded 200 in 102.6481 ms
+2026-01-13 16:47:53.800 +07:00 [INF] HTTP GET /api/reviews/discussion/2 responded 200 in 104.9005 ms
+2026-01-13 16:47:54.255 +07:00 [INF] HTTP GET /api/reviews/discussion/1 responded 200 in 108.5340 ms
+2026-01-13 16:47:55.040 +07:00 [INF] HTTP GET /api/reviews/discussion/3 responded 200 in 111.5230 ms
+2026-01-13 16:47:55.819 +07:00 [INF] HTTP GET /api/reviews/discussion/1 responded 200 in 106.7342 ms
+2026-01-13 16:47:56.149 +07:00 [INF] HTTP GET /api/reviews/discussion/2 responded 200 in 109.5853 ms
+2026-01-13 16:47:56.492 +07:00 [INF] HTTP GET /api/reviews/discussion/1 responded 200 in 109.3725 ms
+2026-01-13 16:47:56.833 +07:00 [INF] HTTP GET /api/reviews/discussion/2 responded 200 in 102.1654 ms
+2026-01-13 16:47:57.117 +07:00 [INF] HTTP GET /api/reviews/discussion/1 responded 200 in 103.0898 ms
+2026-01-13 16:47:57.442 +07:00 [INF] HTTP GET /api/reviews/discussion/3 responded 200 in 104.0614 ms
+2026-01-13 16:47:58.001 +07:00 [INF] HTTP GET /api/reviews/discussion/2 responded 200 in 110.1224 ms
+2026-01-13 16:48:35.568 +07:00 [INF] HTTP GET /api/reviews/discussion/1 responded 200 in 101.6114 ms
+2026-01-13 16:48:35.676 +07:00 [INF] HTTP GET /api/reviews/discussion/1 responded 200 in 106.7548 ms

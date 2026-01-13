@@ -10,35 +10,35 @@ namespace Conference.Service.Controllers;
 [ApiController]
 [Route("api/conferences/{conferenceId:guid}/[controller]")]
 [Authorize]
-public class TracksController : ControllerBase
+public class DeadlinesController : ControllerBase
 {
     private readonly IConferenceService _conferenceService;
-    private readonly ILogger<TracksController> _logger;
+    private readonly ILogger<DeadlinesController> _logger;
 
-    public TracksController(IConferenceService conferenceService, ILogger<TracksController> logger)
+    public DeadlinesController(IConferenceService conferenceService, ILogger<DeadlinesController> logger)
     {
         _conferenceService = conferenceService;
         _logger = logger;
     }
 
     /// <summary>
-    /// Get all tracks for a conference
+    /// Get all deadlines for a conference
     /// </summary>
     [HttpGet]
-    public async Task<IActionResult> GetTracks(Guid conferenceId)
+    public async Task<IActionResult> GetDeadlines(Guid conferenceId)
     {
         try
         {
-            var tracks = await _conferenceService.GetTracksAsync(conferenceId);
-            return Ok(new ApiResponse<List<TrackDto>>
+            var deadlines = await _conferenceService.GetDeadlinesAsync(conferenceId);
+            return Ok(new ApiResponse<List<DeadlineDto>>
             {
                 Success = true,
-                Data = tracks
+                Data = deadlines
             });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Get tracks failed for conference {ConferenceId}", conferenceId);
+            _logger.LogError(ex, "Get deadlines failed for conference {ConferenceId}", conferenceId);
             return NotFound(new ApiResponse<object>
             {
                 Success = false,
@@ -48,25 +48,25 @@ public class TracksController : ControllerBase
     }
 
     /// <summary>
-    /// Add a new track to conference
+    /// Add a new deadline to conference
     /// </summary>
     [HttpPost]
     [Authorize(Policy = "RequireConferenceManage")]
-    public async Task<IActionResult> AddTrack(Guid conferenceId, [FromBody] CreateTrackRequest request)
+    public async Task<IActionResult> AddDeadline(Guid conferenceId, [FromBody] CreateDeadlineRequest request)
     {
         try
         {
-            var track = await _conferenceService.AddTrackAsync(conferenceId, request);
-            return Ok(new ApiResponse<TrackDto>
+            var deadline = await _conferenceService.AddDeadlineAsync(conferenceId, request);
+            return Ok(new ApiResponse<DeadlineDto>
             {
                 Success = true,
-                Message = "Track added successfully",
-                Data = track
+                Message = "Deadline added successfully",
+                Data = deadline
             });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Add track failed for conference {ConferenceId}", conferenceId);
+            _logger.LogError(ex, "Add deadline failed for conference {ConferenceId}", conferenceId);
             return BadRequest(new ApiResponse<object>
             {
                 Success = false,

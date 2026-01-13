@@ -1,78 +1,171 @@
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
-using Conference.Service.Entities;
-using Conference.Service.DTOs;
-using Conference.Service.Interfaces;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
+using Conference.Service.DTOs.Common;
+using Conference.Service.DTOs.Requests;
+using Conference.Service.DTOs.Responses;
+using Conference.Service.Interfaces.Services;
 
-namespace Conference.Service.Controllers
+namespace Conference.Service.Controllers;
+
+/// <summary>
+/// Controller for managing conferences (CRUD operations)
+/// </summary>
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public class ConferencesController : ControllerBase
 {
-    [Route("api/conferences")]
-    [ApiController]
-    public class ConferenceController : ControllerBase
+    private readonly IConferenceService _conferenceService;
+    private readonly ILogger<ConferencesController> _logger;
+
+    public ConferencesController(IConferenceService conferenceService, ILogger<ConferencesController> logger)
     {
-        private readonly IConferenceService _service;
+        _conferenceService = conferenceService;
+        _logger = logger;
+    }
 
-        public ConferenceController(IConferenceService service)
+    /// <summary>
+    /// Get all conferences with optional filters
+    /// </summary>
+    [HttpGet]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetConferences(
+        [FromQuery] string? status = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        try
         {
-            _service = service;
-        }
-
-        // lấy
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Entities.Conference>>> GetConferences()
-        {
-            var list = await _service.GetAllConferencesAsync();
-            return Ok(list);
-        }
-    
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Entities.Conference>> GetConference(int id)
-        {
-            var conference = await _service.GetConferenceByIdAsync(id);
-            if (conference == null) return NotFound("Không tìm thấy hội nghị");
-            return Ok(conference);
-        }
-        
-        // thêm
-        [Authorize]
-        [HttpPost]
-        public async Task<ActionResult<Entities.Conference>> CreateConferenceAsync(CreateConferenceDTO dto)
-        {
-           var conference = new Entities.Conference
+            var result = await _conferenceService.GetConferencesAsync(status, page, pageSize);
+            return Ok(new ApiResponse<PagedResponse<ConferenceDto>>
             {
-                Name = dto.Name,
-                Description = dto.Description,
-                TopicKeywords = dto.TopicKeywords,
-                StartDate = dto.StartDate,
-                EndDate = dto.EndDate,
-                AiEnabled = dto.AiEnabled
-            };
-
-            var result = await _service.CreateConferenceAsync(conference);
-            if (!result.IsSuccess) return BadRequest(new { message = result.ErrorMessage });
-            if (result.Data == null) return BadRequest(new { message = "Tạo hội nghị thất bại" });
-            return CreatedAtAction(nameof(GetConference), new { id = result.Data.Id }, result.Data);
+                Success = true,
+                Data = result
+            });
         }
-
-        // sửa
-        [Authorize]
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateConference(int id, Entities.Conference conference)
+        catch (Exception ex)
         {
-            var result = await _service.UpdateConferenceAsync(id, conference);
-            if (!result.IsSuccess) return BadRequest(new { message = result.ErrorMessage });
-            return NoContent();
+            _logger.LogError(ex, "Get conferences failed");
+            return StatusCode(500, new ApiResponse<object>
+            {
+                Success = false,
+                Message = "Internal server error"
+            });
         }
+    }
 
-        // xóa
-        [Authorize]
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteConference(int id)
+    /// <summary>
+    /// Get conference by ID
+    /// </summary>
+    [HttpGet("{conferenceId:guid}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetConference(Guid conferenceId)
+    {
+        try
         {
-            var result = await _service.DeleteConferenceAsync(id);
-            if (!result.IsSuccess) return BadRequest(new { message = result.ErrorMessage });
-            return NoContent(); // thành công, trả về 204 (No Content)
+            var conference = await _conferenceService.GetConferenceByIdAsync(conferenceId);
+            return Ok(new ApiResponse<ConferenceDetailDto>
+            {
+                Success = true,
+                Data = conference
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Get conference failed for {ConferenceId}", conferenceId);
+            return NotFound(new ApiResponse<object>
+            {
+                Success = false,
+                Message = "Conference not found"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Create a new conference
+    /// </summary>
+    [HttpPost]
+    [Authorize(Policy = "RequireConferenceCreate")]
+    public async Task<IActionResult> CreateConference([FromBody] CreateConferenceRequest request)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var conference = await _conferenceService.CreateConferenceAsync(request, Guid.Parse(userId!));
+            return CreatedAtAction(
+                nameof(GetConference),
+                new { conferenceId = conference.ConferenceId },
+                new ApiResponse<ConferenceDto>
+                {
+                    Success = true,
+                    Message = "Conference created successfully",
+                    Data = conference
+                });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Create conference failed");
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// Update an existing conference
+    /// </summary>
+    [HttpPut("{conferenceId:guid}")]
+    [Authorize(Policy = "RequireConferenceUpdate")]
+    public async Task<IActionResult> UpdateConference(Guid conferenceId, [FromBody] UpdateConferenceRequest request)
+    {
+        try
+        {
+            var conference = await _conferenceService.UpdateConferenceAsync(conferenceId, request);
+            return Ok(new ApiResponse<ConferenceDto>
+            {
+                Success = true,
+                Message = "Conference updated successfully",
+                Data = conference
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Update conference failed for {ConferenceId}", conferenceId);
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// Delete a conference
+    /// </summary>
+    [HttpDelete("{conferenceId:guid}")]
+    [Authorize(Policy = "RequireConferenceDelete")]
+    public async Task<IActionResult> DeleteConference(Guid conferenceId)
+    {
+        try
+        {
+            await _conferenceService.DeleteConferenceAsync(conferenceId);
+            return Ok(new ApiResponse<object>
+            {
+                Success = true,
+                Message = "Conference deleted successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Delete conference failed for {ConferenceId}", conferenceId);
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = ex.Message
+            });
         }
     }
 }

@@ -1,11 +1,16 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Review.Service.DTOs;
 using Review.Service.Interfaces;
+using System.Security.Claims;
+using System.Threading.Tasks;
+using System;
 
 namespace Review.Service.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/reviews")]
+    // [Authorize] // TẠM THỜI COMMENT ĐỂ TEST
     public class ReviewController : ControllerBase
     {
         private readonly IReviewService _reviewService;
@@ -15,32 +20,75 @@ namespace Review.Service.Controllers
             _reviewService = reviewService;
         }
 
-        [HttpPost]
-        public async Task<IActionResult> Submit([FromBody] SubmitReviewDTO dto)
+        // API Test nhanh để kiểm tra Controller có chạy không
+        [HttpGet("ping")]
+        public IActionResult Ping()
         {
-            try 
+            return Ok("Pong - Review Service is running!");
+        }
+
+        // Helper lấy User ID từ Token
+        private int GetUserId()
+        {
+            var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return idClaim != null ? int.Parse(idClaim) : 0;
+        }
+        
+        // Helper lấy Tên User từ Token
+        private string GetUserName()
+        {
+             return User.FindFirstValue(ClaimTypes.Name) ?? "Unknown";
+        }
+
+        // 1. API Nộp đánh giá (Dành cho Reviewer)
+        [HttpPost("submit")]
+        // [Authorize(Roles = "reviewer,chair")] // TẠM THỜI COMMENT ĐỂ TEST
+        public async Task<IActionResult> SubmitReview([FromBody] SubmitReviewDTO dto)
+        {
+            try
             {
-                var result = await _reviewService.SubmitReviewAsync(dto);
-                return Ok(result);
+                var reviewerId = GetUserId();
+                await _reviewService.SubmitReviewAsync(dto, reviewerId);
+                return Ok(new { message = "Đánh giá đã được gửi thành công!" });
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest(new { message = ex.Message });
             }
         }
 
-        [HttpGet("assigned/{reviewerId}")]
-        public async Task<IActionResult> GetAssignedPapers(int reviewerId)
+        // 2. API Thảo luận nội bộ (PC Members / Chairs / Reviewers)
+        [HttpPost("discussion")]
+        // [Authorize(Roles = "chair,admin,reviewer")] // TẠM THỜI COMMENT ĐỂ TEST
+        public async Task<IActionResult> AddDiscussion([FromBody] DiscussionCommentDTO dto)
         {
-            var result = await _reviewService.GetMyAssignedPapersAsync(reviewerId);
-            return Ok(result);
+            try
+            {
+                await _reviewService.AddDiscussionCommentAsync(dto, GetUserId(), GetUserName());
+                return Ok(new { message = "Đã thêm thảo luận." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
-        [HttpGet("paper/{paperId}")]
-        public async Task<IActionResult> GetReviews(int paperId)
+        // 3. API Lấy danh sách thảo luận của một bài báo
+        [HttpGet("discussion/{paperId}")]
+        // [Authorize(Roles = "chair,admin,reviewer")] // TẠM THỜI COMMENT ĐỂ TEST
+        public async Task<IActionResult> GetDiscussions(int paperId)
         {
-            var result = await _reviewService.GetReviewsByPaperIdAsync(paperId);
-            return Ok(result);
+            var comments = await _reviewService.GetDiscussionAsync(paperId);
+            return Ok(comments);
+        }
+        
+// 4. API Tác giả phản hồi (Rebuttal) - Optional
+        [HttpPost("rebuttal")]
+        [Authorize(Roles = "author")]
+        public async Task<IActionResult> SubmitRebuttal([FromBody] RebuttalDTO dto)
+        {
+            // Logic xử lý rebuttal (lưu vào DB)
+            return Ok(new { message = "Chức năng đang phát triển (TP5 Optional)" });
         }
     }
 }

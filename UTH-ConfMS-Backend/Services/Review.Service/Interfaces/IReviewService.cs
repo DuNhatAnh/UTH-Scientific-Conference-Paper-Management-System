@@ -1,12 +1,14 @@
 using Review.Service.DTOs;
-using Review.Service.Entities;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Review.Service.Interfaces
 {
     public interface IReviewService
     {
-        Task<Entities.Review> SubmitReviewAsync(SubmitReviewDTO dto);
-        Task<IEnumerable<Entities.Review>> GetReviewsByPaperIdAsync(int paperId);
-        Task<IEnumerable<object>> GetMyAssignedPapersAsync(int reviewerId); // Lấy bài được giao cho tôi
+        Task SubmitReviewAsync(SubmitReviewDTO dto, int reviewerId);
+        Task AddDiscussionCommentAsync(DiscussionCommentDTO dto, int userId, string userName);
+        Task<List<DiscussionCommentDTO>> GetDiscussionAsync(int paperId);
+        Task SubmitRebuttalAsync(RebuttalDTO dto, int authorId);
     }
 }

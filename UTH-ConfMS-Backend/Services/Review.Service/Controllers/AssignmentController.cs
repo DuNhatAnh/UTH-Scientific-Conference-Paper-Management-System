@@ -1,11 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Review.Service.DTOs;
 using Review.Service.Interfaces;
+using System.Threading.Tasks;
 
 namespace Review.Service.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/assignment")]
     public class AssignmentController : ControllerBase
     {
         private readonly IAssignmentService _assignmentService;
@@ -16,25 +17,20 @@ namespace Review.Service.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Assign([FromBody] AssignReviewerDTO dto)
+        public async Task<IActionResult> AssignReviewer([FromBody] AssignReviewerDTO dto)
         {
-            try
-            {
-                var result = await _assignmentService.AssignReviewerAsync(dto);
-                if (result) return Ok(new { message = "Assigned successfully" });
-                return BadRequest("Reviewer already assigned.");
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            var result = await _assignmentService.AssignReviewerAsync(dto);
+            if (!result)
+                return BadRequest(new { message = "Reviewer already assigned or invalid." });
+            
+            return Ok(new { message = "Assigned successfully" });
         }
 
         [HttpGet("paper/{paperId}")]
         public async Task<IActionResult> GetReviewers(int paperId)
         {
-            var result = await _assignmentService.GetReviewersForPaperAsync(paperId);
-            return Ok(result);
+            var reviewers = await _assignmentService.GetReviewersForPaperAsync(paperId);
+            return Ok(reviewers);
         }
     }
 }

@@ -167,6 +167,6 @@ app.MapControllers();
 app.MapHealthChecks("/health");
 
 Log.Information("Review Service starting...");
-app.Run();
+app.Run("http://localhost:5005");
 Log.Information("Review Service stopped.");
 Log.CloseAndFlush();

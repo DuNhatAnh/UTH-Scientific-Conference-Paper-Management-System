@@ -1,80 +1,51 @@
-using Microsoft.EntityFrameworkCore;
 using Review.Service.DTOs;
-using Review.Service.Entities;
 using Review.Service.Interfaces;
-using Review.Service.Data;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using System.Linq;
+using System;
 
 namespace Review.Service.Services
 {
     public class ReviewService : IReviewService
     {
-        private readonly ReviewDbContext _context;
+        // Giả lập Database trong bộ nhớ (In-memory) để test
+        private static List<SubmitReviewDTO> _reviews = new List<SubmitReviewDTO>();
+        private static List<DiscussionCommentDTO> _discussions = new List<DiscussionCommentDTO>();
 
-        public ReviewService(ReviewDbContext context)
+        public async Task SubmitReviewAsync(SubmitReviewDTO dto, int reviewerId)
         {
-            _context = context;
-        }
-
-        public async Task<Entities.Review> SubmitReviewAsync(SubmitReviewDTO dto)
-        {
-            // 1. Tìm bản ghi phân công (Assignment) dựa trên PaperId và ReviewerId
-            var assignment = await _context.Assignments
-                .FirstOrDefaultAsync(a => a.PaperId == dto.PaperId && a.ReviewerId == dto.ReviewerId);
-
-            if (assignment == null) throw new Exception("You are not assigned to review this paper (Assignment not found).");
-
-            // 2. Tạo Review mới (Đã sửa lại tên biến cho khớp với Entity Review.cs)
-            var review = new Entities.Review
-            {
-                // Thay vì PaperId/ReviewerId, ta lưu AssignmentId
-                AssignmentId = assignment.Id, 
-
-                // Map điểm số
-                Score = dto.Score,
-
-                // SỬA: Content -> CommentsForAuthor
-                CommentsForAuthor = dto.Comments, 
-
-                // THÊM: Map ConfidentialComments (nếu trong DTO có)
-                ConfidentialComments = dto.ConfidentialComments,
-
-                // SỬA: ReviewDate -> SubmittedAt
-                SubmittedAt = DateTime.UtcNow 
-            };
-
-            _context.Reviews.Add(review);
+            // Giả lập delay DB
+            await Task.Delay(100);
             
-            // 3. Cập nhật trạng thái Assignment thành Completed
-            assignment.Status = "Completed";
-
-            await _context.SaveChangesAsync();
-            return review;
+            // Logic thực tế: Lưu vào bảng Reviews trong DB
+            _reviews.Add(dto);
+            
+            // Console log để bạn thấy khi test
+            Console.WriteLine($"[ReviewService] Reviewer {reviewerId} submitted review for Paper {dto.PaperId}. Score: {dto.NoveltyScore}");
         }
 
-        public async Task<IEnumerable<object>> GetMyAssignedPapersAsync(int reviewerId)
+        public async Task AddDiscussionCommentAsync(DiscussionCommentDTO dto, int userId, string userName)
         {
-            // Lấy danh sách bài báo mà user này được gán
-            return await _context.Assignments
-                // .Include(a => a.Paper) // TODO: Load Paper from Submission.Service API
-                .Where(a => a.ReviewerId == reviewerId)
-                .Select(a => new 
-                {
-                    AssignmentId = a.Id,
-                    PaperId = a.PaperId, // Use PaperId instead of Paper navigation
-                    // PaperTitle = a.Paper.Title, // TODO: Get title from Submission.Service API
-                    Status = a.Status, // Pending / Completed
-                    Deadline = "2024-12-31" 
-                })
-                .ToListAsync();
+            await Task.Delay(100);
+            
+            dto.UserName = userName;
+            dto.CreatedAt = DateTime.Now;
+            _discussions.Add(dto);
+            
+            Console.WriteLine($"[ReviewService] User {userName} commented on Paper {dto.PaperId}: {dto.Content}");
         }
 
-        public async Task<IEnumerable<Entities.Review>> GetReviewsByPaperIdAsync(int paperId)
+        public async Task<List<DiscussionCommentDTO>> GetDiscussionAsync(int paperId)
         {
-            // SỬA QUERY: Vì Review không có PaperId, phải đi vòng qua Assignment
-            return await _context.Reviews
-                .Include(r => r.Assignment)
-                .Where(r => r.Assignment.PaperId == paperId)
-                .ToListAsync();
+            await Task.Delay(100);
+            return _discussions.Where(d => d.PaperId == paperId).OrderBy(d => d.CreatedAt).ToList();
+        }
+
+        public async Task SubmitRebuttalAsync(RebuttalDTO dto, int authorId)
+        {
+            await Task.Delay(100);
+            Console.WriteLine($"[ReviewService] Author {authorId} submitted rebuttal for Paper {dto.PaperId}");
         }
     }
 }

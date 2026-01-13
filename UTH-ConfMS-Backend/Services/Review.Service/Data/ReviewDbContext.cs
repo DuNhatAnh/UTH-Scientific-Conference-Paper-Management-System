@@ -9,15 +9,15 @@ public class ReviewDbContext : DbContext
         : base(options) { }
 
     public DbSet<Assignment> Assignments { get; set; }
-    public DbSet<Entities.Review> Reviews { get; set; }
+    public DbSet<Review> Reviews { get; set; }
     public DbSet<Decision> Decisions { get; set; }
     public DbSet<Conflict> Conflicts { get; set; }
-
+    
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Assignment>()
             .HasOne(a => a.Review)
             .WithOne(r => r.Assignment)
-            .HasForeignKey<Entities.Review>(r => r.AssignmentId);
+            .HasForeignKey<Review>(r => r.AssignmentId);
     }
 }

@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 
 // API Gateway URL (tất cả requests đi qua gateway)
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000');
@@ -31,7 +31,7 @@ apiClient.interceptors.request.use(
 
 // Response interceptor - handle errors
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response: AxiosResponse) => response,
   async (error: AxiosError) => {
     if (error.response?.status === 401) {
       // Token expired or invalid

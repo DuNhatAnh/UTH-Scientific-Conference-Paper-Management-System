@@ -1,11 +1,22 @@
 
 import React from 'react';
+import { ViewState } from '../../App';
 
-export const ChairDashboard: React.FC = () => {
+interface DashboardProps {
+    onNavigate: (view: ViewState) => void;
+}
+
+export const ChairDashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   return (
     <div className="w-full bg-background-light dark:bg-background-dark py-8 px-5 md:px-10 flex justify-center">
         <div className="w-full max-w-[1200px] flex flex-col gap-8">
-            <h1 className="text-2xl font-bold text-text-main-light dark:text-text-main-dark">Dashboard Trưởng Ban Chương Trình</h1>
+            <div className="flex justify-between items-center">
+                <h1 className="text-2xl font-bold text-text-main-light dark:text-text-main-dark">Dashboard Trưởng Ban Chương Trình</h1>
+                <button onClick={() => onNavigate('create-conference')} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all flex items-center gap-2">
+                    <span className="material-symbols-outlined">add_circle</span>
+                    Tạo hội nghị
+                </button>
+            </div>
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

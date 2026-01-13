@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { PDFPreview } from '../../components/PDFPreview';
 import { AIBadge } from '../../components/AIBadge';
+import { ReviewForm } from '../../components/ReviewForm';
 
 export const ReviewerDashboard: React.FC = () => {
   const [selectedPaper, setSelectedPaper] = useState<number | null>(null);
@@ -49,43 +50,9 @@ export const ReviewerDashboard: React.FC = () => {
                                 <PDFPreview fileName={`paper_${100 + selectedPaper}_v1.pdf`} />
                             </div>
 
-                            <div className="space-y-4">
-                                <h4 className="font-bold border-b pb-1">Tiêu chí đánh giá</h4>
-                                <div className="grid grid-cols-2 gap-4 items-center">
-                                    <label className="text-sm">Tính mới & Đóng góp</label>
-                                    <select className="text-sm border rounded p-1"><option>5 - Xuất sắc</option><option>4 - Tốt</option><option>3 - Khá</option></select>
-                                    
-                                    <label className="text-sm">Phương pháp nghiên cứu</label>
-                                    <select className="text-sm border rounded p-1"><option>4 - Tốt</option></select>
-                                    
-                                    <label className="text-sm">Trình bày & Ngôn ngữ</label>
-                                    <select className="text-sm border rounded p-1"><option>3 - Khá</option></select>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <h4 className="font-bold">Nhận xét chi tiết cho tác giả</h4>
-                                <textarea className="w-full h-32 p-3 border rounded text-sm resize-none" placeholder="Điểm mạnh, điểm yếu, đề xuất chỉnh sửa..."></textarea>
-                            </div>
-
-                            <div className="space-y-2">
-                                <h4 className="font-bold">Nhận xét bí mật cho Ban chương trình</h4>
-                                <textarea className="w-full h-20 p-3 border rounded text-sm resize-none bg-yellow-50" placeholder="Chỉ ban chương trình mới thấy nội dung này..."></textarea>
-                            </div>
-                            
-                            <div className="space-y-2">
-                                <h4 className="font-bold">Quyết định đề xuất</h4>
-                                <div className="flex gap-4">
-                                    <label className="flex items-center gap-2 text-sm"><input type="radio" name="decision" className="text-green-600"/> Accept</label>
-                                    <label className="flex items-center gap-2 text-sm"><input type="radio" name="decision" className="text-yellow-600"/> Minor Revision</label>
-                                    <label className="flex items-center gap-2 text-sm"><input type="radio" name="decision" className="text-red-600"/> Reject</label>
-                                </div>
-                            </div>
+                            {/* Gọi Component ReviewForm tại đây */}
+                            <ReviewForm paperId={selectedPaper} />
                         </div>
-                    </div>
-                    <div className="p-4 border-t border-border-light bg-gray-50 flex justify-end gap-3">
-                        <button className="px-4 py-2 rounded text-sm font-medium hover:bg-gray-200">Lưu nháp</button>
-                        <button className="px-4 py-2 rounded bg-primary text-white text-sm font-bold hover:bg-primary-hover shadow-sm">Gửi đánh giá</button>
                     </div>
                 </div>
             )}

@@ -91,56 +91,56 @@ services:
       - uth-confms-network
     restart: unless-stopped
 
-  submission-service:
-    build:
-      context: .
-      dockerfile: UTH-ConfMS-Backend/Services/Submission.Service/Dockerfile
-    container_name: uth-confms-submission
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:5003
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=uth_confms;Username=confms_admin;Password=123456
-      - ConnectionStrings__Redis=redis:6379
-      - Storage__Provider=Local
-      - Storage__BasePath=/app/uploads
-      - Services__IdentityServiceUrl=http://identity-service:5001
-      - Services__ConferenceServiceUrl=http://conference-service:5002
-    ports:
-      - "5003:5003"
-    volumes:
-      - submission_files:/app/uploads
-    depends_on:
-      - postgres
-      - redis
-      - identity-service
-      - conference-service
-    networks:
-      - uth-confms-network
-    restart: unless-stopped
+  # submission-service:
+  #   build:
+  #     context: .
+  #     dockerfile: UTH-ConfMS-Backend/Services/Submission.Service/Dockerfile
+  #   container_name: uth-confms-submission
+  #   environment:
+  #     - ASPNETCORE_ENVIRONMENT=Development
+  #     - ASPNETCORE_URLS=http://+:5003
+  #     - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=uth_confms;Username=confms_admin;Password=123456
+  #     - ConnectionStrings__Redis=redis:6379
+#     - Storage__Provider=Local
+  #     - Storage__BasePath=/app/uploads
+  #     - Services__IdentityServiceUrl=http://identity-service:5001
+  #     - Services__ConferenceServiceUrl=http://conference-service:5002
+  #   ports:
+  #     - "5003:5003"
+  #   volumes:
+  #     - submission_files:/app/uploads
+  #   depends_on:
+  #     - postgres
+  #     - redis
+  #     - identity-service
+  #     - conference-service
+  #   networks:
+  #     - uth-confms-network
+  #   restart: unless-stopped
 
-  review-service:
-    build:
-      context: .
-      dockerfile: UTH-ConfMS-Backend/Services/Review.Service/Dockerfile
-    container_name: uth-confms-review
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:5004
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=uth_confms;Username=confms_admin;Password=123456
-      - ConnectionStrings__Redis=redis:6379
-      - Services__IdentityServiceUrl=http://identity-service:5001
-      - Services__SubmissionServiceUrl=http://submission-service:5003
-      - Services__NotificationServiceUrl=http://notification-service:5005
-    ports:
-      - "5004:5004"
-    depends_on:
-      - postgres
-      - redis
-      - identity-service
-      - submission-service
-    networks:
-      - uth-confms-network
-    restart: unless-stopped
+  # review-service:
+  #   build:
+  #     context: .
+  #     dockerfile: UTH-ConfMS-Backend/Services/Review.Service/Dockerfile
+  #   container_name: uth-confms-review
+  #   environment:
+  #     - ASPNETCORE_ENVIRONMENT=Development
+  #     - ASPNETCORE_URLS=http://+:5004
+  #     - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=uth_confms;Username=confms_admin;Password=123456
+  #     - ConnectionStrings__Redis=redis:6379
+  #     - Services__IdentityServiceUrl=http://identity-service:5001
+  #     - Services__SubmissionServiceUrl=http://submission-service:5003
+  #     - Services__NotificationServiceUrl=http://notification-service:5005
+  #   ports:
+  #     - "5004:5004"
+  #   depends_on:
+  #     - postgres
+  #     - redis
+  #     - identity-service
+  #     - submission-service
+  #   networks:
+  #     - uth-confms-network
+  #   restart: unless-stopped
 
   # notification-service:
   #   build:
@@ -189,8 +189,8 @@ services:
     depends_on:
       - identity-service
       - conference-service
-      - submission-service
-      - review-service
+      # - submission-service
+      # - review-service
       # - notification-service
     networks:
       - uth-confms-network

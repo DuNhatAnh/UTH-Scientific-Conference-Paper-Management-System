@@ -1,102 +1,240 @@
-using Microsoft.EntityFrameworkCore;
+using AutoMapper;
+using Conference.Service.DTOs.Common;
+using Conference.Service.DTOs.Requests;
+using Conference.Service.DTOs.Responses;
 using Conference.Service.Entities;
 using Conference.Service.Interfaces;
-using Conference.Service.Data;
+using Conference.Service.Interfaces.Services;
 
-namespace Conference.Service.Services
+namespace Conference.Service.Services;
+
+public class ConferenceService : IConferenceService
 {
-    public class ConferenceService : IConferenceService
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<ConferenceService> _logger;
+    private readonly IMapper _mapper;
+
+    public ConferenceService(IUnitOfWork unitOfWork, ILogger<ConferenceService> logger, IMapper mapper)
     {
-        private readonly ConferenceDbContext _context;
+        _unitOfWork = unitOfWork;
+        _logger = logger;
+        _mapper = mapper;
+    }
 
-        public ConferenceService(ConferenceDbContext context)
+    public async Task<PagedResponse<ConferenceDto>> GetConferencesAsync(string? status, int page, int pageSize)
+    {
+        var totalCount = await _unitOfWork.Conferences.CountAsync(status);
+        var conferences = await _unitOfWork.Conferences.GetAllAsync(status, (page - 1) * pageSize, pageSize);
+
+        var items = _mapper.Map<List<ConferenceDto>>(conferences);
+
+        return new PagedResponse<ConferenceDto>
         {
-            _context = context;
+            Data = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<ConferenceDetailDto> GetConferenceByIdAsync(Guid conferenceId)
+    {
+        var conference = await _unitOfWork.Conferences.GetByIdWithDetailsAsync(conferenceId);
+
+        if (conference == null)
+        {
+            throw new InvalidOperationException("Conference not found");
         }
 
-        public async Task<IEnumerable<Entities.Conference>> GetAllConferencesAsync()
+        return _mapper.Map<ConferenceDetailDto>(conference);
+    }
+
+    public async Task<ConferenceDto> CreateConferenceAsync(CreateConferenceRequest request, Guid createdBy)
+    {
+        // Check if acronym already exists
+        var existing = await _unitOfWork.Conferences.GetByAcronymAsync(request.Acronym);
+
+        if (existing != null)
         {
-            // Sắp xếp hội nghị mới nhất lên đầu
-            return await _context.Conferences
-                                 .OrderByDescending(c => c.StartDate)
-                                 .ToListAsync();
+            throw new InvalidOperationException($"Conference with acronym '{request.Acronym}' already exists");
         }
 
-        public async Task<Entities.Conference?> GetConferenceByIdAsync(int id)
+        var conference = new Entities.Conference
         {
-            return await _context.Conferences.FindAsync(id);
+            ConferenceId = Guid.NewGuid(),
+            Name = request.Name,
+            Acronym = request.Acronym,
+            Description = request.Description,
+            Location = request.Location,
+            StartDate = request.StartDate,
+            EndDate = request.EndDate,
+            Status = "DRAFT",
+            Visibility = "PRIVATE",
+            ReviewMode = request.ReviewMode,
+            CreatedBy = createdBy,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        await _unitOfWork.Conferences.CreateAsync(conference);
+
+        // Create default Call for Papers
+        var cfp = new CallForPapers
+        {
+            CfpId = Guid.NewGuid(),
+            ConferenceId = conference.ConferenceId,
+            Title = $"{conference.Name} - Call for Papers",
+            Content = "Call for Papers details will be added here.",
+            AcceptedFileFormats = "PDF",
+            MaxFileSizeMb = 10,
+            IsPublished = false,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        await _unitOfWork.CallForPapers.CreateAsync(cfp);
+        await _unitOfWork.SaveChangesAsync();
+
+        _logger.LogInformation("Conference {Acronym} created by user {UserId}", conference.Acronym, createdBy);
+
+        return _mapper.Map<ConferenceDto>(conference);
+    }
+
+    public async Task<ConferenceDto> UpdateConferenceAsync(Guid conferenceId, UpdateConferenceRequest request)
+    {
+        var conference = await _unitOfWork.Conferences.GetByIdAsync(conferenceId);
+        if (conference == null)
+        {
+            throw new InvalidOperationException("Conference not found");
         }
 
-        public async Task<(bool IsSuccess, string? ErrorMessage, Entities.Conference? Data)> CreateConferenceAsync(Entities.Conference conference)
+        if (request.Name != null) conference.Name = request.Name;
+        if (request.Description != null) conference.Description = request.Description;
+        if (request.Location != null) conference.Location = request.Location;
+        if (request.StartDate.HasValue) conference.StartDate = request.StartDate;
+        if (request.EndDate.HasValue) conference.EndDate = request.EndDate;
+        if (request.Status != null) conference.Status = request.Status;
+        if (request.Visibility != null) conference.Visibility = request.Visibility;
+
+        conference.UpdatedAt = DateTime.UtcNow;
+        await _unitOfWork.SaveChangesAsync();
+
+        return _mapper.Map<ConferenceDto>(conference);
+    }
+
+    public async Task DeleteConferenceAsync(Guid conferenceId)
+    {
+        var conference = await _unitOfWork.Conferences.GetByIdAsync(conferenceId);
+        if (conference == null)
         {
-            // 1. Kiểm tra ngày kết thúc phải sau ngày bắt đầu
-            if (conference.EndDate < conference.StartDate)
-            {
-                return (false, "Ngày kết thúc không được nhỏ hơn ngày bắt đầu!", null);
-            }
-
-            // 2. Không được tạo hội nghị trong quá khứ (Tính theo UTC để chuẩn server)
-            if (conference.StartDate < DateTime.UtcNow)
-            {
-                return (false, "Ngày bắt đầu hội nghị phải ở tương lai!", null);
-            }
-
-            // 3. Kiểm tra trùng tên (Optional)
-            bool isDuplicate = await _context.Conferences.AnyAsync(c => c.Name == conference.Name);
-            if (isDuplicate)
-            {
-                return (false, $"Hội nghị tên '{conference.Name}' đã tồn tại!", null);
-            }
-
-            // Nếu thỏa mãn tất cả -> Lưu vào DB
-            try 
-            {
-                _context.Conferences.Add(conference);
-                await _context.SaveChangesAsync();
-                return (true, null, conference);
-            }
-            catch (Exception ex)
-            {
-                return (false, $"Lỗi Database: {ex.Message}", null);
-            }
+            throw new InvalidOperationException("Conference not found");
         }
 
-        public async Task<(bool IsSuccess, string? ErrorMessage)> UpdateConferenceAsync(int id, Entities.Conference conference)
+        await _unitOfWork.Conferences.DeleteAsync(conference);
+        await _unitOfWork.SaveChangesAsync();
+
+        _logger.LogInformation("Conference {ConferenceId} deleted", conferenceId);
+    }
+
+    public async Task<CallForPapersDto> GetCallForPapersAsync(Guid conferenceId)
+    {
+        var cfp = await _unitOfWork.CallForPapers.GetByConferenceIdAsync(conferenceId);
+
+        if (cfp == null)
         {
-            if (id != conference.Id) return (false, "ID không khớp!");
-
-            // Logic validate ngày tháng khi update
-            if (conference.EndDate < conference.StartDate)
-                return (false, "Ngày kết thúc không hợp lệ!");
-
-            _context.Entry(conference).State = EntityState.Modified;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-                return (true, null);
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!await _context.Conferences.AnyAsync(e => e.Id == id))
-                    return (false, "Không tìm thấy hội nghị để sửa!");
-                else
-                    throw;
-            }
+            throw new InvalidOperationException("Call for Papers not found");
         }
 
-        public async Task<(bool IsSuccess, string? ErrorMessage)> DeleteConferenceAsync(int id)
+        return _mapper.Map<CallForPapersDto>(cfp);
+    }
+
+    public async Task<CallForPapersDto> UpdateCallForPapersAsync(Guid conferenceId, UpdateCallForPapersRequest request)
+    {
+        var cfp = await _unitOfWork.CallForPapers.GetByConferenceIdAsync(conferenceId);
+
+        if (cfp == null)
         {
-            var conference = await _context.Conferences.FindAsync(id);
-            if (conference == null) return (false, "Không tìm thấy hội nghị!");
-            
-            // Kiểm tra ràng buộc nếu có (ví dụ: đã có bài báo đăng ký trong hội nghị)
-            // if (conference.Papers.Count > 0) return (false, "Không thể xóa hội nghị đã có bài báo!");
-
-            _context.Conferences.Remove(conference);
-            await _context.SaveChangesAsync();
-
-            return (true, null);
+            throw new InvalidOperationException("Call for Papers not found");
         }
+
+        if (request.Title != null) cfp.Title = request.Title;
+        if (request.Content != null) cfp.Content = request.Content;
+        cfp.SubmissionGuidelines = request.SubmissionGuidelines;
+        cfp.FormattingRequirements = request.FormattingRequirements;
+        cfp.MinPages = request.MinPages;
+        cfp.MaxPages = request.MaxPages;
+        if (request.IsPublished.HasValue) cfp.IsPublished = request.IsPublished.Value;
+
+        if (request.IsPublished == true && !cfp.PublishedAt.HasValue)
+        {
+            cfp.PublishedAt = DateTime.UtcNow;
+        }
+
+        cfp.UpdatedAt = DateTime.UtcNow;
+        await _unitOfWork.SaveChangesAsync();
+
+        return await GetCallForPapersAsync(conferenceId);
+    }
+
+    public async Task<List<TrackDto>> GetTracksAsync(Guid conferenceId)
+    {
+        var tracks = await _unitOfWork.Tracks.GetByConferenceIdAsync(conferenceId);
+        return _mapper.Map<List<TrackDto>>(tracks);
+    }
+
+    public async Task<TrackDto> AddTrackAsync(Guid conferenceId, CreateTrackRequest request)
+    {
+        var conference = await _unitOfWork.Conferences.GetByIdAsync(conferenceId);
+        if (conference == null)
+        {
+            throw new InvalidOperationException("Conference not found");
+        }
+
+        var track = new ConferenceTrack
+        {
+            TrackId = Guid.NewGuid(),
+            ConferenceId = conferenceId,
+            Name = request.Name,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _unitOfWork.Tracks.CreateAsync(track);
+        await _unitOfWork.SaveChangesAsync();
+
+        return _mapper.Map<TrackDto>(track);
+    }
+
+    public async Task<List<DeadlineDto>> GetDeadlinesAsync(Guid conferenceId)
+    {
+        var deadlines = await _unitOfWork.Deadlines.GetByConferenceIdAsync(conferenceId);
+        return _mapper.Map<List<DeadlineDto>>(deadlines);
+    }
+
+    public async Task<DeadlineDto> AddDeadlineAsync(Guid conferenceId, CreateDeadlineRequest request)
+    {
+        var conference = await _unitOfWork.Conferences.GetByIdAsync(conferenceId);
+        if (conference == null)
+        {
+            throw new InvalidOperationException("Conference not found");
+        }
+
+        var deadline = new ConferenceDeadline
+        {
+            DeadlineId = Guid.NewGuid(),
+            ConferenceId = conferenceId,
+            DeadlineType = request.DeadlineType ?? request.Type,
+            Name = request.Name,
+            Description = request.Description,
+            DeadlineDate = request.DeadlineDate ?? request.Date,
+            Timezone = request.Timezone,
+            IsHardDeadline = request.IsHardDeadline ?? false,
+            GracePeriodHours = request.GracePeriodHours ?? 0,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _unitOfWork.Deadlines.CreateAsync(deadline);
+        await _unitOfWork.SaveChangesAsync();
+
+        return _mapper.Map<DeadlineDto>(deadline);
     }
 }

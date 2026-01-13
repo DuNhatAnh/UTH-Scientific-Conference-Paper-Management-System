@@ -7,11 +7,11 @@ using Serilog;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Conference.Service.Data;
-// using Conference.Service.Validators; // TODO: Add validators
+using Conference.Service.Validators; // TODO: Add validators
 using Conference.Service.Interfaces;
-// using Conference.Service.Interfaces.Repositories; // TODO: Add interface repositories
-// using Conference.Service.Interfaces.Services; // TODO: Add interface services
-// using Conference.Service.Repositories; // TODO: Add repositories
+using Conference.Service.Interfaces.Repositories; // TODO: Add interface repositories
+using Conference.Service.Interfaces.Services; // TODO: Add interface services
+using Conference.Service.Repositories; // TODO: Add repositories
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -117,12 +117,12 @@ builder.Services.AddAuthorization(options =>
 
 // Register Application Services
 // TODO: Implement these services
-// builder.Services.AddScoped<IUnitOfWork, Conference.Service.Repositories.UnitOfWork>();
-// builder.Services.AddScoped<IConferenceRepository, Conference.Service.Repositories.ConferenceRepository>();
-// builder.Services.AddScoped<ITrackRepository, Conference.Service.Repositories.TrackRepository>();
-// builder.Services.AddScoped<IDeadlineRepository, Conference.Service.Repositories.DeadlineRepository>();
-// builder.Services.AddScoped<ICallForPapersRepository, Conference.Service.Repositories.CallForPapersRepository>();
-// builder.Services.AddScoped<IConferenceService, Conference.Service.Services.ConferenceService>();
+builder.Services.AddScoped<IUnitOfWork, Conference.Service.Repositories.UnitOfWork>();
+builder.Services.AddScoped<IConferenceRepository, Conference.Service.Repositories.ConferenceRepository>();
+builder.Services.AddScoped<ITrackRepository, Conference.Service.Repositories.TrackRepository>();
+builder.Services.AddScoped<IDeadlineRepository, Conference.Service.Repositories.DeadlineRepository>();
+builder.Services.AddScoped<ICallForPapersRepository, Conference.Service.Repositories.CallForPapersRepository>();
+builder.Services.AddScoped<IConferenceService, Conference.Service.Services.ConferenceService>();
 
 // AutoMapper
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
@@ -130,7 +130,7 @@ builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 // FluentValidation
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddFluentValidationClientsideAdapters();
-// builder.Services.AddValidatorsFromAssemblyContaining<CreateConferenceRequestValidator>(); // TODO: Add validators
+builder.Services.AddValidatorsFromAssemblyContaining<CreateConferenceRequestValidator>(); // TODO: Add validators
 
 // CORS
 builder.Services.AddCors(options =>

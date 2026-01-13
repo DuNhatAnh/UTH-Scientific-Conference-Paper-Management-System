@@ -1,8 +1,14 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using Submission.Service.Data;
 using Submission.Service.DTOs;
 using Submission.Service.Entities;
 using Submission.Service.Interfaces;
-using Submission.Service.Data;
+using Entities = Submission.Service.Entities;
 
 namespace Submission.Service.Services
 {
@@ -15,64 +21,88 @@ namespace Submission.Service.Services
             _context = context;
         }
 
-        // 1. Logic Tạo Bài Báo (MỚI THÊM)
-        public async Task<int> CreatePaperAsync(CreatePaperDTO dto, int userId)
+        // 1. Tạo bài báo
+        public async Task<Guid> CreatePaperAsync(CreatePaperDTO dto, Guid userId)
         {
-            // Tạo entity Paper mới
-            var newPaper = new Paper
+            var submission = new Entities.Submission
             {
                 Title = dto.Title,
                 Abstract = dto.Abstract,
-                TrackId = dto.TrackId,
-                Status = "Draft",
-                FilePath = null
+                ConferenceId = dto.ConferenceId,
+                Status = "DRAFT",
+                SubmittedBy = userId,
+                CreatedAt = DateTime.UtcNow
             };
 
-            _context.Papers.Add(newPaper);
-            await _context.SaveChangesAsync(); // Save lần 1 để lấy ID
+            _context.Submissions.Add(submission);
+            await _context.SaveChangesAsync();
 
-            // Link User hiện tại làm Tác giả
-            var paperAuthor = new PaperAuthor
+            // Lưu tất cả tác giả từ DTO
+            foreach (var authorDto in dto.Authors)
             {
-                PaperId = newPaper.Id,
-                UserId = userId,
-                IsCorresponding = true, 
-                AuthorOrder = 1
-            };
+                var author = new Entities.Author
+                {
+                    SubmissionId = submission.Id,
+                    FullName = authorDto.FullName,
+                    Email = authorDto.Email,
+                    Affiliation = authorDto.Affiliation,
+                    AuthorOrder = authorDto.OrderIndex,
+                    IsCorresponding = authorDto.IsCorresponding
+                };
 
-            _context.PaperAuthors.Add(paperAuthor);
-            await _context.SaveChangesAsync(); // Save lần 2
+                // Nếu chính là user hiện tại thì gán UserId
+                if (author.IsCorresponding)
+                    author.UserId = userId;
 
-            return newPaper.Id;
+                _context.Authors.Add(author);
+            }
+
+            await _context.SaveChangesAsync();
+
+            return submission.Id;
         }
 
-        // 2. Logic Upload File (CŨ)
-        public async Task SubmitPaperAsync(int paperId, int userId, string filePath)
+        // 2. Upload PDF
+        public async Task SubmitPaperAsync(Guid paperId, Guid userId, string filePath)
         {
-            var paper = await _context.Papers
-                .Include(p => p.Authors)
-                .FirstOrDefaultAsync(p => p.Id == paperId);
+            var submission = await _context.Submissions
+                .Include(s => s.Authors)
+                .FirstOrDefaultAsync(s => s.Id == paperId);
 
-            if (paper == null) throw new Exception("Không tìm thấy bài báo");
-            
-            // Check quyền tác giả
-            bool isAuthor = paper.Authors.Any(a => a.UserId == userId);
-            if (!isAuthor) throw new Exception("Bạn không phải tác giả của bài này");
+            if (submission == null)
+                throw new Exception("Không tìm thấy bài báo");
 
-            paper.FilePath = filePath;
-            paper.Status = "Submitted"; 
+            if (!submission.Authors.Any(a => a.UserId == userId))
+                throw new Exception("Bạn không phải tác giả");
 
+            var fileInfo = new FileInfo(filePath);
+
+            var file = new Entities.SubmissionFile
+            {
+                SubmissionId = paperId,
+                FileName = fileInfo.Name,
+                FilePath = filePath,
+                FileSizeBytes = fileInfo.Length,
+                FileType = "PDF",
+                IsMainPaper = true,
+                UploadedBy = userId,
+                UploadedAt = DateTime.UtcNow
+            };
+
+            submission.Status = "SUBMITTED";
+            submission.SubmittedAt = DateTime.UtcNow;
+
+            _context.SubmissionFiles.Add(file);
             await _context.SaveChangesAsync();
         }
 
-        // 3. Logic Lấy Danh Sách (CŨ)
-        public async Task<IEnumerable<Paper>> GetMyPapersAsync(int userId)
+        // 3. Lấy danh sách bài
+        public async Task<IEnumerable<Entities.Submission>> GetMyPapersAsync(Guid userId)
         {
-            return await _context.Papers
-                // .Include(p => p.Track) // TODO: Get track info from Conference.Service API
-                .Include(p => p.Authors)
-                .Where(p => p.Authors.Any(a => a.UserId == userId))
-                .OrderByDescending(p => p.Id)
+            return await _context.Submissions
+                .Include(s => s.Authors)
+                .Where(s => s.Authors.Any(a => a.UserId == userId))
+                .OrderByDescending(s => s.CreatedAt)
                 .ToListAsync();
         }
     }

@@ -18,21 +18,25 @@ namespace Submission.Service.Controllers
             _paperService = paperService;
         }
 
-        private int GetUserId()
+        private Guid GetUserId()
         {
             var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            return idClaim != null ? int.Parse(idClaim) : 0;
+            if (string.IsNullOrEmpty(idClaim))
+                throw new Exception("Không xác định được user");
+
+            return Guid.Parse(idClaim);
         }
 
-        // API 1: Tạo bài báo (Frontend đang gọi cái này mà Backend thiếu -> Lỗi)
+        // API 1: Tạo bài báo
         [HttpPost("create")]
         public async Task<IActionResult> CreatePaper([FromBody] CreatePaperDTO dto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
-            try 
+
+            try
             {
                 var userId = GetUserId();
-                var paperId = await _paperService.CreatePaperAsync(dto, userId); 
+                var paperId = await _paperService.CreatePaperAsync(dto, userId);
                 return Ok(new { paperId });
             }
             catch (Exception ex)
@@ -43,12 +47,12 @@ namespace Submission.Service.Controllers
 
         // API 2: Upload file
         [HttpPost("{paperId}/submit")]
-        public async Task<IActionResult> SubmitPaper(int paperId, IFormFile pdf)
+        public async Task<IActionResult> SubmitPaper(Guid paperId, IFormFile pdf)
         {
             if (pdf == null || !pdf.FileName.EndsWith(".pdf"))
                 return BadRequest("Chỉ chấp nhận file PDF");
 
-            try 
+            try
             {
                 var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
                 if (!Directory.Exists(uploadsDir)) Directory.CreateDirectory(uploadsDir);
@@ -62,6 +66,7 @@ namespace Submission.Service.Controllers
                 }
 
                 await _paperService.SubmitPaperAsync(paperId, GetUserId(), fileName);
+
                 return Ok(new { message = "Nộp bài thành công!" });
             }
             catch (Exception ex)
@@ -69,8 +74,8 @@ namespace Submission.Service.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
-        
-        // API 3: Lấy danh sách
+
+        // API 3: Lấy danh sách bài
         [HttpGet("my-submissions")]
         public async Task<IActionResult> GetMyPapers()
         {
@@ -80,7 +85,10 @@ namespace Submission.Service.Controllers
                 var papers = await _paperService.GetMyPapersAsync(userId);
                 return Ok(papers);
             }
-            catch (Exception ex) { return BadRequest(new { message = ex.Message }); }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
     }
 }

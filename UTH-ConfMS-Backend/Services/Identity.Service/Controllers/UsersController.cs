@@ -23,7 +23,7 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Get current user profile
+    /// Nhận hồ sơ người dùng hiện tại
     /// </summary>
     [HttpGet("me")]
     public async Task<IActionResult> GetCurrentUser()
@@ -50,7 +50,7 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Get user by ID
+    /// lấy thông tin người dùng theo ID
     /// </summary>
     [HttpGet("{userId:guid}")]
     public async Task<IActionResult> GetUser(Guid userId)
@@ -75,7 +75,7 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Update user profile
+    /// cập nhật thông tin người dùng
     /// </summary>
     [HttpPut("{userId:guid}")]
     public async Task<IActionResult> UpdateUser(Guid userId, [FromBody] UpdateUserRequest request)

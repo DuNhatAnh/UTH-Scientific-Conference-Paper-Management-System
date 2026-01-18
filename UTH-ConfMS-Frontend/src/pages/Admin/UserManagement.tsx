@@ -13,41 +13,40 @@ interface UserData {
   name: string;
   email: string;
   role: UserRole;
+  originalRole: string;
   status: 'active' | 'inactive';
   joinedDate: string;
 }
 
 export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) => {
   const [users, setUsers] = useState<UserData[]>([]);
+  const [availableRoles, setAvailableRoles] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [modalError, setModalError] = useState('');
 
   // Form State
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    role: 'author' as UserRole,
+    role: '',
     status: 'active' as 'active' | 'inactive'
   });
 
   // Hàm map role từ Backend về Frontend (nếu cần thiết, tùy thuộc vào AuthContext)
-  const mapBackendRoleToFrontend = (backendRole: string): UserRole => {
-    const upper = backendRole?.toUpperCase() || '';
-    if (upper.includes('ADMIN')) return 'admin';
-    if (upper.includes('CHAIR')) return 'chair';
-    if (upper.includes('REVIEWER')) return 'reviewer';
-    return 'author';
-  };
+  const mapBackendRoleToFrontend = (backendRole: string | string[]): UserRole => {
+    // Xử lý cả trường hợp role là string hoặc mảng string (nếu backend trả về danh sách roles)
+    const roles = Array.isArray(backendRole) ? backendRole : [backendRole];
+    const upperRoles = roles.map(r => (r || '').toUpperCase());
 
-  // Hàm map role từ Frontend gửi về Backend
-  const mapFrontendRoleToBackend = (frontendRole: UserRole): string => {
-    if (frontendRole === 'admin') return 'SystemAdmin';
-    if (frontendRole === 'chair') return 'ConferenceChair';
-    if (frontendRole === 'reviewer') return 'Reviewer';
-    return 'Author';
+    if (upperRoles.some(r => r.includes('ADMIN'))) return 'admin';
+    if (upperRoles.some(r => r.includes('CHAIR'))) return 'chair';
+    if (upperRoles.some(r => r.includes('REVIEWER'))) return 'reviewer';
+    
+    return 'author';
   };
 
   // Fetch dữ liệu từ API khi component mount
@@ -57,6 +56,20 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
     }, 500);
     return () => clearTimeout(timer);
   }, [search]);
+
+  // Fetch danh sách Roles từ hệ thống
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const response: any = await adminApi.getRoles();
+        const data = Array.isArray(response) ? response : (response.data || []);
+        setAvailableRoles(data);
+      } catch (err) {
+        console.error("Failed to fetch roles", err);
+      }
+    };
+    fetchRoles();
+  }, []);
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -71,12 +84,13 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
         : (response.data?.items || response.data || response.items || []);
 
       // Map dữ liệu từ DTO backend sang format hiển thị của Frontend
-      const mappedUsers: UserData[] = data.map((u: UserDto) => ({
+      const mappedUsers: UserData[] = data.map((u: any) => ({
         id: u.id,
         name: u.fullName,
         email: u.email,
-        role: mapBackendRoleToFrontend(u.role),
-        status: u.isActive ? 'active' : 'inactive',
+        role: mapBackendRoleToFrontend(u.role || u.roles), // Kiểm tra cả role (string) và roles (array)
+        originalRole: Array.isArray(u.roles) ? u.roles[0] : (u.role || ''),
+        status: 'active',
         joinedDate: new Date(u.createdOn).toLocaleDateString('vi-VN')
       }));
       setUsers(mappedUsers);
@@ -99,13 +113,15 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
 
   const handleOpenAdd = () => {
     setEditingUser(null);
-    setFormData({ name: '', email: '', role: 'author', status: 'active' });
+    setFormData({ name: '', email: '', role: availableRoles[0]?.roleName || 'Author', status: 'active' });
+    setModalError('');
     setShowModal(true);
   };
 
   const handleOpenEdit = (user: UserData) => {
     setEditingUser(user);
-    setFormData({ name: user.name, email: user.email, role: user.role, status: user.status });
+    setFormData({ name: user.name, email: user.email, role: user.originalRole || 'Author', status: user.status });
+    setModalError('');
     setShowModal(true);
   };
 
@@ -126,13 +142,14 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setModalError('');
     
     // Chuẩn bị dữ liệu gửi đi
     const payload = {
       fullName: formData.name,
       email: formData.email,
-      role: mapFrontendRoleToBackend(formData.role),
-      isActive: formData.status === 'active',
+      role: formData.role,
+      isActive: true,
       // Nếu là tạo mới, backend có thể yêu cầu password mặc định hoặc gửi email kích hoạt
       // password: 'DefaultPassword@123', 
     };
@@ -151,9 +168,13 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
       // Tải lại danh sách sau khi lưu thành công
       await fetchUsers();
       setShowModal(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Đã có lỗi xảy ra. Vui lòng thử lại.");
+      // Hiển thị thông báo lỗi chi tiết từ Backend hoặc Axios
+      const message = err.response?.data?.message || 
+                      (typeof err.response?.data === 'string' ? err.response.data : '') ||
+                      err.message || "Đã có lỗi xảy ra. Vui lòng thử lại.";
+      setModalError(message);
     } finally {
       setIsLoading(false);
     }
@@ -197,6 +218,30 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
           <div className="bg-red-100 text-red-700 p-3 rounded-lg text-sm">{error}</div>
         )}
 
+        {/* Thống kê User (Dữ liệu thực tế từ DB) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white dark:bg-card-dark p-5 rounded-xl border border-border-light shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-sm text-text-sec-light font-medium">Tổng người dùng</p>
+              <h3 className="text-2xl font-bold text-text-main-light dark:text-text-main-dark mt-1">{users.length}</h3>
+            </div>
+            <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
+              <span className="material-symbols-outlined">group</span>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-card-dark p-5 rounded-xl border border-border-light shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-sm text-text-sec-light font-medium">Đang hoạt động</p>
+              <h3 className="text-2xl font-bold text-text-main-light dark:text-text-main-dark mt-1">
+                {users.filter(u => u.status === 'active').length}
+              </h3>
+            </div>
+            <div className="p-3 bg-green-50 text-green-600 rounded-lg">
+              <span className="material-symbols-outlined">how_to_reg</span>
+            </div>
+          </div>
+        </div>
+
         {/* Toolbar */}
         <div className="bg-white dark:bg-card-dark p-4 rounded-xl border border-border-light shadow-sm flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
@@ -232,7 +277,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-800 border-b border-border-light text-xs uppercase text-text-sec-light font-bold">
-                    <th className="p-4">ID (Database)</th>
+                    <th className="p-4">STT</th>
                     <th className="p-4">Họ và tên</th>
                     <th className="p-4">Email</th>
                     <th className="p-4">Vai trò</th>
@@ -243,10 +288,10 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
                 </thead>
                 <tbody className="divide-y divide-border-light">
                   {filteredUsers.length > 0 ? (
-                    filteredUsers.map((user) => (
+                    filteredUsers.map((user, index) => (
                       <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                        <td className="p-4 font-mono text-xs text-text-sec-light" title={user.id}>
-                          {user.id.substring(0, 8)}...
+                        <td className="p-4 font-mono text-xs text-text-sec-light">
+                          {index + 1}
                         </td>
                         <td className="p-4 font-medium text-text-main-light dark:text-text-main-dark">{user.name}</td>
                         <td className="p-4 text-sm text-text-sec-light">{user.email}</td>
@@ -290,6 +335,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600 material-symbols-outlined">close</button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
+              {modalError && (
+                <div className="bg-red-100 text-red-700 p-3 rounded-lg text-sm border border-red-200">{modalError}</div>
+              )}
               <div>
                 <label className="block text-sm font-medium mb-1">Họ và tên</label>
                 <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary" />
@@ -300,11 +348,12 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Vai trò</label>
-                <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value as UserRole})} className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary">
-                  <option value="author">Author</option>
-                  <option value="reviewer">Reviewer</option>
-                  <option value="chair">Chair</option>
-                  <option value="admin">Admin</option>
+                <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary">
+                  {availableRoles.length > 0 ? availableRoles.map((r) => (
+                    <option key={r.roleId} value={r.roleName}>{r.displayName || r.roleName}</option>
+                  )) : (
+                    <option value="Author">Author</option>
+                  )}
                 </select>
               </div>
               <button type="submit" className="mt-2 bg-primary text-white py-2 rounded-lg font-bold hover:bg-primary-hover transition-colors">

@@ -29,6 +29,21 @@
       }
     },
     {
+      "DownstreamPathTemplate": "/api/users",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "identity-service",
+          "Port": 5001
+        }
+      ],
+      "UpstreamPathTemplate": "/api/users",
+      "UpstreamHttpMethod": [ "GET", "POST" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer"
+      }
+    },
+    {
       "DownstreamPathTemplate": "/api/roles/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [

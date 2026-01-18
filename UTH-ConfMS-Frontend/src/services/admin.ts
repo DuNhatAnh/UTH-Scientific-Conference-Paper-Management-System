@@ -22,6 +22,25 @@ export const adminApi = {
     // Xử lý trường hợp apiClient đã trả về data qua interceptor hoặc chưa
     return response.data || response;
   },
+  createUser: async (data: any) => {
+    const response = await apiClient.post('/api/auth/register', data);
+    return response.data;
+  },
+  updateUser: async (id: string, data: any) => {
+    const response = await apiClient.put(`/api/users/${id}`, data);
+    return response.data;
+  },
+  deleteUser: async (id: string) => {
+    const response = await apiClient.delete(`/api/users/${id}`);
+    return response.data;
+  },
+  // Lấy danh sách các Role trong hệ thống (phục vụ dropdown hoặc filter) 
+  getRoles: async () => {
+    const response = await apiClient.get('/api/roles/allroles');
+    return response.data || response;
+  },
+  
+
   // --- Quản lý Hội nghị & Track ---
   createConference: async (data: CreateConferenceDto) => {
     const response = await apiClient.post('/api/conferences', data);

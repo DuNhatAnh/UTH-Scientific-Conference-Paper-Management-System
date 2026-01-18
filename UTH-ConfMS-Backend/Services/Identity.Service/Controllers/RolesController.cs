@@ -27,7 +27,7 @@ public class RolesController : ControllerBase
     /// <summary>
     /// Get all roles
     /// </summary>
-    [HttpGet]
+    [HttpGet("allroles")]
     public async Task<IActionResult> GetRoles()
     {
         try

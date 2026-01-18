@@ -19,7 +19,7 @@ export const ChairDashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div className="bg-white dark:bg-card-dark p-6 rounded-xl border border-border-light shadow-sm">
                     <p className="text-xs text-text-sec-light uppercase font-bold mb-1">Tổng bài nộp</p>
                     <p className="text-3xl font-black text-primary">142</p>
@@ -35,6 +35,14 @@ export const ChairDashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                 <div className="bg-white dark:bg-card-dark p-6 rounded-xl border border-border-light shadow-sm">
                     <p className="text-xs text-text-sec-light uppercase font-bold mb-1">Chấp nhận</p>
                     <p className="text-3xl font-black text-blue-500">12</p>
+                </div>
+                {/* Thêm Card quản lý PC Member */}
+                <div className="bg-white dark:bg-card-dark p-6 rounded-xl border border-border-light shadow-sm hover:shadow-md transition-shadow cursor-pointer group" onClick={() => onNavigate('pc-members')}>
+                    <div className="flex justify-between items-start">
+                        <p className="text-xs text-text-sec-light uppercase font-bold mb-1">Thành viên PC</p>
+                        <span className="material-symbols-outlined text-gray-400 group-hover:text-primary">arrow_forward</span>
+                    </div>
+                    <p className="text-3xl font-black text-purple-600">Quản lý</p>
                 </div>
             </div>
 

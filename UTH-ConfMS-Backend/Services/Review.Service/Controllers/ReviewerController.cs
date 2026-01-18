@@ -27,7 +27,7 @@ namespace Review.Service.Controllers
 
         // 1. Gửi lời mời tham gia PC (Dành cho Chair)
         [HttpPost("invite")]
-        // [Authorize(Roles = "chair,admin")]
+        [Authorize(Roles = "chair,admin")]
         public async Task<IActionResult> InviteReviewer([FromBody] InviteReviewerDTO dto)
         {
             try
@@ -43,7 +43,7 @@ namespace Review.Service.Controllers
 
         // 2. Phản hồi lời mời (Accept/Decline)
         [HttpPost("invitation/respond")]
-        // [Authorize] // User cần đăng nhập để Accept và map UserId
+        [Authorize] // User cần đăng nhập để Accept và map UserId
         public async Task<IActionResult> RespondInvitation([FromBody] InvitationResponseDTO dto)
         {
             try
@@ -69,6 +69,15 @@ namespace Review.Service.Controllers
         {
             var reviewers = await _reviewerService.GetReviewersByConferenceAsync(conferenceId);
             return Ok(reviewers);
+        }
+
+        // 4. Lấy danh sách các lời mời đã gửi (Để Chair theo dõi trạng thái Pending/Accepted)
+        [HttpGet("invitations/{conferenceId}")]
+        [Authorize(Roles = "chair,admin")]
+        public async Task<IActionResult> GetInvitations(int conferenceId)
+        {
+            var invitations = await _reviewerService.GetInvitationsByConferenceAsync(conferenceId);
+            return Ok(invitations);
         }
     }
 }

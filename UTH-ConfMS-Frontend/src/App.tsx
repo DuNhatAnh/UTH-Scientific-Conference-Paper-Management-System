@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { Home } from './pages/Public/Home';
 import { Login } from './pages/Auth/Login';
@@ -17,6 +17,8 @@ import { AdminDashboard } from './pages/Admin/Dashboard';
 import { UserManagement } from './pages/Admin/UserManagement';
 import { DecisionNotification } from './components/DecisionNotification';
 import { Profile } from './components/Profile';
+import { PCMemberManagement } from './pages/Chair/PCMemberManagement';
+import { AcceptInvitation } from './pages/Public/AcceptInvitation';
 import { useAuth, UserRole } from './contexts/AuthContext';
 export type ViewState = 
   | 'home' 
@@ -34,11 +36,21 @@ export type ViewState =
   | 'admin-dashboard'
   | 'admin-users'
   | 'decision' 
-  | 'profile';
+  | 'profile'
+  | 'pc-members'
+  | 'accept-invitation';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('home');
   const { user, isAuthenticated, isLoading } = useAuth();
+
+  // Xử lý Deep Link từ Email (ví dụ: /invite/accept?token=...)
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (path === '/invite/accept') {
+      setCurrentView('accept-invitation');
+    }
+  }, []);
 
   // Hàm bảo vệ View: Chỉ render nếu đúng Role
   const renderProtected = (allowedRoles: UserRole[], component: React.ReactNode) => {
@@ -68,6 +80,8 @@ const App: React.FC = () => {
       case 'admin-users': return renderProtected(['admin'], <UserManagement onNavigate={setCurrentView} />);
       case 'decision': return <DecisionNotification />;
       case 'profile': return <Profile />;
+      case 'pc-members': return renderProtected(['chair', 'admin'], <PCMemberManagement />);
+      case 'accept-invitation': return <AcceptInvitation />;
       default: return <Home />;
     }
   };

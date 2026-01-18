@@ -1,9 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 using Review.Service.Data;
 using Review.Service.DTOs;
 using Review.Service.Entities;
@@ -15,11 +19,15 @@ public class ReviewerService : IReviewerService
 {
     private readonly ReviewDbContext _context;
     private readonly ILogger<ReviewerService> _logger;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IConfiguration _configuration;
 
-    public ReviewerService(ReviewDbContext context, ILogger<ReviewerService> logger)
+    public ReviewerService(ReviewDbContext context, ILogger<ReviewerService> logger, IHttpClientFactory httpClientFactory, IConfiguration configuration)
     {
         _context = context;
         _logger = logger;
+        _httpClientFactory = httpClientFactory;
+        _configuration = configuration;
     }
 
     public async Task<ReviewerInvitation> InviteReviewerAsync(InviteReviewerDTO dto)
@@ -55,8 +63,36 @@ public class ReviewerService : IReviewerService
         _context.ReviewerInvitations.Add(invitation);
         await _context.SaveChangesAsync();
 
-        // TODO: Tích hợp Notification Service để gửi email thực tế tại đây (USCPMS-Notification)
-        _logger.LogInformation($"Invitation created for {dto.Email} with token {invitation.Token}");
+        // Gửi email thông qua Notification Service
+        try 
+        {
+            // Lấy cấu hình từ appsettings.json (hoặc biến môi trường)
+            var notificationServiceUrl = _configuration["ServiceUrls:Notification"] ?? "http://localhost:5005";
+            var frontendUrl = _configuration["ServiceUrls:Frontend"] ?? "http://localhost:3000";
+
+            var client = _httpClientFactory.CreateClient();
+            var emailPayload = new 
+            {
+                To = dto.Email,
+                Subject = "Invitation to PC Member - UTH ConfMS",
+                Body = $"Dear {dto.FullName},<br/>You have been invited to be a reviewer. Click here to accept: <a href='{frontendUrl}/invite/accept?token={invitation.Token}'>Accept Invitation</a>"
+            };
+
+            var content = new StringContent(JsonSerializer.Serialize(emailPayload), Encoding.UTF8, "application/json");
+            
+            // Giả định Notification Service có endpoint này (dựa trên kiến trúc microservices)
+            var response = await client.PostAsync($"{notificationServiceUrl}/api/notifications/send-email", content);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError($"Failed to send email to {dto.Email}. Status: {response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error communicating with Notification Service for {dto.Email}");
+            // Không throw exception ở đây để tránh rollback transaction mời thành công
+        }
         
         return invitation;
     }
@@ -74,8 +110,13 @@ public class ReviewerService : IReviewerService
         invitation.RespondedAt = DateTime.UtcNow;
         invitation.Status = dto.IsAccepted ? "Accepted" : "Declined";
 
-        if (dto.IsAccepted && userId.HasValue)
+        if (dto.IsAccepted)
         {
+            if (!userId.HasValue)
+            {
+                throw new ArgumentException("User ID is required to accept the invitation.");
+            }
+
             // Kiểm tra xem user đã là Reviewer chưa để tránh lỗi trùng lặp
             var alreadyExists = await _context.Reviewers
                 .AnyAsync(r => r.UserId == userId.Value && r.ConferenceId == invitation.ConferenceId);

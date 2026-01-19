@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient from '../services/apiClient';
 
 // Định nghĩa kiểu dữ liệu cho Discussion
 interface Discussion {
@@ -16,7 +16,7 @@ interface ReviewFormProps {
 export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId }) => {
     // State lưu dữ liệu form
     const [formData, setFormData] = useState({
-        paperId: paperId || 101, // Dùng ID truyền vào hoặc mặc định 101
+        paperId: paperId || 0, 
         noveltyScore: 5,
         methodologyScore: 5,
         presentationScore: 5,
@@ -34,7 +34,9 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId }) => {
 
     // Tự động tải danh sách thảo luận khi Paper ID thay đổi
     useEffect(() => {
-        fetchDiscussions();
+        if (formData.paperId > 0) {
+            fetchDiscussions();
+        }
     }, [formData.paperId]);
 
     // Cập nhật form khi paperId từ props thay đổi
@@ -46,7 +48,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId }) => {
 
     const fetchDiscussions = async () => {
         try {
-            const response = await axios.get(`http://localhost:5005/api/reviews/discussion/${formData.paperId}`);
+            const response = await apiClient.get(`/api/reviews/discussion/${formData.paperId}`);
             setDiscussions(response.data);
         } catch (error) {
             console.error("Lỗi tải thảo luận:", error);
@@ -79,7 +81,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId }) => {
                 presentationScore: Number(formData.presentationScore),
             };
 
-            const response = await axios.post('http://localhost:5005/api/reviews/submit', payload);
+            const response = await apiClient.post('/api/reviews/submit', payload);
 
             if (response.status === 200) {
                 setMessage({ text: '✅ Đánh giá đã được gửi thành công!', type: 'success' });
@@ -98,7 +100,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId }) => {
     const handleCommentSubmit = async () => {
         if (!newComment.trim()) return;
         try {
-            await axios.post('http://localhost:5005/api/reviews/discussion', {
+            await apiClient.post('/api/reviews/discussion', {
                 paperId: Number(formData.paperId),
                 content: newComment
             });
@@ -109,6 +111,10 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId }) => {
             alert("Không thể gửi thảo luận lúc này.");
         }
     };
+
+    if (!formData.paperId) {
+        return <div className="text-center text-red-500 p-10">Lỗi: Không tìm thấy ID bài báo để đánh giá.</div>;
+    }
 
     return (
         <div className="w-full bg-background-light dark:bg-background-dark py-4 px-2 md:px-5 flex justify-center">

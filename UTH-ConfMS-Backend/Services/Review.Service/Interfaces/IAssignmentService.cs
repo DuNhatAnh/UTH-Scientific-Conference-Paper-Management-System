@@ -6,5 +6,6 @@ namespace Review.Service.Interfaces
     {
         Task<bool> AssignReviewerAsync(AssignReviewerDTO dto);
         Task<IEnumerable<object>> GetReviewersForPaperAsync(int paperId); // Lấy DS ai đang chấm bài này
+        Task<IEnumerable<object>> GetAvailableReviewersAsync(int paperId);
     }
 }

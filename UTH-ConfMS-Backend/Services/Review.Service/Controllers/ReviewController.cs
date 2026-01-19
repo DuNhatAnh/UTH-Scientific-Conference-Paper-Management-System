@@ -10,7 +10,7 @@ namespace Review.Service.Controllers
 {
     [ApiController]
     [Route("api/reviews")]
-    // [Authorize] // TẠM THỜI COMMENT ĐỂ TEST
+    [Authorize]
     public class ReviewController : ControllerBase
     {
         private readonly IReviewService _reviewService;
@@ -42,7 +42,7 @@ namespace Review.Service.Controllers
 
         // 1. API Nộp đánh giá (Dành cho Reviewer)
         [HttpPost("submit")]
-        // [Authorize(Roles = "reviewer,chair")] // TẠM THỜI COMMENT ĐỂ TEST
+        [Authorize(Roles = "reviewer,chair")]
         public async Task<IActionResult> SubmitReview([FromBody] SubmitReviewDTO dto)
         {
             try
@@ -59,7 +59,7 @@ namespace Review.Service.Controllers
 
         // 2. API Thảo luận nội bộ (PC Members / Chairs / Reviewers)
         [HttpPost("discussion")]
-        // [Authorize(Roles = "chair,admin,reviewer")] // TẠM THỜI COMMENT ĐỂ TEST
+        [Authorize(Roles = "chair,admin,reviewer")]
         public async Task<IActionResult> AddDiscussion([FromBody] DiscussionCommentDTO dto)
         {
             try
@@ -75,7 +75,7 @@ namespace Review.Service.Controllers
 
         // 3. API Lấy danh sách thảo luận của một bài báo
         [HttpGet("discussion/{paperId}")]
-        // [Authorize(Roles = "chair,admin,reviewer")] // TẠM THỜI COMMENT ĐỂ TEST
+        [Authorize(Roles = "chair,admin,reviewer")]
         public async Task<IActionResult> GetDiscussions(int paperId)
         {
             var comments = await _reviewService.GetDiscussionAsync(paperId);

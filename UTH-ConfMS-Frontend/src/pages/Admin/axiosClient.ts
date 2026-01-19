@@ -21,7 +21,6 @@ axiosClient.interceptors.request.use(
     return Promise.reject(error);
   }
 );
-
 // Interceptor cho Response: Xử lý lỗi toàn cục (ví dụ: 401 Unauthorized)
 axiosClient.interceptors.response.use(
   (response) => {

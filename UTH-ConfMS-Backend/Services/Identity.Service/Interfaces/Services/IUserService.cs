@@ -19,4 +19,5 @@ public interface IUserService
     Task<RoleDto> CreateRoleAsync(CreateRoleRequest request);
     Task<RoleDto> UpdateRoleAsync(Guid roleId, UpdateRoleRequest request);
     Task DeleteRoleAsync(Guid roleId);
+    Task DeleteUserAsync(Guid userId);
 }

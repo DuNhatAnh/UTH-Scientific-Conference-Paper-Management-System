@@ -272,4 +272,19 @@ public class UserService : IUserService
 
         _logger.LogInformation("Role {RoleId} deleted (soft delete)", roleId);
     }
+    public async Task DeleteUserAsync(Guid userId)
+    {
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null)
+        {
+            throw new InvalidOperationException("User not found");
+        }
+        // Soft delete: Chỉ tắt trạng thái hoạt động
+        user.IsActive = false;
+        user.UpdatedAt = DateTime.UtcNow;
+        // EF Core đã tracking entity từ GetByIdAsync, không cần gọi UpdateAsync (tránh lỗi attach/state)
+        // await _unitOfWork.Users.UpdateAsync(user);
+        await _unitOfWork.SaveChangesAsync();
+        _logger.LogInformation("User {UserId} deleted (soft delete)", userId);
+    }
 }

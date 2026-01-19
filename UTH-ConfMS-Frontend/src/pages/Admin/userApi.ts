@@ -17,7 +17,8 @@ export const userApi = {
 
   // Tạo người dùng mới
   createUser: async (data: any) => {
-    return axiosClient.post('/users', data);
+    const response = await axiosClient.post('/auth/register', data);
+    return response.data;
   },
 
   // Cập nhật trạng thái hoặc role người dùng

@@ -48,14 +48,14 @@ public class AuthService : IAuthService
         {
             // Increment failed login attempts
             user.FailedLoginAttempts++;
-            
+
             // Lock account after 5 failed attempts
             if (user.FailedLoginAttempts >= 5)
             {
                 user.AccountLockedUntil = DateTime.UtcNow.AddMinutes(30);
                 _logger.LogWarning("Account locked for user {Email} due to multiple failed login attempts", user.Email);
             }
-            
+
             await _unitOfWork.SaveChangesAsync();
             throw new UnauthorizedAccessException("Invalid email or password");
         }

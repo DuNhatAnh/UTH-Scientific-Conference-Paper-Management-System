@@ -83,7 +83,10 @@ public class UsersController : ControllerBase
         try
         {
             var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (userId.ToString() != currentUserId)
+
+            // Cho phép nếu là chính chủ HOẶC là Admin (kiểm tra claim role)
+            var isAdmin = User.HasClaim(c => c.Type == ClaimTypes.Role && (c.Value == "Administrator" || c.Value == "Admin" || c.Value == "SYSTEM_ADMIN"));
+            if (userId.ToString() != currentUserId && !isAdmin)
             {
                 return Forbid();
             }
@@ -207,6 +210,45 @@ public class UsersController : ControllerBase
             {
                 Success = false,
                 Message = ex.Message
+            });
+        }
+    }
+    /// <summary>
+    /// Xóa người dùng (Soft delete)
+    /// </summary>
+    [HttpDelete("{userId:guid}")]
+    [Authorize(Policy = "RequireAdminRole")] // Nhớ check quyền Admin
+    public async Task<IActionResult> DeleteUser(Guid userId)
+    {
+        try
+        {
+            await _userService.DeleteUserAsync(userId);
+            return Ok(new ApiResponse<object>
+            {
+                Success = true,
+                Message = "User deleted successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Delete user failed");
+
+            // Nếu lỗi là do không tìm thấy user, trả về 404 thay vì 400
+            if (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+            {
+                return NotFound(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+
+            // Trả về lỗi chi tiết từ Database (InnerException) để dễ debug
+            var errorMessage = ex.InnerException?.Message ?? ex.Message;
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = errorMessage
             });
         }
     }

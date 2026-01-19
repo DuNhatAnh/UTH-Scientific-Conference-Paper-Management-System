@@ -100,7 +100,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("RequireAdminRole", policy =>
+        policy.RequireAssertion(context =>
+            context.User.HasClaim(c =>
+                // 1. Chấp nhận cả tên claim chuẩn ("role") và tên claim .NET (ClaimTypes.Role)
+                (c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role) &&
+
+                // 2. Kiểm tra giá trị role có phải là Admin không (Chấp nhận nhiều biến thể)
+                (c.Value.Equals("Administrator", StringComparison.OrdinalIgnoreCase) ||
+                 c.Value.Equals("Admin", StringComparison.OrdinalIgnoreCase) ||
+                 c.Value.Equals("SystemAdmin", StringComparison.OrdinalIgnoreCase) ||
+                 c.Value.Equals("SYSTEM_ADMIN", StringComparison.OrdinalIgnoreCase))
+            )
+        ));
+});
 
 // CORS
 builder.Services.AddCors(options =>

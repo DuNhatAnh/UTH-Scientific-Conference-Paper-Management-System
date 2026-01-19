@@ -21,11 +21,7 @@ export const adminApi = {
     });
     // Xử lý trường hợp apiClient đã trả về data qua interceptor hoặc chưa
     return response.data || response;
-  },
-  createUser: async (data: any) => {
-    const response = await apiClient.post('/api/auth/register', data);
-    return response.data;
-  },
+  }, 
   updateUser: async (id: string, data: any) => {
     const response = await apiClient.put(`/api/users/${id}`, data);
     return response.data;

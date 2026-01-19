@@ -13,6 +13,12 @@ export interface AssignReviewerDto {
   reviewerId: number;
 }
 
+export interface InviteReviewerDto {
+  conferenceId: number;
+  email: string;
+  fullName: string;
+}
+
 export const adminApi = {
   // --- Quản lý người dùng ---
   getUsers: async (query: string = '', page: number = 1, pageSize: number = 10) => {
@@ -62,6 +68,12 @@ export const adminApi = {
     return response.data;
   },
 
+  // 1.1 Lấy danh sách Reviewer đã được phân công và trạng thái (USCPMS-44)
+  getReviewersForPaper: async (paperId: number) => {
+    const response = await apiClient.get<any[]>(`/api/assignments/paper/${paperId}`);
+    return response.data;
+  },
+
   // 2. Gán bài báo cho Reviewer (Manual Assignment)
   assignReviewer: async (data: AssignReviewerDto) => {
     const response = await apiClient.post('/api/assignments', data);
@@ -71,6 +83,12 @@ export const adminApi = {
   // 3. Chạy thuật toán tự động phân công (Gọi xuống thuật toán matching)
   autoAssign: async (conferenceId: number) => {
     const response = await apiClient.post(`/api/assignments/auto-assign/${conferenceId}`, {});
+    return response.data;
+  },
+
+  // --- Mời Reviewer (USCPMS-41) ---
+  inviteReviewer: async (data: InviteReviewerDto) => {
+    const response = await apiClient.post('/api/reviewers/invite', data);
     return response.data;
   },
 

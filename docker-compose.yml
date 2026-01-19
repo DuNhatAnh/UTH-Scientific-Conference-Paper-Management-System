@@ -118,29 +118,29 @@ services:
       - uth-confms-network
     restart: unless-stopped
 
-  # review-service:
-  #   build:
-  #     context: .
-  #     dockerfile: UTH-ConfMS-Backend/Services/Review.Service/Dockerfile
-  #   container_name: uth-confms-review
-  #   environment:
-  #     - ASPNETCORE_ENVIRONMENT=Development
-  #     - ASPNETCORE_URLS=http://+:5004
-  #     - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=uth_confms;Username=confms_admin;Password=123456
-  #     - ConnectionStrings__Redis=redis:6379
-  #     - Services__IdentityServiceUrl=http://identity-service:5001
-  #     - Services__SubmissionServiceUrl=http://submission-service:5003
-  #     - Services__NotificationServiceUrl=http://notification-service:5005
-  #   ports:
-  #     - "5004:5004"
-  #   depends_on:
-  #     - postgres
-  #     - redis
-  #     - identity-service
-  #     - submission-service
-  #   networks:
-  #     - uth-confms-network
-  #   restart: unless-stopped
+  review-service:
+    build:
+      context: .
+      dockerfile: UTH-ConfMS-Backend/Services/Review.Service/Dockerfile
+    container_name: uth-confms-review
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5004
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=uth_confms;Username=confms_admin;Password=123456
+      - ConnectionStrings__Redis=redis:6379
+      - Services__IdentityServiceUrl=http://identity-service:5001
+      - Services__SubmissionServiceUrl=http://submission-service:5003
+      - Services__NotificationServiceUrl=http://notification-service:5005
+    ports:
+      - "5004:5004"
+    depends_on:
+      - postgres
+      - redis
+      - identity-service
+      - submission-service
+    networks:
+      - uth-confms-network
+    restart: unless-stopped
 
   notification-service:
     build:
@@ -190,7 +190,7 @@ services:
       - identity-service
       - conference-service
       - submission-service
-      # - review-service
+      - review-service
       - notification-service
     networks:
       - uth-confms-network

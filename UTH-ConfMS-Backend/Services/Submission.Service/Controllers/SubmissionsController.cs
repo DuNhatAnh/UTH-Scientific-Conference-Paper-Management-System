@@ -116,7 +116,7 @@ public class SubmissionsController : ControllerBase
     /// </summary>
     [HttpPost]
     [Authorize(Policy = "RequireSubmissionCreate")]
-    public async Task<IActionResult> CreateSubmission([FromBody] CreateSubmissionRequest request)
+    public async Task<IActionResult> CreateSubmission([FromForm] CreateSubmissionRequest request)
     {
         try
         {

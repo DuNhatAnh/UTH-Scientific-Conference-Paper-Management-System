@@ -141,6 +141,23 @@ public class SubmissionService : ISubmissionService
         // Reload with authors
         submission = await _unitOfWork.Submissions.GetByIdWithAuthorsAsync(submission.Id);
 
+        // Handle file upload if provided
+        if (request.File != null && request.File.Length > 0)
+        {
+            try 
+            {
+                await UploadFileAsync(submission.Id, request.File, submitterId);
+                // Reload again to include file info if needed, or just rely on the fact it's saved
+                // For now, MapToDto doesn't strictly require the file list unless we want to return it immediately
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to upload initial file for submission {SubmissionId}", submission.Id);
+                // We don't rollback the submission but we log the error. 
+                // Alternatively, we could throw to let the controller handle it, but the submission is technically created.
+            }
+        }
+
         return MapToDto(submission!);
     }
 

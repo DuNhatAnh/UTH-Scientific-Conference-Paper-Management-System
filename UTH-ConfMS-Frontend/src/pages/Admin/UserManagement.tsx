@@ -89,7 +89,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
         name: u.fullName,
         email: u.email,
         role: mapBackendRoleToFrontend(u.role || u.roles), // Kiểm tra cả role (string) và roles (array)
-        originalRole: Array.isArray(u.roles) ? u.roles[0] : (u.role || ''),
+        originalRole: Array.isArray(u.roles) ? u.roles.join(', ') : (u.role || ''),
         status: 'active',
         joinedDate: new Date(u.createdOn).toLocaleDateString('vi-VN')
       }));
@@ -120,7 +120,18 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
 
   const handleOpenEdit = (user: UserData) => {
     setEditingUser(user);
-    setFormData({ name: user.name, email: user.email, role: user.originalRole || 'Author', status: user.status });
+    
+    // Xử lý logic chọn Role hiển thị trong Dropdown
+    // Nếu user có nhiều role (vd: "Author, Chair"), ta cần chọn role cao nhất để hiển thị
+    let currentRole = user.originalRole || 'Author';
+    if (currentRole.includes(',')) {
+      const roles = currentRole.split(',').map(r => r.trim());
+      // Ưu tiên hiển thị role không phải Author (ví dụ: Chair, Admin)
+      const priorityRole = roles.find(r => r !== 'Author' && r !== 'User') || roles[0];
+      currentRole = priorityRole;
+    }
+
+    setFormData({ name: user.name, email: user.email, role: currentRole, status: user.status });
     setModalError('');
     setShowModal(true);
   };
@@ -158,6 +169,35 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
       if (editingUser) {
         // Gọi API Cập nhật
         await userApi.updateUser(editingUser.id, payload);
+        
+        // Kiểm tra: Nếu role mới chọn KHÔNG nằm trong danh sách role cũ thì mới gọi API gán quyền
+        // (Tránh gọi dư thừa nếu user đã có quyền đó rồi)
+        if (formData.role && !editingUser.originalRole.includes(formData.role)) {
+          // Tìm Role ID tương ứng với tên Role đã chọn (nếu có trong danh sách availableRoles)
+          const selectedRoleObj = availableRoles.find(r => r.roleName === formData.role);
+          const roleId = selectedRoleObj?.roleId || selectedRoleObj?.id;
+
+          await userApi.assignRole({ 
+            userId: editingUser.id, 
+            roleName: formData.role,
+            roleId: roleId 
+          });
+        }
+
+        // Cập nhật state local ngay lập tức để giao diện hiển thị đúng role mới
+        setUsers(prevUsers => prevUsers.map(u => {
+          if (u.id === editingUser.id) {
+            return {
+              ...u,
+              name: formData.name,
+              email: formData.email,
+              role: mapBackendRoleToFrontend(formData.role), // Cập nhật màu badge
+              originalRole: formData.role // Cập nhật text hiển thị
+            };
+          }
+          return u;
+        }));
+
         alert("Cập nhật thành công!");
       } else {
         // Gọi API Tạo mới
@@ -175,12 +215,17 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
                       (typeof err.response?.data === 'string' ? err.response.data : '') ||
                       err.message || "Đã có lỗi xảy ra. Vui lòng thử lại.";
       setModalError(message);
+      
+      // Hiển thị alert rõ ràng hơn cho lỗi 400
+      if (err.response?.status === 400) {
+        alert(`Lỗi từ Server (400): ${message}\n\n(Vui lòng kiểm tra lại tên Role hoặc quyền hạn)`);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const getRoleBadge = (role: UserRole) => {
+  const getRoleBadge = (role: UserRole, originalRole?: string) => {
     const classes = {
       admin: 'bg-red-100 text-red-700 border-red-200',
       chair: 'bg-purple-100 text-purple-700 border-purple-200',
@@ -188,7 +233,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
       author: 'bg-green-100 text-green-700 border-green-200',
       public: 'bg-gray-100 text-gray-700 border-gray-200',
     };
-    return <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase ${classes[role]}`}>{role}</span>;
+    return <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase ${classes[role]}`}>{originalRole || role}</span>;
   };
 
   return (
@@ -295,7 +340,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
                         </td>
                         <td className="p-4 font-medium text-text-main-light dark:text-text-main-dark">{user.name}</td>
                         <td className="p-4 text-sm text-text-sec-light">{user.email}</td>
-                        <td className="p-4">{getRoleBadge(user.role)}</td>
+                        <td className="p-4">{getRoleBadge(user.role, user.originalRole)}</td>
                         <td className="p-4">
                           <span className={`px-2 py-1 rounded-full text-xs font-bold ${
                             user.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'

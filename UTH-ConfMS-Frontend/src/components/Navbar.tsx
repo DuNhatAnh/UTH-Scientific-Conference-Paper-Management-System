@@ -34,7 +34,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentView }) => {
   onClick={() => onNavigate('home')}
 >
   {/* Chỉnh size-10 (40px) hoặc tùy ý */}
-  <div className="size-23"> 
+  <div className="size-10"> 
     <img 
       src={logo} 
       alt="UTH Logo" 

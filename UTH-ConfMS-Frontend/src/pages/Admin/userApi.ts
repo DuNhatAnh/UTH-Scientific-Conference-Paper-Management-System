@@ -29,5 +29,17 @@ export const userApi = {
   // Xóa người dùng
   deleteUser: async (id: string) => {
     return axiosClient.delete(`/users/${id}`);
-  }
+  },
+  //cập nhật role người dùng
+  assignRole: async (data: { userId: string; roleName: string; roleId?: string }) => {
+    // Cập nhật endpoint chính xác theo UsersController: POST /api/users/{userId}/roles
+    // Gửi kèm đầy đủ thông tin để đảm bảo Backend nhận được (dù DTO yêu cầu RoleName hay RoleId)
+    return axiosClient.post(`/users/${data.userId}/roles`, { 
+      roleName: data.roleName,      // camelCase
+      RoleName: data.roleName,      // PascalCase
+      role: data.roleName,          // Fallback
+      roleId: data.roleId,          // ID nếu backend cần
+      RoleId: data.roleId           // PascalCase ID
+    }); 
+  },
 };

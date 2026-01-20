@@ -8,15 +8,15 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using Submission.Service.Data;
 using Submission.Service.Services;
-// using Submission.Service.Validators; // TODO: Add validators
-// using Submission.Service.DTOs.Common; // TODO: Add DTOs
-// using Submission.Service.DTOs.Requests; // TODO: Add DTOs
-// using Submission.Service.DTOs.Responses; // TODO: Add DTOs
+using Submission.Service.Validators;
+using Submission.Service.DTOs.Common;
+using Submission.Service.DTOs.Requests;
+using Submission.Service.DTOs.Responses;
 using Submission.Service.Entities;
 using Submission.Service.Interfaces;
-// using Submission.Service.Interfaces.Repositories; // TODO: Add interface repositories
-// using Submission.Service.Interfaces.Services; // TODO: Add interface services
-// using Submission.Service.Repositories; // TODO: Add repositories
+using Submission.Service.Interfaces.Repositories;
+using Submission.Service.Interfaces.Services;
+using Submission.Service.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -115,20 +115,19 @@ builder.Services.AddAuthorization(options =>
 });
 
 // Register Application Services
-// TODO: Implement these services
-// builder.Services.AddScoped<IUnitOfWork, Submission.Service.Repositories.UnitOfWork>();
-// builder.Services.AddScoped<ISubmissionRepository, Submission.Service.Repositories.SubmissionRepository>();
-// builder.Services.AddScoped<IAuthorRepository, Submission.Service.Repositories.AuthorRepository>();
-// builder.Services.AddScoped<ISubmissionFileRepository, Submission.Service.Repositories.SubmissionFileRepository>();
-// builder.Services.AddScoped<ISubmissionService, Submission.Service.Services.SubmissionService>();
-// builder.Services.AddSingleton<IFileStorageService, FileStorageService>();
+// Register Application Services
+builder.Services.AddScoped<IUnitOfWork, Submission.Service.Repositories.UnitOfWork>();
+builder.Services.AddScoped<ISubmissionRepository, Submission.Service.Repositories.SubmissionRepository>();
+builder.Services.AddScoped<IAuthorRepository, Submission.Service.Repositories.AuthorRepository>();
+builder.Services.AddScoped<ISubmissionFileRepository, Submission.Service.Repositories.SubmissionFileRepository>();
+builder.Services.AddScoped<ISubmissionService, Submission.Service.Services.SubmissionService>();
+builder.Services.AddSingleton<IFileStorageService, Submission.Service.Services.FileStorageService>();
 
-// Register AI Service (free implementations: similarity, spell check, summarization, keywords)
-// TODO: Implement AI Service
-// builder.Services.AddHttpClient<IAIService, Submission.Service.Services.AIService>(client =>
-// {
-//     client.Timeout = TimeSpan.FromSeconds(30);
-// });
+// Register AI Service (free implementations)
+builder.Services.AddHttpClient<IAIService, Submission.Service.Services.AIService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 
 // AutoMapper
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
@@ -136,8 +135,7 @@ builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 // FluentValidation
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddFluentValidationClientsideAdapters();
-// builder.Services.AddValidatorsFromAssemblyContaining<CreateSubmissionRequestValidator>(); // TODO: Add validators
-// builder.Services.AddValidatorsFromAssemblyContaining<CreateSubmissionRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<CreateSubmissionRequestValidator>();
 
 // CORS
 builder.Services.AddCors(options =>

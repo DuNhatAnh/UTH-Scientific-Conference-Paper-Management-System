@@ -136,6 +136,8 @@ builder.Services.AddScoped<IRoleRepository, Identity.Service.Repositories.RoleRe
 builder.Services.AddScoped<IAuthService, Identity.Service.Services.AuthService>();
 builder.Services.AddScoped<IUserService, Identity.Service.Services.UserService>(); // TODO: Implement UserService
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>(); // TODO: Implement JwtTokenService
+builder.Services.AddSingleton<UTH.ConfMS.Shared.Infrastructure.Audit.IAuditLogger, UTH.ConfMS.Shared.Infrastructure.Audit.KafkaAuditLogger>();
+
 
 // AutoMapper
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());

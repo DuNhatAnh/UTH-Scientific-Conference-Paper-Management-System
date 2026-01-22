@@ -25,6 +25,53 @@ services:
       timeout: 5s
       retries: 5
 
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: uth-confms-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - uth-confms-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: uth-confms-kafka
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - uth-confms-network
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: uth-confms-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - uth-confms-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    
   redis:
     image: redis:7-alpine
     container_name: uth-confms-redis
@@ -44,6 +91,19 @@ services:
   # ====================
   # Microservices
   # ====================
+
+  # ai-service:
+  #   build:
+  #     context: .
+  #     dockerfile: UTH-ConfMS-Backend/Services/AI.Service/Dockerfile
+  #   container_name: uth-confms-ai
+  #   environment:
+  #     - PORT=8000
+  #   ports:
+  #     - "8000:8000"
+  #   networks:
+  #     - uth-confms-network
+  #   restart: unless-stopped
 
   identity-service:
     build:
@@ -153,15 +213,18 @@ services:
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=uth_confms;Username=confms_admin;Password=123456
       - ConnectionStrings__Redis=redis:6379
       - Email__Provider=SMTP
-      - Email__SmtpHost=smtp.gmail.com
-      - Email__SmtpPort=587
-      - Email__FromEmail=noreply@uth-confms.edu.vn
-      - Email__FromName=UTH Conference System
+      - Email__SmtpHost=${SMTP_HOST}
+      - Email__SmtpPort=${SMTP_PORT}
+      - Email__SmtpUsername=${SMTP_EMAIL}
+      - Email__FromEmail=${SMTP_EMAIL}
+      - Email__FromName=${SMTP_NAME}
+      - Email__Password=${SMTP_PASSWORD}
     ports:
       - "5005:5005"
     depends_on:
       - postgres
       - redis
+      - rabbitmq
     networks:
       - uth-confms-network
     restart: unless-stopped

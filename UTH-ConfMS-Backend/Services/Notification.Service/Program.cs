@@ -9,6 +9,8 @@ using Notification.Service.Entities;
 using Notification.Service.Services;
 using Notification.Service.Interfaces;
 using Notification.Service.Configuration;
+using MassTransit;
+using Notification.Service.Consumers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -125,6 +127,27 @@ builder.Services.AddHealthChecks()
     .AddNpgSql(builder.Configuration.GetConnectionString("DefaultConnection")!)
     .AddRedis(builder.Configuration.GetConnectionString("Redis")!);
 
+// MassTransit Consumer Configuration
+builder.Services.AddMassTransit(x =>
+{
+    // Configure Consumers
+    x.AddConsumer<EmailNotificationConsumer>();
+
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        cfg.Host(builder.Configuration["RabbitMQ:Host"] ?? "rabbitmq", "/", h =>
+        {
+            h.Username("guest");
+            h.Password("guest");
+        });
+
+        cfg.ReceiveEndpoint("email-notifications", e =>
+        {
+            e.ConfigureConsumer<EmailNotificationConsumer>(context);
+        });
+    });
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
@@ -139,6 +162,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseSerilogRequestLogging();
+
+
+
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();

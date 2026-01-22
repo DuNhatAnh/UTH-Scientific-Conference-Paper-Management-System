@@ -75,7 +75,7 @@ export const SystemConfig: React.FC<SystemConfigProps> = ({ onNavigate }) => {
           <div className="flex justify-end gap-3 mt-4">
             <button onClick={() => onNavigate('admin-dashboard')} className="px-6 py-2 bg-white dark:bg-card-dark border border-[#eaecf0] dark:border-border-dark rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors">Hủy</button>
             <button 
-              onClick={() => alert('Đã lưu cấu hình thành công!')}
+              onClick={() => alert('Chức năng đang được phát triển!')}
               className="px-6 py-2 bg-primary text-white rounded-lg text-sm font-bold shadow-md hover:bg-primary-hover transition-all"
             >
               Lưu cấu hình

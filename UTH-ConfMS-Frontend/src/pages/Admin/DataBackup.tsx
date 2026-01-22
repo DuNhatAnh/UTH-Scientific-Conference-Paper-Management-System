@@ -7,6 +7,10 @@ interface DataBackupProps {
 }
 
 export const DataBackup: React.FC<DataBackupProps> = ({ onNavigate }) => {
+  const handleFeatureUnderDevelopment = () => {
+    alert('Chức năng đang được phát triển!');
+  };
+
   return (
     <div className="w-full bg-[#f8f9fc] dark:bg-background-dark py-12 px-5 md:px-10 flex justify-center min-h-screen">
       <div className="w-full max-w-[1000px] flex flex-col gap-6">
@@ -26,7 +30,10 @@ export const DataBackup: React.FC<DataBackupProps> = ({ onNavigate }) => {
             <div className="bg-white rounded-xl border border-[#eaecf0] shadow-sm overflow-hidden">
               <div className="p-4 border-b border-[#eaecf0] flex justify-between items-center">
                 <h3 className="font-bold text-[#101828]">Bản sao lưu gần đây</h3>
-                <button className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-bold flex items-center gap-1">
+                <button 
+                  onClick={handleFeatureUnderDevelopment}
+                  className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-bold flex items-center gap-1"
+                >
                   <span className="material-symbols-outlined text-xs">backup</span>
                   Sao lưu ngay
                 </button>
@@ -46,8 +53,8 @@ export const DataBackup: React.FC<DataBackupProps> = ({ onNavigate }) => {
                     <td className="p-4 text-[#667085]">20/03/2024 08:30</td>
                     <td className="p-4 text-[#667085]">42.5 MB</td>
                     <td className="p-4 text-right">
-                      <button className="text-primary hover:underline font-bold mr-3">Tải về</button>
-                      <button className="text-red-600 hover:underline font-bold">Xóa</button>
+                      <button onClick={handleFeatureUnderDevelopment} className="text-primary hover:underline font-bold mr-3">Tải về</button>
+                      <button onClick={handleFeatureUnderDevelopment} className="text-red-600 hover:underline font-bold">Xóa</button>
                     </td>
                   </tr>
                   <tr>
@@ -55,8 +62,8 @@ export const DataBackup: React.FC<DataBackupProps> = ({ onNavigate }) => {
                     <td className="p-4 text-[#667085]">19/03/2024 23:00</td>
                     <td className="p-4 text-[#667085]">41.8 MB</td>
                     <td className="p-4 text-right">
-                      <button className="text-primary hover:underline font-bold mr-3">Tải về</button>
-                      <button className="text-red-600 hover:underline font-bold">Xóa</button>
+                      <button onClick={handleFeatureUnderDevelopment} className="text-primary hover:underline font-bold mr-3">Tải về</button>
+                      <button onClick={handleFeatureUnderDevelopment} className="text-red-600 hover:underline font-bold">Xóa</button>
                     </td>
                   </tr>
                 </tbody>
@@ -101,7 +108,10 @@ export const DataBackup: React.FC<DataBackupProps> = ({ onNavigate }) => {
             {/* Cấu hình lưu trữ */}
             <div className="bg-white p-6 rounded-xl border border-[#eaecf0] shadow-sm">
               <h3 className="font-bold text-[#101828] mb-4">Lịch sao lưu tự động</h3>
-              <select className="w-full px-3 py-2 border rounded-lg text-sm bg-gray-50 outline-none">
+              <select 
+                onChange={handleFeatureUnderDevelopment}
+                className="w-full px-3 py-2 border rounded-lg text-sm bg-gray-50 outline-none"
+              >
                 <option>Hàng ngày (00:00)</option>
                 <option>Hàng tuần (Chủ nhật)</option>
                 <option>Tắt tự động</option>

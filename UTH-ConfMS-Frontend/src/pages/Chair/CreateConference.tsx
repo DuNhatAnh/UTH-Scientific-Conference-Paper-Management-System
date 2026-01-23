@@ -13,7 +13,8 @@ export const CreateConference: React.FC<CreateConferenceProps> = ({ onNavigate }
         description: '',
         location: '',
         startDate: '',
-        endDate: ''
+        endDate: '',
+        submissionDeadline: ''
     });
 
     const [isLoading, setIsLoading] = useState(false);
@@ -38,15 +39,19 @@ export const CreateConference: React.FC<CreateConferenceProps> = ({ onNavigate }
                 throw new Error('Vui lòng điền tên hội nghị và tên viết tắt.');
             }
 
-            if (!formData.startDate || !formData.endDate) {
-                throw new Error('Vui lòng chọn thời gian bắt đầu và kết thúc.');
+            if (!formData.startDate || !formData.endDate || !formData.submissionDeadline) {
+                throw new Error('Vui lòng chọn đầy đủ thời gian (Bắt đầu, Kết thúc, Hạn nộp bài).');
             }
 
             if (new Date(formData.startDate) >= new Date(formData.endDate)) {
                 throw new Error('Ngày kết thúc phải diễn ra sau ngày bắt đầu.');
             }
 
-            const response = await conferenceApi.create(formData);
+            if (new Date(formData.submissionDeadline) >= new Date(formData.startDate)) {
+                throw new Error('Hạn nộp bài phải trước ngày bắt đầu hội nghị.');
+            }
+
+            const response = await conferenceApi.createConference(formData);
 
             if (response.success && response.data) {
                 alert(`Tạo hội nghị "${response.data.name}" thành công!`);
@@ -57,7 +62,7 @@ export const CreateConference: React.FC<CreateConferenceProps> = ({ onNavigate }
         } catch (err: any) {
             // Log chi tiết lỗi ra console để debug (F12)
             console.error("Create Conference Error:", err);
-            
+
             let msg = 'Có lỗi xảy ra khi tạo hội nghị.';
             if (err.response && err.response.data) {
                 const data = err.response.data;
@@ -84,7 +89,7 @@ export const CreateConference: React.FC<CreateConferenceProps> = ({ onNavigate }
     return (
         <div className="w-full bg-background-light dark:bg-background-dark py-8 px-5 md:px-10 flex justify-center">
             <div className="w-full max-w-[800px] flex flex-col gap-6">
-                
+
                 {/* Header */}
                 <div className="flex items-center gap-4">
                     <button onClick={() => onNavigate('chair-dashboard')} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
@@ -96,7 +101,7 @@ export const CreateConference: React.FC<CreateConferenceProps> = ({ onNavigate }
                 {/* Form */}
                 <div className="bg-white dark:bg-card-dark p-8 rounded-xl border border-border-light shadow-sm">
                     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-                        
+
                         {error && (
                             <div className="p-3 text-sm text-red-600 bg-red-100 rounded-lg border border-red-200">
                                 {error}
@@ -127,7 +132,7 @@ export const CreateConference: React.FC<CreateConferenceProps> = ({ onNavigate }
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-sm font-bold">Ngày bắt đầu <span className="text-red-500">*</span></label>
                                 <input name="startDate" value={formData.startDate} onChange={handleChange} type="datetime-local" className="w-full h-10 px-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none" required />
@@ -136,18 +141,22 @@ export const CreateConference: React.FC<CreateConferenceProps> = ({ onNavigate }
                                 <label className="text-sm font-bold">Ngày kết thúc <span className="text-red-500">*</span></label>
                                 <input name="endDate" value={formData.endDate} onChange={handleChange} type="datetime-local" className="w-full h-10 px-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none" required />
                             </div>
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-sm font-bold">Hạn nộp bài <span className="text-red-500">*</span></label>
+                                <input name="submissionDeadline" value={formData.submissionDeadline} onChange={handleChange} type="datetime-local" className="w-full h-10 px-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none" required />
+                            </div>
                         </div>
 
                         <div className="pt-4 border-t border-border-light flex justify-end gap-3">
-                            <button 
-                                type="button" 
+                            <button
+                                type="button"
                                 onClick={() => onNavigate('chair-dashboard')}
                                 className="px-5 py-2 rounded border border-border-light hover:bg-gray-100 font-medium text-sm transition-colors"
                             >
                                 Hủy bỏ
                             </button>
-                            <button 
-                                type="submit" 
+                            <button
+                                type="submit"
                                 disabled={isLoading}
                                 className={`px-6 py-2 rounded bg-primary text-white font-bold text-sm shadow-md flex items-center gap-2 ${isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-hover'}`}
                             >

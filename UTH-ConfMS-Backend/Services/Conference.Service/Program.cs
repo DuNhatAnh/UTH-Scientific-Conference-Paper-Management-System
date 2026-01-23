@@ -13,6 +13,8 @@ using Conference.Service.Interfaces.Repositories; // TODO: Add interface reposit
 using Conference.Service.Interfaces.Services; // TODO: Add interface services
 using Conference.Service.Repositories; // TODO: Add repositories
 
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure Serilog

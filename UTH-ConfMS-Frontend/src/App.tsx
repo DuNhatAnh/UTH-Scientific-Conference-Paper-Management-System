@@ -21,28 +21,30 @@ import { DataBackup } from './pages/Admin/DataBackup';
 import { DecisionNotification } from './components/DecisionNotification';
 import { Profile } from './components/Profile';
 import { PCMemberManagement } from './pages/Chair/PCMemberManagement';
+import { CFPManagement } from './pages/Chair/CFPManagement';
 import { AcceptInvitation } from './pages/Public/AcceptInvitation';
 import { useAuth, UserRole } from './contexts/AuthContext';
-export type ViewState = 
-  | 'home' 
-  | 'login' 
-  | 'register' 
+export type ViewState =
+  | 'home'
+  | 'login'
+  | 'register'
   | 'forgot-password'
-  | 'conference-details' 
-  | 'call-for-papers' 
-  | 'program' 
-  | 'author-dashboard' 
+  | 'conference-details'
+  | 'call-for-papers'
+  | 'program'
+  | 'author-dashboard'
   | 'create-conference'
-  | 'submit-paper' 
-  | 'reviewer-dashboard' 
-  | 'chair-dashboard' 
+  | 'submit-paper'
+  | 'reviewer-dashboard'
+  | 'chair-dashboard'
   | 'admin-dashboard'
   | 'admin-users'
   | 'admin-config'
   | 'admin-backup'
-  | 'decision' 
+  | 'decision'
   | 'profile'
   | 'pc-members'
+  | 'cfp-management'
   | 'pc-members'
   | 'accept-invitation'
   | 'paper-detail';
@@ -50,6 +52,7 @@ export type ViewState =
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('home');
   const [selectedPaperId, setSelectedPaperId] = useState<string | null>(null);
+  const [selectedConferenceId, setSelectedConferenceId] = useState<string | null>(null);
   const { user, isAuthenticated, isLoading } = useAuth();
 
   // Xử lý Deep Link từ Email (ví dụ: /invite/accept?token=...)
@@ -79,20 +82,27 @@ const App: React.FC = () => {
       case 'conference-details': return <ConferenceDetails />;
       case 'call-for-papers': return <CallForPapers onNavigate={setCurrentView} />;
       case 'program': return <Program />;
-      case 'author-dashboard': return renderProtected(['author', 'admin', 'chair', 'reviewer'], 
-          <AuthorDashboard 
-              onNavigate={setCurrentView} 
-              onViewPaper={(id) => {
-                  setSelectedPaperId(id);
-                  setCurrentView('paper-detail');
-              }}
-          />
+      case 'author-dashboard': return renderProtected(['author', 'admin', 'chair', 'reviewer'],
+        <AuthorDashboard
+          onNavigate={setCurrentView}
+          onViewPaper={(id) => {
+            setSelectedPaperId(id);
+            setCurrentView('paper-detail');
+          }}
+        />
       );
       case 'paper-detail': return renderProtected(['author', 'admin', 'chair', 'reviewer'], <PaperDetail paperId={selectedPaperId} onNavigate={setCurrentView} />);
       case 'submit-paper': return renderProtected(['author', 'admin', 'chair', 'reviewer'], <SubmitPaper onNavigate={setCurrentView} />);
-      case 'submit-paper': return renderProtected(['author', 'admin', 'chair', 'reviewer'], <SubmitPaper onNavigate={setCurrentView} />);
       case 'reviewer-dashboard': return renderProtected(['reviewer', 'admin', 'chair'], <ReviewerDashboard />);
-      case 'chair-dashboard': return renderProtected(['chair', 'admin'], <ChairDashboard onNavigate={setCurrentView} />);
+      case 'chair-dashboard': return renderProtected(['chair', 'admin'],
+        <ChairDashboard
+          onNavigate={setCurrentView}
+          onManageConference={(id) => {
+            setSelectedConferenceId(id);
+            setCurrentView('cfp-management');
+          }}
+        />
+      );
       case 'create-conference': return renderProtected(['chair', 'admin'], <CreateConference onNavigate={setCurrentView} />);
       case 'admin-dashboard': return renderProtected(['admin'], <AdminDashboard onNavigate={setCurrentView} />);
       case 'admin-users': return renderProtected(['admin'], <UserManagement onNavigate={setCurrentView} />);
@@ -101,19 +111,25 @@ const App: React.FC = () => {
       case 'decision': return <DecisionNotification />;
       case 'profile': return isAuthenticated ? <Profile /> : <Login onNavigate={setCurrentView} />;
       case 'pc-members': return renderProtected(['chair', 'admin'], <PCMemberManagement />);
+      case 'cfp-management': return renderProtected(['chair', 'admin'],
+        <CFPManagement
+          onNavigate={setCurrentView}
+          conferenceId={selectedConferenceId || undefined}
+        />
+      );
       case 'accept-invitation': return <AcceptInvitation />;
       default: return <Home />;
     }
   };
 
   return (
-      <div className="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden bg-background-light dark:bg-background-dark transition-colors duration-200">
-        <Navbar onNavigate={setCurrentView} currentView={currentView} />
-        <main className="flex flex-col grow">
-          {renderContent()}
-        </main>
-        <Footer onNavigate={setCurrentView} />
-      </div>
+    <div className="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden bg-background-light dark:bg-background-dark transition-colors duration-200">
+      <Navbar onNavigate={setCurrentView} currentView={currentView} />
+      <main className="flex flex-col grow">
+        {renderContent()}
+      </main>
+      <Footer onNavigate={setCurrentView} />
+    </div>
   );
 };
 

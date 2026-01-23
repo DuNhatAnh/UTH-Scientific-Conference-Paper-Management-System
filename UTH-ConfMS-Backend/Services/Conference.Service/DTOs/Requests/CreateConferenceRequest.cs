@@ -8,5 +8,6 @@ public class CreateConferenceRequest
     public string? Location { get; set; }
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
+    public DateTime? SubmissionDeadline { get; set; }
     public string? ReviewMode { get; set; }
 }

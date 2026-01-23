@@ -100,12 +100,20 @@ public class ConferenceService : IConferenceService
         return _mapper.Map<ConferenceDto>(conference);
     }
 
-    public async Task<ConferenceDto> UpdateConferenceAsync(Guid conferenceId, UpdateConferenceRequest request)
+    public async Task<ConferenceDto> UpdateConferenceAsync(Guid conferenceId, UpdateConferenceRequest request, Guid userId)
     {
         var conference = await _unitOfWork.Conferences.GetByIdAsync(conferenceId);
         if (conference == null)
         {
             throw new InvalidOperationException("Conference not found");
+        }
+
+        // Security Check: Only Owner or Admin can update
+        // Assuming Admin role check is handled upstream or via simple logic here if roles available
+        // For now, strict Owner check as requested
+        if (conference.CreatedBy != userId)
+        {
+             throw new UnauthorizedAccessException("You are not the owner of this conference.");
         }
 
         if (request.Name != null) conference.Name = request.Name;
@@ -122,12 +130,17 @@ public class ConferenceService : IConferenceService
         return _mapper.Map<ConferenceDto>(conference);
     }
 
-    public async Task DeleteConferenceAsync(Guid conferenceId)
+    public async Task DeleteConferenceAsync(Guid conferenceId, Guid userId)
     {
         var conference = await _unitOfWork.Conferences.GetByIdAsync(conferenceId);
         if (conference == null)
         {
             throw new InvalidOperationException("Conference not found");
+        }
+
+        if (conference.CreatedBy != userId)
+        {
+             throw new UnauthorizedAccessException("You are not the owner of this conference.");
         }
 
         await _unitOfWork.Conferences.DeleteAsync(conference);
@@ -145,11 +158,26 @@ public class ConferenceService : IConferenceService
             throw new InvalidOperationException("Call for Papers not found");
         }
 
+        _logger.LogInformation("Retrieved CFP for Conf {ConfId}: ContentLength={Len}, GuidelinesLength={GLen}", 
+            conferenceId, cfp.Content?.Length ?? 0, cfp.SubmissionGuidelines?.Length ?? 0);
+
         return _mapper.Map<CallForPapersDto>(cfp);
     }
 
-    public async Task<CallForPapersDto> UpdateCallForPapersAsync(Guid conferenceId, UpdateCallForPapersRequest request)
+    public async Task<CallForPapersDto> UpdateCallForPapersAsync(Guid conferenceId, UpdateCallForPapersRequest request, Guid userId)
     {
+        // Check conference ownership first
+        var conference = await _unitOfWork.Conferences.GetByIdAsync(conferenceId);
+        if (conference == null)
+        {
+             throw new InvalidOperationException("Conference not found");
+        }
+
+        if (conference.CreatedBy != userId)
+        {
+             throw new UnauthorizedAccessException("You are not the owner of this conference.");
+        }
+
         var cfp = await _unitOfWork.CallForPapers.GetByConferenceIdAsync(conferenceId);
 
         if (cfp == null)
@@ -159,15 +187,32 @@ public class ConferenceService : IConferenceService
 
         if (request.Title != null) cfp.Title = request.Title;
         if (request.Content != null) cfp.Content = request.Content;
-        cfp.SubmissionGuidelines = request.SubmissionGuidelines;
-        cfp.FormattingRequirements = request.FormattingRequirements;
-        cfp.MinPages = request.MinPages;
-        cfp.MaxPages = request.MaxPages;
+        if (request.SubmissionGuidelines != null) cfp.SubmissionGuidelines = request.SubmissionGuidelines;
+        if (request.FormattingRequirements != null) cfp.FormattingRequirements = request.FormattingRequirements;
+        if (request.MinPages.HasValue) cfp.MinPages = request.MinPages;
+        if (request.MaxPages.HasValue) cfp.MaxPages = request.MaxPages;
         if (request.IsPublished.HasValue) cfp.IsPublished = request.IsPublished.Value;
 
-        if (request.IsPublished == true && !cfp.PublishedAt.HasValue)
+        if (request.IsPublished == true)
         {
-            cfp.PublishedAt = DateTime.UtcNow;
+            if (!cfp.PublishedAt.HasValue)
+            {
+                 cfp.PublishedAt = DateTime.UtcNow;
+            }
+            
+            // Always ensure status is updated if it's currently DRAFT
+            if (conference.Status == "DRAFT") 
+            {
+                 conference.Status = "CFP_OPEN";
+            }
+        }
+        else if (request.IsPublished == false)
+        {
+            // If unpublishing, revert status if it was OPEN
+             if (conference.Status == "CFP_OPEN") 
+            {
+                 conference.Status = "DRAFT";
+            }
         }
 
         cfp.UpdatedAt = DateTime.UtcNow;
@@ -223,10 +268,10 @@ public class ConferenceService : IConferenceService
             DeadlineId = Guid.NewGuid(),
             ConferenceId = conferenceId,
             DeadlineType = request.DeadlineType ?? request.Type,
-            Name = request.Name,
+            Name = request.Name ?? "Deadline",
             Description = request.Description,
             DeadlineDate = request.DeadlineDate ?? request.Date,
-            Timezone = request.Timezone,
+            Timezone = request.Timezone ?? "UTC",
             IsHardDeadline = request.IsHardDeadline ?? false,
             GracePeriodHours = request.GracePeriodHours ?? 0,
             CreatedAt = DateTime.UtcNow

@@ -47,8 +47,8 @@ public class ConferenceMappingProfile : Profile
 
         // CallForPapers mappings
         CreateMap<CallForPapers, CallForPapersDto>()
-            .ForMember(dest => dest.Description, opt => opt.MapFrom(src => src.Content))
-            .ForMember(dest => dest.Guidelines, opt => opt.MapFrom(src => src.SubmissionGuidelines))
+            .ForMember(dest => dest.Content, opt => opt.MapFrom(src => src.Content))
+            .ForMember(dest => dest.SubmissionGuidelines, opt => opt.MapFrom(src => src.SubmissionGuidelines))
             .ForMember(dest => dest.Topics, opt => opt.Ignore());
         CreateMap<UpdateCallForPapersRequest, CallForPapers>()
             .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));

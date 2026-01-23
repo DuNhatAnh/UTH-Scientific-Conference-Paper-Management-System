@@ -123,13 +123,22 @@ public class ConferencesController : ControllerBase
     {
         try
         {
-            var conference = await _conferenceService.UpdateConferenceAsync(conferenceId, request);
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var conference = await _conferenceService.UpdateConferenceAsync(conferenceId, request, Guid.Parse(userId!));
             return Ok(new ApiResponse<ConferenceDto>
             {
                 Success = true,
                 Message = "Conference updated successfully",
                 Data = conference
             });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+             return StatusCode(403, new ApiResponse<object>
+             {
+                 Success = false,
+                 Message = ex.Message
+             });
         }
         catch (Exception ex)
         {
@@ -151,12 +160,21 @@ public class ConferencesController : ControllerBase
     {
         try
         {
-            await _conferenceService.DeleteConferenceAsync(conferenceId);
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            await _conferenceService.DeleteConferenceAsync(conferenceId, Guid.Parse(userId!));
             return Ok(new ApiResponse<object>
             {
                 Success = true,
                 Message = "Conference deleted successfully"
             });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+             return StatusCode(403, new ApiResponse<object>
+             {
+                 Success = false,
+                 Message = ex.Message
+             });
         }
         catch (Exception ex)
         {

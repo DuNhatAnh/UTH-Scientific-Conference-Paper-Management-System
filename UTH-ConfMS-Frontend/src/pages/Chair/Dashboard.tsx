@@ -1,96 +1,118 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ViewState } from '../../App';
+import conferenceApi, { ConferenceDto } from '../../services/conferenceApi';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface DashboardProps {
     onNavigate: (view: ViewState) => void;
+    onManageConference?: (conferenceId: string) => void;
 }
 
-export const ChairDashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
-  return (
-    <div className="w-full bg-background-light dark:bg-background-dark py-8 px-5 md:px-10 flex justify-center">
-        <div className="w-full max-w-[1200px] flex flex-col gap-8">
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-text-main-light dark:text-text-main-dark">Dashboard Trưởng Ban Chương Trình</h1>
-                <button onClick={() => onNavigate('create-conference')} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all flex items-center gap-2">
-                    <span className="material-symbols-outlined">add_circle</span>
-                    Tạo hội nghị
-                </button>
-            </div>
+export const ChairDashboard: React.FC<DashboardProps> = ({ onNavigate, onManageConference }) => {
+    const [conferences, setConferences] = useState<ConferenceDto[]>([]);
+    const [loading, setLoading] = useState(true);
+    const { user } = useAuth();
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <div className="bg-white dark:bg-card-dark p-6 rounded-xl border border-border-light shadow-sm">
-                    <p className="text-xs text-text-sec-light uppercase font-bold mb-1">Tổng bài nộp</p>
-                    <p className="text-3xl font-black text-primary">142</p>
+    useEffect(() => {
+        const fetchConferences = async () => {
+            try {
+                // Fetch conferences (can filter by created_by if API supports, or filtering client side if needed)
+                // Assuming getConferences returns all public or my conferences. 
+                // Ideally backend should have endpoint for "My Conferences" or returning all for Admin/Chair.
+                const response = await conferenceApi.getConferences();
+                if (response.success && response.data) {
+                    setConferences(response.data.items || []);
+                }
+            } catch (error) {
+                console.error("Failed to fetch conferences", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchConferences();
+    }, []);
+
+    return (
+        <div className="w-full bg-background-light dark:bg-background-dark py-8 px-5 md:px-10 flex justify-center">
+            <div className="w-full max-w-[1200px] flex flex-col gap-8">
+                <div className="flex justify-between items-center">
+                    <h1 className="text-2xl font-bold text-text-main-light dark:text-text-main-dark">Dashboard Trưởng Ban Chương Trình</h1>
+                    <button onClick={() => onNavigate('create-conference')} className="bg-primary hover:bg-primary-hover text-white font-bold py-2 px-4 rounded-lg shadow-md transition-all flex items-center gap-2">
+                        <span className="material-symbols-outlined">add_circle</span>
+                        Tạo hội nghị
+                    </button>
                 </div>
-                <div className="bg-white dark:bg-card-dark p-6 rounded-xl border border-border-light shadow-sm">
-                    <p className="text-xs text-text-sec-light uppercase font-bold mb-1">Đang phản biện</p>
-                    <p className="text-3xl font-black text-yellow-500">89</p>
-                </div>
-                <div className="bg-white dark:bg-card-dark p-6 rounded-xl border border-border-light shadow-sm">
-                    <p className="text-xs text-text-sec-light uppercase font-bold mb-1">Hoàn thành review</p>
-                    <p className="text-3xl font-black text-green-500">45%</p>
-                </div>
-                <div className="bg-white dark:bg-card-dark p-6 rounded-xl border border-border-light shadow-sm">
-                    <p className="text-xs text-text-sec-light uppercase font-bold mb-1">Chấp nhận</p>
-                    <p className="text-3xl font-black text-blue-500">12</p>
-                </div>
-                {/* Thêm Card quản lý PC Member */}
-                <div className="bg-white dark:bg-card-dark p-6 rounded-xl border border-border-light shadow-sm hover:shadow-md transition-shadow cursor-pointer group" onClick={() => onNavigate('pc-members')}>
-                    <div className="flex justify-between items-start">
-                        <p className="text-xs text-text-sec-light uppercase font-bold mb-1">Thành viên PC</p>
-                        <span className="material-symbols-outlined text-gray-400 group-hover:text-primary">arrow_forward</span>
+
+                {/* Conference List Section */}
+                <div className="bg-white dark:bg-card-dark rounded-xl border border-border-light shadow-sm overflow-hidden">
+                    <div className="p-4 border-b border-border-light flex justify-between items-center bg-gray-50 dark:bg-gray-800">
+                        <h3 className="font-bold">Danh sách Hội nghị của bạn</h3>
                     </div>
-                    <p className="text-3xl font-black text-purple-600">Quản lý</p>
-                </div>
-            </div>
 
-            {/* Management Table */}
-            <div className="bg-white dark:bg-card-dark rounded-xl border border-border-light shadow-sm overflow-hidden">
-                <div className="p-4 border-b border-border-light flex justify-between items-center bg-gray-50 dark:bg-gray-800">
-                    <h3 className="font-bold">Quản lý bài báo & Phân công</h3>
-                    <div className="flex gap-2">
-                        <input type="text" placeholder="Tìm kiếm..." className="px-3 py-1.5 rounded border text-sm" />
-                        <button className="text-xs font-bold bg-white border rounded px-3">Filter</button>
+                    {loading ? (
+                        <div className="p-8 text-center text-gray-500">Đang tải dữ liệu...</div>
+                    ) : conferences.length === 0 ? (
+                        <div className="p-8 text-center text-gray-500">Chưa có hội nghị nào. Hãy tạo hội nghị mới!</div>
+                    ) : (
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-gray-50 border-b border-border-light text-xs uppercase text-text-sec-light">
+                                <tr>
+                                    <th className="p-3">Tên hội nghị</th>
+                                    <th className="p-3">Viết tắt</th>
+                                    <th className="p-3">Địa điểm</th>
+                                    <th className="p-3">Ngày bắt đầu</th>
+                                    <th className="p-3">Trạng thái</th>
+                                    <th className="p-3">Tác vụ</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border-light">
+                                {conferences.map((conf) => {
+                                    const isOwner = user?.id === conf.createdBy;
+                                    return (
+                                        <tr key={conf.conferenceId} className="hover:bg-gray-50 transition-colors">
+                                            <td className="p-3 font-medium">{conf.name}</td>
+                                            <td className="p-3 font-mono text-primary">{conf.acronym}</td>
+                                            <td className="p-3">{conf.location || 'N/A'}</td>
+                                            <td className="p-3">{conf.startDate ? new Date(conf.startDate).toLocaleDateString('vi-VN') : 'N/A'}</td>
+                                            <td className="p-3">
+                                                <span className={`px-2 py-1 rounded text-xs font-bold ${conf.status === 'PUBLISHED' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                                                    {conf.status || 'DRAFT'}
+                                                </span>
+                                            </td>
+                                            <td className="p-3">
+                                                {isOwner ? (
+                                                    <button
+                                                        onClick={() => {
+                                                            if (onManageConference) {
+                                                                onManageConference(conf.conferenceId);
+                                                            } else {
+                                                                onNavigate('cfp-management');
+                                                            }
+                                                        }}
+                                                        className="text-primary hover:underline font-medium"
+                                                    >
+                                                        Quản lý CFP & Publish
+                                                    </button>
+                                                ) : null}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+
+                {/* Stats Cards (Mockup for now) */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 opacity-50 pointer-events-none grayscale">
+                    {/* ... (Existing stats code dimmed to indicate it's not real data yet) ... */}
+                    <div className="col-span-4 text-center p-4 border rounded border-dashed bg-gray-50">
+                        <span className="text-sm text-gray-500">Thống kê chi tiết sẽ hiển thị khi chọn hội nghị (Tính năng đang phát triển)</span>
                     </div>
                 </div>
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-gray-50 border-b border-border-light text-xs uppercase text-text-sec-light">
-                        <tr>
-                            <th className="p-3">ID</th>
-                            <th className="p-3">Tiêu đề</th>
-                            <th className="p-3">Tác giả</th>
-                            <th className="p-3">Reviewer 1</th>
-                            <th className="p-3">Reviewer 2</th>
-                            <th className="p-3">Quyết định</th>
-                            <th className="p-3">Tác vụ</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border-light">
-                        <tr>
-                            <td className="p-3 font-mono">#156</td>
-                            <td className="p-3 font-medium max-w-xs truncate">A Survey on Smart Grid Security...</td>
-                            <td className="p-3">Nguyen Van A</td>
-                            <td className="p-3"><span className="text-green-600 font-bold">Done (4/5)</span></td>
-                            <td className="p-3"><span className="text-green-600 font-bold">Done (5/5)</span></td>
-                            <td className="p-3"><span className="px-2 py-1 rounded bg-green-100 text-green-700 text-xs font-bold">Accept</span></td>
-                            <td className="p-3"><button className="text-primary hover:underline">Chi tiết</button></td>
-                        </tr>
-                        <tr>
-                            <td className="p-3 font-mono">#342</td>
-                            <td className="p-3 font-medium max-w-xs truncate">Optimizing Neural Networks...</td>
-                            <td className="p-3">Le Thi B</td>
-                            <td className="p-3"><span className="text-yellow-600 font-bold">Pending</span></td>
-                            <td className="p-3"><span className="text-gray-400 italic">Unassigned</span></td>
-                            <td className="p-3"><span className="text-gray-400 text-xs">Waiting</span></td>
-                            <td className="p-3"><button className="text-blue-600 hover:underline font-bold">+ Assign</button></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
 
+            </div>
         </div>
-    </div>
-  );
+    );
 };

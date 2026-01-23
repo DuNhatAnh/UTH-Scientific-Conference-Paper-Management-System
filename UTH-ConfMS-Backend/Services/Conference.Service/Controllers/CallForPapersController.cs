@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using Conference.Service.DTOs.Common;
 using Conference.Service.DTOs.Requests;
 using Conference.Service.DTOs.Responses;
@@ -57,13 +58,22 @@ public class CallForPapersController : ControllerBase
     {
         try
         {
-            var cfp = await _conferenceService.UpdateCallForPapersAsync(conferenceId, request);
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var cfp = await _conferenceService.UpdateCallForPapersAsync(conferenceId, request, Guid.Parse(userId!));
             return Ok(new ApiResponse<CallForPapersDto>
             {
                 Success = true,
                 Message = "Call for Papers updated successfully",
                 Data = cfp
             });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+             return StatusCode(403, new ApiResponse<object>
+             {
+                 Success = false,
+                 Message = ex.Message
+             });
         }
         catch (Exception ex)
         {

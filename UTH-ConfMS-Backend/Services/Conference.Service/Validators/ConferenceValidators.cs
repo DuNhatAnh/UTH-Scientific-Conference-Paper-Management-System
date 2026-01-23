@@ -25,6 +25,10 @@ public class CreateConferenceRequestValidator : AbstractValidator<CreateConferen
         RuleFor(x => x.EndDate)
             .GreaterThan(x => x.StartDate).WithMessage("End date must be after start date")
             .When(x => x.StartDate.HasValue && x.EndDate.HasValue);
+
+        RuleFor(x => x.SubmissionDeadline)
+            .LessThan(x => x.StartDate).WithMessage("Submission deadline must be before start date")
+            .When(x => x.StartDate.HasValue && x.SubmissionDeadline.HasValue);
     }
 }
 

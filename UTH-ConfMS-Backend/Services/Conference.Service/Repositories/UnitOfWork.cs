@@ -17,6 +17,7 @@ public class UnitOfWork : IUnitOfWork
     private ITrackRepository? _tracks;
     private IDeadlineRepository? _deadlines;
     private ICallForPapersRepository? _callForPapers;
+    private ICommitteeRepository? _committeeMembers;
 
     public UnitOfWork(ConferenceDbContext context)
     {
@@ -27,6 +28,7 @@ public class UnitOfWork : IUnitOfWork
     public ITrackRepository Tracks => _tracks ??= new TrackRepository(_context);
     public IDeadlineRepository Deadlines => _deadlines ??= new DeadlineRepository(_context);
     public ICallForPapersRepository CallForPapers => _callForPapers ??= new CallForPapersRepository(_context);
+    public ICommitteeRepository CommitteeMembers => _committeeMembers ??= new CommitteeRepository(_context);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

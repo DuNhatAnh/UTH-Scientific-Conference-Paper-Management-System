@@ -11,6 +11,7 @@ public interface IUnitOfWork : IDisposable
     ITrackRepository Tracks { get; }
     IDeadlineRepository Deadlines { get; }
     ICallForPapersRepository CallForPapers { get; }
+    ICommitteeRepository CommitteeMembers { get; }
     
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task BeginTransactionAsync(CancellationToken cancellationToken = default);

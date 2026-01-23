@@ -15,6 +15,12 @@ public interface IConferenceService
     Task<CallForPapersDto> UpdateCallForPapersAsync(Guid conferenceId, UpdateCallForPapersRequest request, Guid userId);
     Task<List<TrackDto>> GetTracksAsync(Guid conferenceId);
     Task<TrackDto> AddTrackAsync(Guid conferenceId, CreateTrackRequest request);
+
+    // Committee Members
+    Task<List<CommitteeMemberDto>> GetCommitteeMembersAsync(Guid conferenceId);
+    Task<CommitteeMemberDto> AddCommitteeMemberAsync(Guid conferenceId, AddCommitteeMemberRequest request);
+    Task RemoveCommitteeMemberAsync(Guid conferenceId, Guid userId);
+
     Task<List<DeadlineDto>> GetDeadlinesAsync(Guid conferenceId);
     Task<DeadlineDto> AddDeadlineAsync(Guid conferenceId, CreateDeadlineRequest request);
 }

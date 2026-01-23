@@ -52,5 +52,8 @@ public class ConferenceMappingProfile : Profile
             .ForMember(dest => dest.Topics, opt => opt.Ignore());
         CreateMap<UpdateCallForPapersRequest, CallForPapers>()
             .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
+
+        // CommitteeMember mappings
+        CreateMap<CommitteeMember, CommitteeMemberDto>();
     }
 }

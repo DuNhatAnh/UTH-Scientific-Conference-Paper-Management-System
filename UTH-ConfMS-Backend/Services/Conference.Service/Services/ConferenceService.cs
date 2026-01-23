@@ -13,12 +13,14 @@ public class ConferenceService : IConferenceService
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<ConferenceService> _logger;
     private readonly IMapper _mapper;
+    private readonly Conference.Service.Integrations.IIdentityIntegration _identityIntegration;
 
-    public ConferenceService(IUnitOfWork unitOfWork, ILogger<ConferenceService> logger, IMapper mapper)
+    public ConferenceService(IUnitOfWork unitOfWork, ILogger<ConferenceService> logger, IMapper mapper, Conference.Service.Integrations.IIdentityIntegration identityIntegration)
     {
         _unitOfWork = unitOfWork;
         _logger = logger;
         _mapper = mapper;
+        _identityIntegration = identityIntegration;
     }
 
     public async Task<PagedResponse<ConferenceDto>> GetConferencesAsync(string? status, int page, int pageSize)
@@ -281,5 +283,81 @@ public class ConferenceService : IConferenceService
         await _unitOfWork.SaveChangesAsync();
 
         return _mapper.Map<DeadlineDto>(deadline);
+    }
+
+    public async Task<List<CommitteeMemberDto>> GetCommitteeMembersAsync(Guid conferenceId)
+    {
+        var members = await _unitOfWork.CommitteeMembers.GetByConferenceIdAsync(conferenceId);
+        var dtos = _mapper.Map<List<CommitteeMemberDto>>(members);
+
+        if (dtos.Any())
+        {
+            var userIds = dtos.Select(m => m.UserId).Distinct().ToList();
+            try
+            {
+                var users = await _identityIntegration.GetUsersByIdsAsync(userIds);
+                foreach (var dto in dtos)
+                {
+                    var user = users.FirstOrDefault(u => u.Id == dto.UserId);
+                    if (user != null)
+                    {
+                        dto.FullName = user.FullName;
+                        dto.Email = user.Email;
+                    }
+                    else
+                    {
+                         // Fallback if user not found (deleted? or temp error)
+                         // dto.FullName = "Unknown User";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to enrich committee members with user details");
+                // Consume error and return list with empty names rather than failing request
+            }
+        }
+
+        return dtos;
+    }
+
+    public async Task<CommitteeMemberDto> AddCommitteeMemberAsync(Guid conferenceId, AddCommitteeMemberRequest request)
+    {
+        var conference = await _unitOfWork.Conferences.GetByIdAsync(conferenceId);
+        if (conference == null) throw new InvalidOperationException("Conference not found");
+
+        var existing = await _unitOfWork.CommitteeMembers.GetByConferenceAndUserAsync(conferenceId, request.UserId);
+        if (existing != null)
+        {
+             // Already member, update role? Or throw?
+             // For now, simple return or throw. Let's throw.
+             throw new InvalidOperationException("User is already a committee member");
+        }
+
+        var member = new CommitteeMember
+        {
+             MemberId = Guid.NewGuid(),
+             ConferenceId = conferenceId,
+             UserId = request.UserId,
+             Role = request.Role,
+             CreatedAt = DateTime.UtcNow
+        };
+
+        await _unitOfWork.CommitteeMembers.CreateAsync(member);
+        await _unitOfWork.SaveChangesAsync();
+
+        return _mapper.Map<CommitteeMemberDto>(member);
+    }
+
+    public async Task RemoveCommitteeMemberAsync(Guid conferenceId, Guid userId)
+    {
+        var member = await _unitOfWork.CommitteeMembers.GetByConferenceAndUserAsync(conferenceId, userId);
+        if (member == null)
+        {
+             throw new InvalidOperationException("Member not found in this conference");
+        }
+
+        await _unitOfWork.CommitteeMembers.DeleteAsync(member);
+        await _unitOfWork.SaveChangesAsync();
     }
 }

@@ -7,9 +7,10 @@ import { useAuth } from '../../contexts/AuthContext';
 interface DashboardProps {
     onNavigate: (view: ViewState) => void;
     onManageConference?: (conferenceId: string) => void;
+    onManagePC?: (conferenceId: string) => void;
 }
 
-export const ChairDashboard: React.FC<DashboardProps> = ({ onNavigate, onManageConference }) => {
+export const ChairDashboard: React.FC<DashboardProps> = ({ onNavigate, onManageConference, onManagePC }) => {
     const [conferences, setConferences] = useState<ConferenceDto[]>([]);
     const [loading, setLoading] = useState(true);
     const { user } = useAuth();
@@ -82,18 +83,33 @@ export const ChairDashboard: React.FC<DashboardProps> = ({ onNavigate, onManageC
                                             </td>
                                             <td className="p-3">
                                                 {isOwner ? (
-                                                    <button
-                                                        onClick={() => {
-                                                            if (onManageConference) {
-                                                                onManageConference(conf.conferenceId);
-                                                            } else {
-                                                                onNavigate('cfp-management');
-                                                            }
-                                                        }}
-                                                        className="text-primary hover:underline font-medium"
-                                                    >
-                                                        Quản lý CFP & Publish
-                                                    </button>
+                                                    <>
+                                                        <button
+                                                            onClick={() => {
+                                                                if (onManageConference) {
+                                                                    onManageConference(conf.conferenceId);
+                                                                } else {
+                                                                    onNavigate('cfp-management');
+                                                                }
+                                                            }}
+                                                            className="text-primary hover:underline font-medium"
+                                                        >
+                                                            Quản lý CFP & Publish
+                                                        </button>
+                                                        <span className="mx-2 text-gray-300">|</span>
+                                                        <button
+                                                            onClick={() => {
+                                                                if (onManagePC) {
+                                                                    onManagePC(conf.conferenceId);
+                                                                } else {
+                                                                    console.warn("onManagePC not defined");
+                                                                }
+                                                            }}
+                                                            className="text-blue-600 hover:underline font-medium"
+                                                        >
+                                                            Mời Reviewer
+                                                        </button>
+                                                    </>
                                                 ) : null}
                                             </td>
                                         </tr>

@@ -39,7 +39,7 @@ export interface TopicDto {
     description?: string;
 }
 
-export interface CommitteeMemberDto {
+export interface CommitteeMemberLegacyDto {
     id: number;
     userId: number;
     userName: string;
@@ -154,6 +154,40 @@ export const conferenceApi = {
         const response = await apiClient.put<ApiResponse<CallForPapersDto>>(`/api/conferences/${conferenceId}/cfp`, data);
         return response.data;
     },
+
+    // Committee Members
+    getCommitteeMembers: async (conferenceId: string): Promise<ApiResponse<CommitteeMemberDto[]>> => {
+        const response = await apiClient.get<ApiResponse<CommitteeMemberDto[]>>(`/api/conferences/${conferenceId}/members`);
+        return response.data;
+    },
+
+    addCommitteeMember: async (conferenceId: string, userId: string, role: string = 'REVIEWER'): Promise<ApiResponse<CommitteeMemberDto>> => {
+        const response = await apiClient.post<ApiResponse<CommitteeMemberDto>>(`/api/conferences/${conferenceId}/members`, { userId, role });
+        return response.data;
+    },
+
+    removeCommitteeMember: async (conferenceId: string, userId: string): Promise<ApiResponse<void>> => {
+        const response = await apiClient.delete<ApiResponse<void>>(`/api/conferences/${conferenceId}/members/${userId}`);
+        return response.data;
+    },
 };
+
+export interface CommitteeMemberDto {
+    memberId: string; // GUID
+    conferenceId: string;
+    userId: string; // GUID
+    role: string;
+    fullName?: string;
+    email?: string;
+    createdAt: string;
+}
+
+export interface CommitteeMemberLegacyDto { // Renaming old one to avoid conflict if used elsewhere, or just update it
+    id: number;
+    userId: number;
+    userName: string;
+    role: string;
+    affiliation?: string;
+}
 
 export default conferenceApi;

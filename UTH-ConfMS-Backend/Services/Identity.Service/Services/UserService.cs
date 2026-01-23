@@ -39,7 +39,8 @@ public class UserService : IUserService
             Username = user.Username,
             FullName = user.FullName,
             Affiliation = user.Affiliation,
-            Roles = roles
+            Roles = roles,
+            CreatedAt = user.CreatedAt // Map CreatedAt
         };
     }
 
@@ -80,6 +81,7 @@ public class UserService : IUserService
             Username = u.Username,
             FullName = u.FullName,
             Affiliation = u.Affiliation,
+            CreatedAt = u.CreatedAt, // Map CreatedAt
             Roles = u.UserRoles
                 .Where(ur => ur.IsActive)
                 .Select(ur => ur.Role.RoleName)
@@ -158,6 +160,123 @@ public class UserService : IUserService
 
         await _unitOfWork.SaveChangesAsync();
         _logger.LogInformation("Role {RoleName} assigned to user {UserId}", role.RoleName, userId);
+    }
+
+    public async Task RemoveRoleAsync(Guid userId, AssignRoleRequest request)
+    {
+        // Check if user exists
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null)
+        {
+            throw new InvalidOperationException("User not found");
+        }
+
+        // --- GLOBAL REMOVE STRATEGY ---
+        // Instead of finding a specific assignment by (ConferenceId, TrackId),
+        // we find ALL assignments of this RoleId for this UserId and disable them.
+        // This ensures that when Admin says "Remove Chair", it removes Chair from ALL conferences if any.
+        
+        // Use a direct query because IRepository might not have "GetAllByUserIdAndRoleId".
+        // Accessing _unitOfWork.Roles.GetUserRolesAsync returns LIST of UserRole.
+        // We can reuse that or add a new method. But GetUserRolesAsync(userId, null) returns filtering by ConferenceId if passed.
+        // Let's rely on finding all assignments loop.
+        
+        // However, IRepository doesn't expose IQueryable. 
+        // We can use GetUserRolesAsync(userId, null) -> returns list of roles with null or specific conference?
+        // Let's look at RoleRepository: GetUserRolesAsync(userId, null) -> returns where ConferenceId == null OR matching null param?
+        // Actually RoleRepository.GetUserRolesAsync(userId, null) returns ALL user roles (checked logic: query = query.Where... only if conferenceId.HasValue).
+        // Since we pass null, it skips the filter? No.
+        // wait: 
+        // if (conferenceId.HasValue) { query = query.Where(ur => ur.ConferenceId == conferenceId.Value || ur.ConferenceId == null); }
+        // So if conferenceId is null, it DOES NOT FILTER by ConferenceId. So it returns ALL roles.
+        
+        var allUserRoles = await _unitOfWork.Roles.GetUserRolesAsync(userId, null);
+        
+        // Find assignments matching the requested RoleId
+        var assignmentsToRemove = allUserRoles.Where(ur => ur.RoleId == request.RoleId).ToList();
+
+        if (assignmentsToRemove.Any())
+        {
+            foreach (var assignment in assignmentsToRemove)
+            {
+                assignment.IsActive = false;
+                // Update via repo
+                await _unitOfWork.Roles.UpdateUserRoleAsync(assignment);
+                _logger.LogInformation("Role {RoleId} removed from user {UserId} (Scope: Conf={C}, Track={T})", 
+                    request.RoleId, userId, assignment.ConferenceId, assignment.TrackId);
+            }
+            await _unitOfWork.SaveChangesAsync();
+        }
+        else
+        {
+             _logger.LogWarning("Role assignment not found for removal: User {UserId}, Role {RoleId}", userId, request.RoleId);
+        }
+    }
+
+    public async Task SetUserRoleAsync(Guid userId, AssignRoleRequest request)
+    {
+        // Check if user exists
+        var user = await _unitOfWork.Users.GetByIdAsync(userId);
+        if (user == null)
+        {
+            throw new InvalidOperationException("User not found");
+        }
+
+        // Check if role exists
+        var role = await _unitOfWork.Roles.GetByIdAsync(request.RoleId);
+        if (role == null)
+        {
+            throw new InvalidOperationException("Role not found");
+        }
+
+        // 1. Get ALL existing active roles for this user
+        var allUserRoles = await _unitOfWork.Roles.GetUserRolesAsync(userId, null);
+        var activeRoles = allUserRoles.Where(ur => ur.IsActive).ToList();
+
+        // 2. Soft delete ALL existing active roles
+        foreach (var existingRole in activeRoles)
+        {
+            existingRole.IsActive = false;
+            // UserRole entity does not have UpdatedAt
+            await _unitOfWork.Roles.UpdateUserRoleAsync(existingRole);
+            _logger.LogInformation("Role {RoleId} removed (deactivated) for user {UserId} as part of SetUserRole", existingRole.RoleId, userId);
+        }
+
+        // 3. Assign the new role
+        // Check if assignment already exists (even if inactive, to reactive it)
+        var targetAssignment = allUserRoles.FirstOrDefault(ur => 
+            ur.RoleId == request.RoleId && 
+            ur.ConferenceId == request.ConferenceId && 
+            ur.TrackId == request.TrackId);
+
+        if (targetAssignment != null)
+        {
+            // Update existing assignment to Active
+            targetAssignment.IsActive = true;
+            targetAssignment.ExpiresAt = request.ExpiresAt;
+            // targetAssignment.UpdatedAt = DateTime.UtcNow; // UserRole does not have UpdatedAt
+            await _unitOfWork.Roles.UpdateUserRoleAsync(targetAssignment);
+        }
+        else
+        {
+            // Create new assignment
+            var userRole = new UserRole
+            {
+                UserRoleId = Guid.NewGuid(),
+                UserId = userId,
+                RoleId = request.RoleId,
+                ConferenceId = request.ConferenceId,
+                TrackId = request.TrackId,
+                ExpiresAt = request.ExpiresAt,
+                IsActive = true,
+                AssignedAt = DateTime.UtcNow
+            };
+
+            await _unitOfWork.Roles.CreateUserRoleAsync(userRole);
+        }
+
+        await _unitOfWork.SaveChangesAsync();
+        _logger.LogInformation("SetUserRole: User {UserId} is now assigned ONLY to Role {RoleName}", userId, role.RoleName);
     }
 
     public async Task<List<RoleDto>> GetAllRolesAsync()

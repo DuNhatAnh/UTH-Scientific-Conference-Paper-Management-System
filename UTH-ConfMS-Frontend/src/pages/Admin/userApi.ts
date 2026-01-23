@@ -6,7 +6,7 @@ export interface UserDto {
   email: string;
   role: string; // Backend trả về string raw (ví dụ: "SystemAdmin")
   isActive: boolean;
-  createdOn: string;
+  createdAt: string; // Rename to match backend property
 }
 
 export const userApi = {
@@ -34,12 +34,37 @@ export const userApi = {
   assignRole: async (data: { userId: string; roleName: string; roleId?: string }) => {
     // Cập nhật endpoint chính xác theo UsersController: POST /api/users/{userId}/roles
     // Gửi kèm đầy đủ thông tin để đảm bảo Backend nhận được (dù DTO yêu cầu RoleName hay RoleId)
-    return axiosClient.post(`/users/${data.userId}/roles`, { 
+    return axiosClient.post(`/users/${data.userId}/roles`, {
       roleName: data.roleName,      // camelCase
       RoleName: data.roleName,      // PascalCase
       role: data.roleName,          // Fallback
       roleId: data.roleId,          // ID nếu backend cần
       RoleId: data.roleId           // PascalCase ID
-    }); 
+    });
+  },
+
+  // Xóa role của người dùng
+  removeRole: async (data: { userId: string; roleName: string; roleId?: string }) => {
+    // Backend đã chuyển sang POST /users/{userId}/roles/remove để tránh lỗi 403/DELETE body
+    return axiosClient.post(`/users/${data.userId}/roles/remove`, {
+      userId: data.userId,
+      UserId: data.userId,
+      roleName: data.roleName,
+      RoleName: data.roleName,
+      role: data.roleName,
+      roleId: data.roleId,
+      RoleId: data.roleId
+    });
+  },
+
+  // Set/Replace role cho user (Atomic)
+  setUserRole: async (data: { userId: string; roleName: string; roleId?: string }) => {
+    return axiosClient.put(`/users/${data.userId}/roles`, {
+      roleName: data.roleName,      // camelCase
+      RoleName: data.roleName,      // PascalCase
+      role: data.roleName,          // Fallback
+      roleId: data.roleId,          // ID nếu backend cần
+      RoleId: data.roleId           // PascalCase ID
+    });
   },
 };

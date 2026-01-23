@@ -214,6 +214,60 @@ public class UsersController : ControllerBase
         }
     }
     /// <summary>
+    /// Remove role from user
+    /// </summary>
+    [HttpPost("{userId:guid}/roles/remove")]
+    [Authorize(Policy = "RequireAdminRole")]
+    public async Task<IActionResult> RemoveRole(Guid userId, [FromBody] AssignRoleRequest request)
+    {
+        try
+        {
+            await _userService.RemoveRoleAsync(userId, request);
+            return Ok(new ApiResponse<object>
+            {
+                Success = true,
+                Message = "Role removed successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Remove role failed");
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// Set/Replace user role (Atomic replace)
+    /// </summary>
+    [HttpPut("{userId:guid}/roles")]
+    [Authorize(Policy = "RequireAdminRole")]
+    public async Task<IActionResult> SetUserRole(Guid userId, [FromBody] AssignRoleRequest request)
+    {
+        try
+        {
+            await _userService.SetUserRoleAsync(userId, request);
+            return Ok(new ApiResponse<object>
+            {
+                Success = true,
+                Message = "User role updated successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Set user role failed");
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
     /// Xóa người dùng (Soft delete)
     /// </summary>
     [HttpDelete("{userId:guid}")]

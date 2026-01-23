@@ -45,7 +45,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
     if (upperRoles.some(r => r.includes('ADMIN'))) return 'admin';
     if (upperRoles.some(r => r.includes('CHAIR'))) return 'chair';
     if (upperRoles.some(r => r.includes('REVIEWER'))) return 'reviewer';
-    
+
     return 'author';
   };
 
@@ -79,8 +79,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
 
       // Xử lý an toàn: Nếu API trả về { data: [...] } thì lấy .data, nếu là mảng thì lấy trực tiếp
       // Backend trả về PagedResponse: { data: { items: [...] } }
-      const data = Array.isArray(response) 
-        ? response 
+      const data = Array.isArray(response)
+        ? response
         : (response.data?.items || response.data || response.items || []);
 
       // Map dữ liệu từ DTO backend sang format hiển thị của Frontend
@@ -91,14 +91,14 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
         role: mapBackendRoleToFrontend(u.role || u.roles), // Kiểm tra cả role (string) và roles (array)
         originalRole: Array.isArray(u.roles) ? u.roles.join(', ') : (u.role || ''),
         status: 'active',
-        joinedDate: new Date(u.createdOn).toLocaleDateString('vi-VN')
+        joinedDate: new Date(u.createdAt).toLocaleDateString('vi-VN') // use createdAt
       }));
       setUsers(mappedUsers);
     } catch (err: any) {
       console.error("Failed to fetch users", err);
       // Hiển thị thông báo lỗi chi tiết từ Server hoặc Axios
       let message = err.response?.data?.message || err.message || "Không thể tải danh sách người dùng.";
-      
+
       if (err.response && err.response.status === 404) {
         message = "Lỗi 404: Không tìm thấy API '/api/users'. Vui lòng kiểm tra cấu hình Ocelot Gateway hoặc Controller Backend.";
       }
@@ -120,7 +120,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
 
   const handleOpenEdit = (user: UserData) => {
     setEditingUser(user);
-    
+
     // Xử lý logic chọn Role hiển thị trong Dropdown
     // Nếu user có nhiều role (vd: "Author, Chair"), ta cần chọn role cao nhất để hiển thị
     let currentRole = user.originalRole || 'Author';
@@ -154,7 +154,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
     e.preventDefault();
     setIsLoading(true);
     setModalError('');
-    
+
     // Chuẩn bị dữ liệu gửi đi
     const payload = {
       fullName: formData.name,
@@ -167,22 +167,20 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
 
     try {
       if (editingUser) {
-        // Gọi API Cập nhật
+        // Gọi API Cập nhật thông tin cơ bản
         await userApi.updateUser(editingUser.id, payload);
-        
-        // Kiểm tra: Nếu role mới chọn KHÔNG nằm trong danh sách role cũ thì mới gọi API gán quyền
-        // (Tránh gọi dư thừa nếu user đã có quyền đó rồi)
-        if (formData.role && !editingUser.originalRole.includes(formData.role)) {
-          // Tìm Role ID tương ứng với tên Role đã chọn (nếu có trong danh sách availableRoles)
-          const selectedRoleObj = availableRoles.find(r => r.roleName === formData.role);
-          const roleId = selectedRoleObj?.roleId || selectedRoleObj?.id;
 
-          await userApi.assignRole({ 
-            userId: editingUser.id, 
-            roleName: formData.role,
-            roleId: roleId 
-          });
-        }
+        // SINGLE ROLE POLICY:
+        // Sử dụng endpoint SetUserRole (PUT) để thay thế hoàn toàn role cũ bằng role mới (Atomic Replace)
+
+        const selectedRoleObj = availableRoles.find(r => r.roleName === formData.role || r.name === formData.role);
+        const roleId = selectedRoleObj?.roleId || selectedRoleObj?.id;
+
+        await userApi.setUserRole({
+          userId: editingUser.id,
+          roleName: formData.role,
+          roleId: roleId
+        });
 
         // Cập nhật state local ngay lập tức để giao diện hiển thị đúng role mới
         setUsers(prevUsers => prevUsers.map(u => {
@@ -192,7 +190,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
               name: formData.name,
               email: formData.email,
               role: mapBackendRoleToFrontend(formData.role), // Cập nhật màu badge
-              originalRole: formData.role // Cập nhật text hiển thị
+              originalRole: formData.role // Chỉ hiển thị 1 role mới
             };
           }
           return u;
@@ -204,18 +202,18 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
         await userApi.createUser({ ...payload, password: 'DefaultPassword@123' }); // Giả sử backend cần pass
         alert("Thêm mới thành công!");
       };
-      
-      // Tải lại danh sách sau khi lưu thành công
-      await fetchUsers();
+
+      // Tải lại danh sách sau khi lưu thành công (Wait 500ms để backend sync dữ liệu nếu cần)
+      setTimeout(() => fetchUsers(), 500);
       setShowModal(false);
     } catch (err: any) {
       console.error(err);
       // Hiển thị thông báo lỗi chi tiết từ Backend hoặc Axios
-      const message = err.response?.data?.message || 
-                      (typeof err.response?.data === 'string' ? err.response.data : '') ||
-                      err.message || "Đã có lỗi xảy ra. Vui lòng thử lại.";
+      const message = err.response?.data?.message ||
+        (typeof err.response?.data === 'string' ? err.response.data : '') ||
+        err.message || "Đã có lỗi xảy ra. Vui lòng thử lại.";
       setModalError(message);
-      
+
       // Hiển thị alert rõ ràng hơn cho lỗi 400
       if (err.response?.status === 400) {
         alert(`Lỗi từ Server (400): ${message}\n\n(Vui lòng kiểm tra lại tên Role hoặc quyền hạn)`);
@@ -239,11 +237,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
   return (
     <div className="w-full bg-background-light dark:bg-background-dark py-8 px-5 md:px-10 flex justify-center">
       <div className="w-full max-w-[1200px] flex flex-col gap-6">
-        
+
         {/* Breadcrumbs & Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <button 
+            <button
               onClick={() => onNavigate('admin-dashboard')}
               className="text-primary text-sm font-medium flex items-center gap-1 hover:underline mb-2"
             >
@@ -251,7 +249,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
             </button>
             <h1 className="text-2xl font-bold text-text-main-light dark:text-text-main-dark">Quản lý người dùng</h1>
           </div>
-          <button 
+          <button
             onClick={handleOpenAdd}
             className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg font-bold text-sm shadow-md flex items-center justify-center gap-2"
           >
@@ -293,9 +291,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-sec-light">
               <span className="material-symbols-outlined text-[20px]">search</span>
             </span>
-            <input 
-              type="text" 
-              placeholder="Tìm theo tên hoặc email..." 
+            <input
+              type="text"
+              placeholder="Tìm theo tên hoặc email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 rounded-lg border border-border-light bg-background-light dark:bg-background-dark text-sm outline-none focus:ring-2 focus:ring-primary"
@@ -342,9 +340,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
                         <td className="p-4 text-sm text-text-sec-light">{user.email}</td>
                         <td className="p-4">{getRoleBadge(user.role, user.originalRole)}</td>
                         <td className="p-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                            user.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
-                          }`}>
+                          <span className={`px-2 py-1 rounded-full text-xs font-bold ${user.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                            }`}>
                             {user.status === 'active' ? 'Hoạt động' : 'Vô hiệu'}
                           </span>
                         </td>
@@ -385,15 +382,15 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
               )}
               <div>
                 <label className="block text-sm font-medium mb-1">Họ và tên</label>
-                <input required type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary" />
+                <input required type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary" />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Email</label>
-                <input required type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary" />
+                <input required type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary" />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Vai trò</label>
-                <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary">
+                <select value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })} className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary">
                   {availableRoles.length > 0 ? availableRoles.map((r) => (
                     <option key={r.roleId} value={r.roleName}>{r.displayName || r.roleName}</option>
                   )) : (

@@ -150,4 +150,35 @@ export const paperApi = {
     );
     return response.data;
   },
+
+  // 7. Lấy danh sách bài nộp theo hội nghị (cho Chair)
+  getConferenceSubmissions: async (
+    conferenceId: string,
+    status?: string,
+    page: number = 1,
+    pageSize: number = 10,
+  ) => {
+    const params = new URLSearchParams();
+    params.append("conferenceId", conferenceId);
+    if (status) params.append("status", status);
+    params.append("page", page.toString());
+    params.append("pageSize", pageSize.toString());
+
+    const response = await apiClient.get<ApiResponse<PagedResponse<any>>>(
+      `/api/submissions?${params}`,
+    );
+    const items = response.data?.data?.items || [];
+    // Transform SubmittedAt -> submissionDate
+    return {
+      ...response.data,
+      data: {
+        ...response.data?.data,
+        items: items.map((item: any) => ({
+          ...item,
+          submissionDate:
+            item.submittedAt || item.submissionDate || new Date().toISOString(),
+        })),
+      },
+    };
+  },
 };

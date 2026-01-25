@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ViewState } from "../../App";
 import conferenceApi, { ConferenceDto } from "../../services/conferenceApi";
 import { useAuth } from "../../contexts/AuthContext";
+import { ConferenceDetail } from "./ConferenceDetail";
 
 interface DashboardProps {
   onNavigate: (view: ViewState) => void;
@@ -20,6 +21,12 @@ export const ChairDashboard: React.FC<DashboardProps> = ({
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [selectedConferenceId, setSelectedConferenceId] = useState<
+    string | null
+  >(null);
+  const [selectedConferenceName, setSelectedConferenceName] = useState<
+    string | null
+  >(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -76,6 +83,21 @@ export const ChairDashboard: React.FC<DashboardProps> = ({
       setDeleting(null);
     }
   };
+
+  // Show conference detail
+  if (selectedConferenceId) {
+    return (
+      <ConferenceDetail
+        conferenceId={selectedConferenceId}
+        conferenceName={selectedConferenceName || undefined}
+        onNavigate={onNavigate}
+        onBack={() => {
+          setSelectedConferenceId(null);
+          setSelectedConferenceName(null);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="w-full bg-background-light dark:bg-background-dark py-8 px-5 md:px-10 flex justify-center">
@@ -156,44 +178,12 @@ export const ChairDashboard: React.FC<DashboardProps> = ({
                           <>
                             <button
                               onClick={() => {
-                                if (onManageConference) {
-                                  onManageConference(conf.conferenceId);
-                                } else {
-                                  onNavigate("cfp-management");
-                                }
+                                setSelectedConferenceId(conf.conferenceId);
+                                setSelectedConferenceName(conf.name);
                               }}
                               className="text-primary hover:underline font-medium"
                             >
-                              CFP
-                            </button>
-                            <span className="text-gray-300">|</span>
-                            <button
-                              onClick={() => {
-                                if (onManagePC) {
-                                  onManagePC(conf.conferenceId);
-                                } else {
-                                  console.warn("onManagePC not defined");
-                                }
-                              }}
-                              className="text-blue-600 hover:underline font-medium"
-                            >
-                              PC
-                            </button>
-                            <span className="text-gray-300">|</span>
-                            <button
-                              onClick={() => {
-                                if (onManageSubmissions) {
-                                  onManageSubmissions(conf.conferenceId);
-                                } else {
-                                  console.warn(
-                                    "onManageSubmissions not defined",
-                                  );
-                                  onNavigate("submission-management");
-                                }
-                              }}
-                              className="text-purple-600 hover:underline font-medium"
-                            >
-                              Bài nộp
+                              Quản Lý
                             </button>
                             <span className="text-gray-300">|</span>
                             <button

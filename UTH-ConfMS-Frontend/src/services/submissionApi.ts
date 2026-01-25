@@ -20,7 +20,7 @@ export interface SubmissionDto {
 export interface SubmissionDetailDto extends SubmissionDto {
   authors: AuthorDto[];
   files: SubmissionFileDto[];
-  reviewSummary?: ReviewSummaryDto;
+  reviewSummary?: SubmissionReviewSummaryDto;
   decision?: DecisionDto;
 }
 
@@ -43,7 +43,7 @@ export interface SubmissionFileDto {
   version: number;
 }
 
-export interface ReviewSummaryDto {
+export interface SubmissionReviewSummaryDto {
   totalReviews: number;
   completedReviews: number;
   averageScore?: number;
@@ -140,7 +140,7 @@ export const submissionApi = {
     if (status) params.append('status', status);
     params.append('page', page.toString());
     params.append('pageSize', pageSize.toString());
-    
+
     const response = await apiClient.get<ApiResponse<SubmissionDto[]>>(`/api/submissions?${params}`);
     return response.data;
   },
@@ -160,7 +160,7 @@ export const submissionApi = {
     if (status) params.append('status', status);
     params.append('page', page.toString());
     params.append('pageSize', pageSize.toString());
-    
+
     const response = await apiClient.get<ApiResponse<SubmissionDto[]>>(`/api/submissions/my-submissions?${params}`);
     return response.data;
   },
@@ -207,32 +207,32 @@ export const submissionApi = {
       MOCK_SUBMISSIONS.push(newSubmission);
       return { success: true, data: newSubmission, message: 'Submission created successfully' };
     }
-    
+
     // SỬA: Backend nhận JSON body cho createSubmission, không phải FormData
     // File sẽ được upload riêng sau khi tạo submission thành công
     const payload = {
-        title: data.title,
-        abstract: data.abstract,
-        conferenceId: data.conferenceId, // Backend cần Guid, nhưng ở đây ta truyền number/string, axios sẽ tự handle JSON
-        primaryTopicId: data.topicId, // Backend dùng PrimaryTopicId thay vì TopicId
-        keywords: data.keywords,
-        authors: data.authors.map((a, index) => ({
-            fullName: a.fullName,
-            email: a.email,
-            affiliation: a.affiliation,
-            isCorresponding: a.isCorresponding,
-            orderIndex: index + 1 // Backend dùng OrderIndex
-        })),
-        paperType: "FULL_PAPER" // Mặc định
+      title: data.title,
+      abstract: data.abstract,
+      conferenceId: data.conferenceId, // Backend cần Guid, nhưng ở đây ta truyền number/string, axios sẽ tự handle JSON
+      primaryTopicId: data.topicId, // Backend dùng PrimaryTopicId thay vì TopicId
+      keywords: data.keywords,
+      authors: data.authors.map((a, index) => ({
+        fullName: a.fullName,
+        email: a.email,
+        affiliation: a.affiliation,
+        isCorresponding: a.isCorresponding,
+        orderIndex: index + 1 // Backend dùng OrderIndex
+      })),
+      paperType: "FULL_PAPER" // Mặc định
     };
-    
+
     // 1. Tạo Submission (Metadata)
     const response = await apiClient.post<ApiResponse<SubmissionDto>>('/api/submissions', payload);
-    
+
     if (response.data.success && response.data.data && data.file) {
-        // 2. Nếu tạo thành công và có file, gọi API upload file
-        const submissionId = response.data.data.id;
-        await submissionApi.uploadFile(submissionId, data.file);
+      // 2. Nếu tạo thành công và có file, gọi API upload file
+      const submissionId = response.data.data.id;
+      await submissionApi.uploadFile(submissionId, data.file);
     }
 
     return response.data;
@@ -281,7 +281,7 @@ export const submissionApi = {
     }
     const formData = new FormData();
     formData.append('file', file);
-    
+
     // API upload file có thể khác, kiểm tra lại route backend nếu cần
     // Giả sử route là /api/submissions/{id}/files
     const response = await apiClient.post<ApiResponse<SubmissionFileDto>>(`/api/submissions/${submissionId}/files`, formData, {

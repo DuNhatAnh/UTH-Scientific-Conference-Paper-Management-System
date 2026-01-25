@@ -8,9 +8,10 @@ interface DashboardProps {
     onNavigate: (view: ViewState) => void;
     onManageConference?: (conferenceId: string) => void;
     onManagePC?: (conferenceId: string) => void;
+    onManageSubmissions?: (conferenceId: string) => void;
 }
 
-export const ChairDashboard: React.FC<DashboardProps> = ({ onNavigate, onManageConference, onManagePC }) => {
+export const ChairDashboard: React.FC<DashboardProps> = ({ onNavigate, onManageConference, onManagePC, onManageSubmissions }) => {
     const [conferences, setConferences] = useState<ConferenceDto[]>([]);
     const [loading, setLoading] = useState(true);
     const { user } = useAuth();
@@ -81,7 +82,7 @@ export const ChairDashboard: React.FC<DashboardProps> = ({ onNavigate, onManageC
                                                     {conf.status || 'DRAFT'}
                                                 </span>
                                             </td>
-                                            <td className="p-3">
+                                            <td className="p-3 flex gap-3 text-sm">
                                                 {isOwner ? (
                                                     <>
                                                         <button
@@ -94,20 +95,35 @@ export const ChairDashboard: React.FC<DashboardProps> = ({ onNavigate, onManageC
                                                             }}
                                                             className="text-primary hover:underline font-medium"
                                                         >
-                                                            Quản lý CFP & Publish
+                                                            CFP
                                                         </button>
-                                                        <span className="mx-2 text-gray-300">|</span>
+                                                        <span className="text-gray-300">|</span>
                                                         <button
                                                             onClick={() => {
                                                                 if (onManagePC) {
                                                                     onManagePC(conf.conferenceId);
                                                                 } else {
+                                                                    // Fallback
                                                                     console.warn("onManagePC not defined");
                                                                 }
                                                             }}
                                                             className="text-blue-600 hover:underline font-medium"
                                                         >
-                                                            Mời Reviewer
+                                                            PC
+                                                        </button>
+                                                        <span className="text-gray-300">|</span>
+                                                        <button
+                                                            onClick={() => {
+                                                                if (onManageSubmissions) {
+                                                                    onManageSubmissions(conf.conferenceId);
+                                                                } else {
+                                                                    console.warn("onManageSubmissions not defined");
+                                                                    onNavigate('submission-management');
+                                                                }
+                                                            }}
+                                                            className="text-purple-600 hover:underline font-medium"
+                                                        >
+                                                            Bài nộp
                                                         </button>
                                                     </>
                                                 ) : null}

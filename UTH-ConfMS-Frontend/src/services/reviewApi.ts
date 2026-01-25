@@ -62,7 +62,7 @@ export interface UpdateReviewRequest {
 
 // Chair/Admin decision APIs
 export interface SubmissionForDecisionDto {
-  submissionId: number;
+  submissionId: string | number;
   title: string;
   authors?: string[];
   topicName?: string;
@@ -155,7 +155,7 @@ export const reviewApi = {
     if (status) params.append('status', status);
     params.append('page', page.toString());
     params.append('pageSize', pageSize.toString());
-    
+
     const response = await apiClient.get<ApiResponse<ReviewAssignmentDto[]>>(`/api/reviews/assignments?${params}`);
     return response.data;
   },
@@ -193,7 +193,7 @@ export const reviewApi = {
 
   // Chair/Admin APIs
   getSubmissionsForDecision: async (
-    conferenceId?: number,
+    conferenceId?: string | number,
     page: number = 1,
     pageSize: number = 10
   ): Promise<ApiResponse<SubmissionForDecisionDto[]>> => {
@@ -205,7 +205,7 @@ export const reviewApi = {
     if (conferenceId) params.append('conferenceId', conferenceId.toString());
     params.append('page', page.toString());
     params.append('pageSize', pageSize.toString());
-    
+
     const response = await apiClient.get<ApiResponse<SubmissionForDecisionDto[]>>(`/api/reviews/submissions-for-decision?${params}`);
     return response.data;
   },
@@ -222,8 +222,8 @@ export const reviewApi = {
   assignReviewer: async (data: AssignReviewerRequest): Promise<ApiResponse<ReviewAssignmentDto>> => {
     if (MOCK_MODE) {
       await new Promise(resolve => setTimeout(resolve, 300));
-      return { 
-        success: true, 
+      return {
+        success: true,
         data: {
           id: Date.now(),
           submissionId: data.submissionId,
@@ -245,6 +245,63 @@ export const reviewApi = {
     const response = await apiClient.get<ApiResponse<ReviewerStats>>('/api/reviews/my-stats');
     return response.data;
   },
+
+  // Summary
+  getReviewSummary: async (paperId: string | number): Promise<ApiResponse<ReviewSummaryDto>> => {
+    if (MOCK_MODE) {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      // Return mock summary
+      return {
+        success: true,
+        data: {
+          paperId: paperId as any, // Bypass mock type check
+          totalReviews: 3,
+          averageNoveltyScore: 4.0,
+          averageMethodologyScore: 3.5,
+          averagePresentationScore: 4.5,
+          overallAverageScore: 4.0,
+          acceptCount: 2,
+          rejectCount: 0,
+          revisionCount: 1,
+          reviews: [
+            {
+              reviewerId: 101,
+              reviewerName: "Reviewer 101",
+              noveltyScore: 4,
+              methodologyScore: 4,
+              presentationScore: 5,
+              commentsForAuthor: "Good paper, but needs more experiments.",
+              confidentialComments: "Strong accept.",
+              recommendation: "Accept",
+              submittedAt: new Date().toISOString()
+            },
+            {
+              reviewerId: 102,
+              reviewerName: "Reviewer 102",
+              noveltyScore: 3,
+              methodologyScore: 3,
+              presentationScore: 4,
+              commentsForAuthor: "Methodology is slightly unclear.",
+              recommendation: "Revision",
+              submittedAt: new Date().toISOString()
+            },
+            {
+              reviewerId: 103,
+              reviewerName: "Reviewer 103",
+              noveltyScore: 5,
+              methodologyScore: 4,
+              presentationScore: 5,
+              commentsForAuthor: "Excellent work!",
+              recommendation: "Accept",
+              submittedAt: new Date().toISOString()
+            }
+          ]
+        }
+      };
+    }
+    const response = await apiClient.get<ApiResponse<ReviewSummaryDto>>(`/api/reviews/summary/${paperId}`);
+    return response.data;
+  },
 };
 
 export interface ReviewerStats {
@@ -252,6 +309,31 @@ export interface ReviewerStats {
   pendingReviews: number;
   completedReviews: number;
   overdueReviews: number;
+}
+
+export interface ReviewSummaryDto {
+  paperId: string | number;
+  totalReviews: number;
+  averageNoveltyScore: number;
+  averageMethodologyScore: number;
+  averagePresentationScore: number;
+  overallAverageScore: number;
+  acceptCount: number;
+  rejectCount: number;
+  revisionCount: number;
+  reviews: ReviewDetailDto[];
+}
+
+export interface ReviewDetailDto {
+  reviewerId: number;
+  reviewerName?: string;
+  noveltyScore: number;
+  methodologyScore: number;
+  presentationScore: number;
+  commentsForAuthor?: string;
+  confidentialComments?: string;
+  recommendation?: string;
+  submittedAt: string;
 }
 
 export default reviewApi;

@@ -97,7 +97,7 @@ public class ReviewerService : IReviewerService
         return invitation;
     }
 
-    public async Task<bool> RespondToInvitationAsync(InvitationResponseDTO dto, int? userId = null)
+    public async Task<bool> RespondToInvitationAsync(InvitationResponseDTO dto, string? userId = null)
     {
         var invitation = await _context.ReviewerInvitations
             .FirstOrDefaultAsync(x => x.Token == dto.Token);
@@ -112,21 +112,21 @@ public class ReviewerService : IReviewerService
 
         if (dto.IsAccepted)
         {
-            if (!userId.HasValue)
+            if (string.IsNullOrEmpty(userId))
             {
                 throw new ArgumentException("User ID is required to accept the invitation.");
             }
 
             // Kiểm tra xem user đã là Reviewer chưa để tránh lỗi trùng lặp
             var alreadyExists = await _context.Reviewers
-                .AnyAsync(r => r.UserId == userId.Value && r.ConferenceId == invitation.ConferenceId);
+                .AnyAsync(r => r.UserId == userId && r.ConferenceId == invitation.ConferenceId);
 
             if (!alreadyExists)
             {
                 // Thêm vào bảng Reviewers
                 var reviewer = new Reviewer
                 {
-                    UserId = userId.Value,
+                    UserId = userId,
                     ConferenceId = invitation.ConferenceId,
                     Email = invitation.Email,
                     FullName = invitation.FullName,

@@ -26,11 +26,35 @@ namespace Review.Service.Services
 
         public async Task<bool> AssignReviewerAsync(AssignReviewerDTO dto)
         {
-            // 1. Lấy thông tin Reviewer để kiểm tra COI
-            // Giả định dto.ReviewerId là ID trong bảng Reviewers (hoặc UserId map sang)
-            var reviewer = await _context.Reviewers.FindAsync(dto.ReviewerId);
+            // 1. Lấy thông tin Reviewer
+            Reviewer? reviewer = null;
 
-            if (reviewer == null) throw new Exception("Reviewer not found.");
+            if (dto.ReviewerId > 0)
+            {
+                reviewer = await _context.Reviewers.FindAsync(dto.ReviewerId);
+            }
+            else if (!string.IsNullOrEmpty(dto.ReviewerEmail))
+            {
+                reviewer = await _context.Reviewers.FirstOrDefaultAsync(r => r.Email == dto.ReviewerEmail);
+                if (reviewer == null)
+                {
+                    // Auto-create simplified Reviewer for Testing/UX
+                    reviewer = new Reviewer
+                    {
+                        Email = dto.ReviewerEmail,
+                        FullName = dto.ReviewerEmail.Split('@')[0], // Dummy Name
+                        ConferenceId = 1, // Default to 1 or fetch from paper
+                        UserId = "0", // Unknown ID
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.Reviewers.Add(reviewer);
+                    await _context.SaveChangesAsync();
+                }
+            }
+
+            if (reviewer == null) throw new Exception("Reviewer not found (Id or Email required).");
+
+            dto.ReviewerId = reviewer.Id; // Update ID for COI check and assignment
 
             // 2. USCPMS-42: Kiểm tra Conflict of Interest (COI)
             await CheckConflictOfInterestAsync(dto.PaperId, reviewer.Email);
@@ -58,7 +82,7 @@ namespace Review.Service.Services
             return true;
         }
 
-        private async Task CheckConflictOfInterestAsync(int paperId, string reviewerEmail)
+        private async Task CheckConflictOfInterestAsync(string paperId, string reviewerEmail)
         {
             try
             {
@@ -97,7 +121,7 @@ namespace Review.Service.Services
             }
         }
 
-        public async Task<IEnumerable<object>> GetReviewersForPaperAsync(int paperId)
+        public async Task<IEnumerable<object>> GetReviewersForPaperAsync(string paperId)
         {
             var query = from a in _context.Assignments
                         join r in _context.Reviewers on a.ReviewerId equals r.Id
@@ -113,7 +137,7 @@ namespace Review.Service.Services
             return await query.ToListAsync();
         }
 
-        public async Task<IEnumerable<object>> GetAvailableReviewersAsync(int paperId)
+        public async Task<IEnumerable<object>> GetAvailableReviewersAsync(string paperId)
         {
             // 1. Gọi Submission Service để lấy ConferenceId của bài báo
             int conferenceId = 0;

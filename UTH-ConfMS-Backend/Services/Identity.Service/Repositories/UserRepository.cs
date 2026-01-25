@@ -39,16 +39,18 @@ public class UserRepository : IUserRepository
 
     public async Task<User?> GetByEmailAsync(string email)
     {
+        var lowerEmail = email.ToLower();
         return await _context.Users
-            .FirstOrDefaultAsync(u => u.Email == email);
+            .FirstOrDefaultAsync(u => u.Email.ToLower() == lowerEmail);
     }
 
     public async Task<User?> GetByEmailWithRolesAsync(string email)
     {
+        var lowerEmail = email.ToLower();
         return await _context.Users
             .Include(u => u.UserRoles)
                 .ThenInclude(ur => ur.Role)
-            .FirstOrDefaultAsync(u => u.Email == email);
+            .FirstOrDefaultAsync(u => u.Email.ToLower() == lowerEmail);
     }
 
     public async Task<User?> GetByUsernameAsync(string username)
@@ -65,7 +67,8 @@ public class UserRepository : IUserRepository
 
     public async Task<bool> EmailExistsAsync(string email)
     {
-        return await _context.Users.AnyAsync(u => u.Email == email);
+        var lowerEmail = email.ToLower();
+        return await _context.Users.AnyAsync(u => u.Email.ToLower() == lowerEmail);
     }
 
     public async Task<bool> UsernameExistsAsync(string username)

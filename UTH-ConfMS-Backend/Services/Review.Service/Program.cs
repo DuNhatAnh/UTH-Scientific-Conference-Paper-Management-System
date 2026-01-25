@@ -18,6 +18,9 @@ using Review.Service.Interfaces;
 // using Review.Service.Interfaces.Services; // TODO: Add interface services
 // using Review.Service.Repositories; // TODO: Add repositories
 
+// Enable legacy timestamp behavior for Npgsql to avoid DateTime Kind issues with PostgreSQL 'timestamp' type
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure Serilog
@@ -159,6 +162,53 @@ if (app.Environment.IsDevelopment())
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Review Service API V1");
         c.RoutePrefix = "swagger";
     });
+
+    // Auto-migrate database in Development
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<ReviewDbContext>();
+        // Fix: Create tables manually because EnsureCreated fails on shared DB
+        try {
+            dbContext.Database.ExecuteSqlRaw(@"
+                CREATE TABLE IF NOT EXISTS ""Reviewers"" (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""Email"" TEXT,
+                    ""FullName"" TEXT,
+                    ""UserId"" TEXT,
+                    ""ConferenceId"" INT,
+                    ""Expertise"" TEXT,
+                    ""MaxPapers"" INT DEFAULT 5,
+                    ""CreatedAt"" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    ""Token"" TEXT,
+                    ""IsActive"" BOOLEAN DEFAULT TRUE
+                );
+                
+                CREATE TABLE IF NOT EXISTS ""Assignments"" (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""PaperId"" TEXT,
+                    ""ReviewerId"" INT REFERENCES ""Reviewers""(""Id""),
+                    ""Status"" TEXT,
+                    ""AssignedDate"" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+
+                CREATE TABLE IF NOT EXISTS ""Reviews"" (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""AssignmentId"" INT REFERENCES ""Assignments""(""Id""),
+                    ""NoveltyScore"" INT,
+                    ""MethodologyScore"" INT,
+                    ""PresentationScore"" INT,
+                    ""Recommendation"" TEXT,
+                    ""CommentsForAuthor"" TEXT,
+                    ""ConfidentialComments"" TEXT,
+                    ""CreatedAt"" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    ""UpdatedAt"" TIMESTAMP
+                );
+            ");
+            Log.Information("Database tables checked/created successfully.");
+        } catch (Exception ex) {
+            Log.Error(ex, "Error creating tables.");
+        }
+    }
 }
 
 app.UseSerilogRequestLogging();
@@ -169,6 +219,6 @@ app.MapControllers();
 app.MapHealthChecks("/health");
 
 Log.Information("Review Service starting...");
-app.Run("http://localhost:5005");
+app.Run();
 Log.Information("Review Service stopped.");
 Log.CloseAndFlush();

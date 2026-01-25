@@ -23,6 +23,7 @@ import { Profile } from './components/Profile';
 import { PCMemberManagement } from './pages/Chair/PCMemberManagement';
 import { CFPManagement } from './pages/Chair/CFPManagement';
 import { PCManagement } from './pages/Chair/PCManagement';
+import { SubmissionManagement } from './pages/Chair/SubmissionManagement';
 import { AcceptInvitation } from './pages/Public/AcceptInvitation';
 import { useAuth, UserRole } from './contexts/AuthContext';
 export type ViewState =
@@ -47,7 +48,7 @@ export type ViewState =
   | 'pc-members'
   | 'cfp-management'
   | 'pc-management'
-  | 'pc-members'
+  | 'submission-management'
   | 'accept-invitation'
   | 'paper-detail';
 
@@ -107,6 +108,10 @@ const App: React.FC = () => {
             setSelectedConferenceId(id);
             setCurrentView('pc-management');
           }}
+          onManageSubmissions={(id) => {
+            setSelectedConferenceId(id);
+            setCurrentView('submission-management');
+          }}
         />
       );
       case 'create-conference': return renderProtected(['chair', 'admin'], <CreateConference onNavigate={setCurrentView} />);
@@ -125,6 +130,12 @@ const App: React.FC = () => {
       );
       case 'pc-management': return renderProtected(['chair', 'admin'],
         <PCManagement
+          onNavigate={setCurrentView}
+          conferenceId={selectedConferenceId || undefined}
+        />
+      );
+      case 'submission-management': return renderProtected(['chair', 'admin'],
+        <SubmissionManagement
           onNavigate={setCurrentView}
           conferenceId={selectedConferenceId || undefined}
         />

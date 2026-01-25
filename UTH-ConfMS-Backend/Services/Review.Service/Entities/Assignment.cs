@@ -8,9 +8,10 @@ namespace Review.Service.Entities
         [Key]
         public int Id { get; set; }
 
-        public int PaperId { get; set; }
+        public string PaperId { get; set; }
 
         public int ReviewerId { get; set; }
+        public virtual Reviewer Reviewer { get; set; }
 
         public DateTime AssignedDate { get; set; } = DateTime.UtcNow;
 

@@ -19,10 +19,10 @@ namespace Review.Service.Controllers
             _reviewerService = reviewerService;
         }
 
-        private int GetUserId()
+        private string GetUserId()
         {
             var idClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            return idClaim != null ? int.Parse(idClaim) : 0;
+            return idClaim ?? "0";
         }
 
         // 1. Gửi lời mời tham gia PC (Dành cho Chair)
@@ -49,7 +49,7 @@ namespace Review.Service.Controllers
             try
             {
                 var userId = GetUserId();
-                if (dto.IsAccepted && userId == 0)
+                if (dto.IsAccepted && userId == "0")
                 {
                     return Unauthorized(new { message = "Bạn cần đăng nhập để chấp nhận lời mời." });
                 }

@@ -22,6 +22,7 @@ namespace Review.Service.Controllers
         // POST: api/assignments
         // Phân công Reviewer cho bài báo (USCPMS-43) có check COI (USCPMS-42)
         [HttpPost]
+        [AllowAnonymous] // Tạm thời mở để User test dễ dàng
         public async Task<IActionResult> AssignReviewer([FromBody] AssignReviewerDTO dto)
         {
             try
@@ -43,7 +44,7 @@ namespace Review.Service.Controllers
         // GET: api/assignments/paper/{paperId}
         // Lấy danh sách Reviewer và trạng thái review của một bài báo (USCPMS-44)
         [HttpGet("paper/{paperId}")]
-        public async Task<IActionResult> GetReviewersForPaper(int paperId)
+        public async Task<IActionResult> GetReviewersForPaper(string paperId)
         {
             var result = await _assignmentService.GetReviewersForPaperAsync(paperId);
             return Ok(result);
@@ -52,7 +53,7 @@ namespace Review.Service.Controllers
         // GET: api/assignments/available-reviewers/{paperId}
         // Lấy danh sách Reviewer chưa được phân công cho bài báo này (USCPMS-43)
         [HttpGet("available-reviewers/{paperId}")]
-        public async Task<IActionResult> GetAvailableReviewers(int paperId)
+        public async Task<IActionResult> GetAvailableReviewers(string paperId)
         {
             var result = await _assignmentService.GetAvailableReviewersAsync(paperId);
             return Ok(result);

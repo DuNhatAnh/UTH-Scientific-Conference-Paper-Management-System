@@ -10,13 +10,13 @@ interface Discussion {
 }
 
 interface ReviewFormProps {
-    paperId?: number; // Nhận ID bài báo từ cha
+    paperId?: string | number; // Nhận ID bài báo từ cha
 }
 
 export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId }) => {
     // State lưu dữ liệu form
     const [formData, setFormData] = useState({
-        paperId: paperId || 0, 
+        paperId: paperId || '',
         noveltyScore: 5,
         methodologyScore: 5,
         presentationScore: 5,
@@ -34,7 +34,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId }) => {
 
     // Tự động tải danh sách thảo luận khi Paper ID thay đổi
     useEffect(() => {
-        if (formData.paperId > 0) {
+        if (formData.paperId) {
             fetchDiscussions();
         }
     }, [formData.paperId]);
@@ -74,8 +74,8 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId }) => {
             // Gọi API Backend đang chạy ở port 5005
             const payload = {
                 ...formData,
-                // Chuyển đổi string sang number cho các trường điểm số
-                paperId: Number(formData.paperId),
+                // Giữ paperId là string hoặc number tùy ý, backend đã hỗ trợ string
+                paperId: formData.paperId.toString(),
                 noveltyScore: Number(formData.noveltyScore),
                 methodologyScore: Number(formData.methodologyScore),
                 presentationScore: Number(formData.presentationScore),
@@ -101,7 +101,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId }) => {
         if (!newComment.trim()) return;
         try {
             await apiClient.post('/api/reviews/discussion', {
-                paperId: Number(formData.paperId),
+                paperId: formData.paperId.toString(),
                 content: newComment
             });
             setNewComment(''); // Xóa ô nhập
@@ -123,17 +123,17 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId }) => {
 
                 <div className="bg-white dark:bg-card-dark p-8 rounded-xl border border-border-light shadow-sm">
                     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-                        
+
                         {/* Paper ID */}
                         <div className="flex flex-col gap-1.5">
                             <label className="text-sm font-bold">Paper ID</label>
-                            <input 
-                                type="number" 
-                                name="paperId" 
-                                value={formData.paperId} 
+                            <input
+                                type="text"
+                                name="paperId"
+                                value={formData.paperId}
                                 onChange={handleChange}
                                 disabled // Không cho sửa ID bằng tay
-                                className="w-full h-10 px-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none"
+                                className="w-full h-10 px-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none bg-gray-100"
                             />
                         </div>
 
@@ -146,14 +146,14 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId }) => {
                             ].map((field) => (
                                 <div key={field.name} className="flex flex-col gap-1.5">
                                     <label className="text-sm font-bold">{field.label}</label>
-                                    <select 
-                                        name={field.name} 
+                                    <select
+                                        name={field.name}
                                         // @ts-ignore
-                                        value={formData[field.name as keyof typeof formData]} 
+                                        value={formData[field.name as keyof typeof formData]}
                                         onChange={handleChange}
                                         className="w-full h-10 px-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none bg-white"
                                     >
-                                        {[1, 2, 3, 4, 5].map(s => <option key={s} value={s}>{s}</option>)}
+                                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(s => <option key={s} value={s}>{s}</option>)}
                                     </select>
                                 </div>
                             ))}
@@ -162,9 +162,9 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId }) => {
                         {/* Comments */}
                         <div className="flex flex-col gap-1.5">
                             <label className="text-sm font-bold">Nhận xét cho tác giả <span className="text-red-500">*</span></label>
-                            <textarea 
-                                name="commentsForAuthor" 
-                                value={formData.commentsForAuthor} 
+                            <textarea
+                                name="commentsForAuthor"
+                                value={formData.commentsForAuthor}
                                 onChange={handleChange}
                                 className="w-full h-32 p-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none resize-none"
                                 placeholder="Nhập nhận xét chi tiết..."
@@ -174,9 +174,9 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId }) => {
 
                         <div className="flex flex-col gap-1.5">
                             <label className="text-sm font-bold">Nhận xét riêng (Chỉ BTC thấy)</label>
-                            <textarea 
-                                name="confidentialComments" 
-                                value={formData.confidentialComments} 
+                            <textarea
+                                name="confidentialComments"
+                                value={formData.confidentialComments}
                                 onChange={handleChange}
                                 className="w-full h-20 p-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none resize-none"
                                 placeholder="Nhận xét bí mật..."
@@ -202,8 +202,8 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId }) => {
 
                         {/* Submit Button */}
                         <div className="flex justify-end mt-4 pt-4 border-t border-border-light">
-                            <button 
-                                type="submit" 
+                            <button
+                                type="submit"
                                 disabled={loading}
                                 className={`px-6 py-2 rounded bg-primary text-white font-bold text-sm shadow-md flex items-center gap-2 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-hover'}`}
                             >
@@ -216,7 +216,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId }) => {
                 {/* Phần Thảo luận (Discussion Section) */}
                 <div className="bg-white dark:bg-card-dark p-8 rounded-xl border border-border-light shadow-sm flex flex-col gap-5">
                     <h2 className="text-xl font-bold text-primary border-b pb-2">Thảo luận nội bộ (Discussion)</h2>
-                    
+
                     {/* Danh sách bình luận */}
                     <div className="flex flex-col gap-4 max-h-80 overflow-y-auto pr-2">
                         {discussions.length === 0 ? (
@@ -236,15 +236,15 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId }) => {
 
                     {/* Ô nhập bình luận mới */}
                     <div className="flex gap-2 mt-2 pt-4 border-t border-gray-100">
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             value={newComment}
                             onChange={(e) => setNewComment(e.target.value)}
                             placeholder="Nhập nội dung thảo luận..."
                             className="flex-1 h-10 px-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none bg-white dark:bg-gray-900"
                             onKeyDown={(e) => e.key === 'Enter' && handleCommentSubmit()}
                         />
-                        <button 
+                        <button
                             onClick={handleCommentSubmit}
                             className="px-4 py-2 rounded bg-gray-600 text-white font-bold text-sm hover:bg-gray-700 transition-colors"
                         >

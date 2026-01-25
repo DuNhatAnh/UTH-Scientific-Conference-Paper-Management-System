@@ -61,7 +61,7 @@ public class SubmissionRepository : ISubmissionRepository
             .ToListAsync();
     }
 
-    public async Task<List<SubmissionEntity>> GetByUserAsync(Guid userId, Guid? conferenceId, string? status, int skip, int take)
+    public async Task<List<SubmissionEntity>> GetByUserAsync(Guid userId, Guid? conferenceId, string? status, int skip, int take, bool excludeWithdrawn = false)
     {
         var query = _context.Submissions
             .Include(s => s.Authors)
@@ -75,6 +75,12 @@ public class SubmissionRepository : ISubmissionRepository
         if (!string.IsNullOrEmpty(status))
         {
             query = query.Where(s => s.Status == status);
+        }
+
+        // Exclude withdrawn submissions if requested
+        if (excludeWithdrawn)
+        {
+            query = query.Where(s => s.Status != "WITHDRAWN");
         }
 
         return await query
@@ -109,7 +115,7 @@ public class SubmissionRepository : ISubmissionRepository
         return await query.CountAsync();
     }
 
-    public async Task<int> CountByUserAsync(Guid userId, Guid? conferenceId, string? status)
+    public async Task<int> CountByUserAsync(Guid userId, Guid? conferenceId, string? status, bool excludeWithdrawn = false)
     {
         var query = _context.Submissions
             .Include(s => s.Authors)
@@ -123,6 +129,12 @@ public class SubmissionRepository : ISubmissionRepository
         if (!string.IsNullOrEmpty(status))
         {
             query = query.Where(s => s.Status == status);
+        }
+
+        // Exclude withdrawn submissions if requested
+        if (excludeWithdrawn)
+        {
+            query = query.Where(s => s.Status != "WITHDRAWN");
         }
 
         return await query.CountAsync();

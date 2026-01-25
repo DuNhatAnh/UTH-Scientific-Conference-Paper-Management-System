@@ -44,8 +44,9 @@ public class SubmissionService : ISubmissionService
     public async Task<PagedResponse<SubmissionDto>> GetUserSubmissionsAsync(
         Guid userId, Guid? conferenceId, string? status, int page, int pageSize)
     {
-        var totalCount = await _unitOfWork.Submissions.CountByUserAsync(userId, conferenceId, status);
-        var submissions = await _unitOfWork.Submissions.GetByUserAsync(userId, conferenceId, status, (page - 1) * pageSize, pageSize);
+        // Exclude withdrawn submissions by default
+        var totalCount = await _unitOfWork.Submissions.CountByUserAsync(userId, conferenceId, status, excludeWithdrawn: true);
+        var submissions = await _unitOfWork.Submissions.GetByUserAsync(userId, conferenceId, status, (page - 1) * pageSize, pageSize, excludeWithdrawn: true);
 
         var items = submissions.Select(s => MapToDto(s)).ToList();
 

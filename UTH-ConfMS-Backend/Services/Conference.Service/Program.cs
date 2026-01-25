@@ -112,7 +112,7 @@ builder.Services.AddAuthorization(options =>
         policy.RequireRole("SYSTEM_ADMIN", "CONFERENCE_CHAIR"));
     
     options.AddPolicy("RequireConferenceDelete", policy =>
-        policy.RequireRole("SYSTEM_ADMIN"));
+        policy.RequireRole("SYSTEM_ADMIN", "CONFERENCE_CHAIR"));
     
     options.AddPolicy("RequireConferenceManage", policy =>
         policy.RequireRole("SYSTEM_ADMIN", "CONFERENCE_CHAIR", "PC_CHAIR"));

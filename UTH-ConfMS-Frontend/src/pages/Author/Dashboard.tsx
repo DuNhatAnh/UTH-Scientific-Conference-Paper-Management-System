@@ -159,7 +159,17 @@ export const AuthorDashboard: React.FC<DashboardProps> = ({
                             )}
                           </td>
                           <td className="p-4 text-text-sec-light">
-                            {new Date(sub.submissionDate).toLocaleDateString()}
+                            {(() => {
+                              try {
+                                const date = new Date(sub.submissionDate);
+                                if (isNaN(date.getTime())) {
+                                  return sub.submissionDate || "N/A";
+                                }
+                                return date.toLocaleDateString("vi-VN");
+                              } catch {
+                                return sub.submissionDate || "N/A";
+                              }
+                            })()}
                           </td>
                           <td className="p-4 flex items-center">
                             <button

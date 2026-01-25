@@ -73,8 +73,8 @@ export interface SubmissionForDecisionDto {
 }
 
 export interface MakeDecisionRequest {
-  submissionId: number;
-  decision: 'accepted' | 'rejected' | 'revision_required';
+  paperId: string | number;
+  status: 'Accepted' | 'Rejected' | 'Revision';
   comments?: string;
 }
 

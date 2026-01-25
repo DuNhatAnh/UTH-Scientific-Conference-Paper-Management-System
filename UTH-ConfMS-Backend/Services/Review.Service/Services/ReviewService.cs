@@ -267,5 +267,41 @@ namespace Review.Service.Services
 
             return result;
         }
+
+        public async Task SubmitDecisionAsync(SubmitDecisionDTO dto, string chairId)
+        {
+            // 1. Kiểm tra bài báo có tồn tại trong hệ thống Review không (thông qua Assignments)
+            var hasAssignments = await _context.Assignments.AnyAsync(a => a.PaperId == dto.PaperId);
+            if (!hasAssignments)
+            {
+                throw new Exception($"Không tìm thấy dữ liệu phản biện cho bài báo {dto.PaperId}.");
+            }
+
+            // 2. Lưu quyết định
+            var decision = await _context.Decisions.FirstOrDefaultAsync(d => d.PaperId == dto.PaperId);
+            
+            if (decision == null)
+            {
+                decision = new Decision
+                {
+                    PaperId = dto.PaperId,
+                    Status = dto.Status,
+                    Comments = dto.Comments,
+                    DecisionDate = DateTime.UtcNow,
+                    DecidedBy = 0 // Tạm thời để 0 cho demo, thực tế map từ chairId int
+                };
+                _context.Decisions.Add(decision);
+            }
+            else
+            {
+                decision.Status = dto.Status;
+                decision.Comments = dto.Comments;
+                decision.DecisionDate = DateTime.UtcNow;
+                _context.Decisions.Update(decision);
+            }
+
+            await _context.SaveChangesAsync();
+            Console.WriteLine($"[ReviewService] Chair {chairId} submitted decision '{dto.Status}' for Paper {dto.PaperId}");
+        }
     }
 }

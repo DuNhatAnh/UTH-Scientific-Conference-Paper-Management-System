@@ -7,7 +7,7 @@ namespace Review.Service.Entities
     {
         [Key]
         public int Id { get; set; }
-        public int PaperId { get; set; }
+        public string PaperId { get; set; } = string.Empty;
         public string Status { get; set; } = "Pending"; // Accepted, Rejected, Revision
         public string? Comments { get; set; }
         public DateTime DecisionDate { get; set; } = DateTime.UtcNow;

@@ -1,8 +1,8 @@
-
 import React, { useEffect, useState } from 'react';
 import { ViewState } from '../../App';
-import reviewApi, { SubmissionForDecisionDto, ReviewSummaryDto } from '../../services/reviewApi';
+import reviewApi, { SubmissionForDecisionDto, ReviewSummaryDto, MakeDecisionRequest } from '../../services/reviewApi';
 import { ReviewSummaryModal } from '../../components/ReviewSummaryModal';
+import { DecisionModal } from '../../components/DecisionModal';
 
 interface SubmissionManagementProps {
     onNavigate: (view: ViewState) => void;
@@ -13,11 +13,15 @@ export const SubmissionManagement: React.FC<SubmissionManagementProps> = ({ onNa
     const [submissions, setSubmissions] = useState<SubmissionForDecisionDto[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Modal State
+    // Summary Modal State
     const [selectedPaperId, setSelectedPaperId] = useState<string | number | null>(null);
     const [summaryData, setSummaryData] = useState<ReviewSummaryDto | null>(null);
     const [loadingSummary, setLoadingSummary] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+
+    // Decision Modal State
+    const [isDecisionOpen, setIsDecisionOpen] = useState(false);
+    const [decidingPaper, setDecidingPaper] = useState<{ id: string | number, title: string } | null>(null);
 
     useEffect(() => {
         loadSubmissions();
@@ -39,7 +43,7 @@ export const SubmissionManagement: React.FC<SubmissionManagementProps> = ({ onNa
     const handleViewSummary = async (paperId: string | number) => {
         setSelectedPaperId(paperId);
         setLoadingSummary(true);
-        setIsModalOpen(true);
+        setIsSummaryOpen(true);
 
         try {
             console.log(`Fetching summary for paper ${paperId}`);
@@ -59,9 +63,27 @@ export const SubmissionManagement: React.FC<SubmissionManagementProps> = ({ onNa
     };
 
     const closeSummary = () => {
-        setIsModalOpen(false);
+        setIsSummaryOpen(false);
         setSummaryData(null);
         setSelectedPaperId(null);
+    };
+
+    const handleOpenDecision = (id: string | number, title: string) => {
+        setDecidingPaper({ id, title });
+        setIsDecisionOpen(true);
+    };
+
+    const handleSubmitDecision = async (data: MakeDecisionRequest) => {
+        try {
+            const res = await reviewApi.makeDecision(data);
+            if (res.success) {
+                alert("Đã lưu quyết định thành công!");
+                loadSubmissions(); // Refresh list
+            }
+        } catch (error) {
+            console.error("Error submitting decision:", error);
+            throw error;
+        }
     };
 
     return (
@@ -136,6 +158,7 @@ export const SubmissionManagement: React.FC<SubmissionManagementProps> = ({ onNa
                                                 Xem Summary
                                             </button>
                                             <button
+                                                onClick={() => handleOpenDecision(sub.submissionId, sub.title)}
                                                 className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1.5 rounded transition shadow-sm"
                                             >
                                                 Quyết định
@@ -151,11 +174,22 @@ export const SubmissionManagement: React.FC<SubmissionManagementProps> = ({ onNa
 
             {/* Review Summary Modal */}
             <ReviewSummaryModal
-                isOpen={isModalOpen}
+                isOpen={isSummaryOpen}
                 onClose={closeSummary}
                 summary={summaryData}
                 isLoading={loadingSummary}
             />
+
+            {/* Decision Modal */}
+            {decidingPaper && (
+                <DecisionModal
+                    isOpen={isDecisionOpen}
+                    onClose={() => setIsDecisionOpen(false)}
+                    onSubmit={handleSubmitDecision}
+                    paperId={decidingPaper.id}
+                    paperTitle={decidingPaper.title}
+                />
+            )}
         </div>
     );
 };

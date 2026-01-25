@@ -20,5 +20,10 @@ namespace Review.Service.Interfaces
         /// Lấy danh sách bài nộp cần đưa ra quyết định (dành cho Chair)
         /// </summary>
         Task<List<SubmissionForDecisionDTO>> GetSubmissionsForDecisionAsync(int? conferenceId = null);
+
+        /// <summary>
+        /// Chair đưa ra quyết định cuối cùng cho bài báo
+        /// </summary>
+        Task SubmitDecisionAsync(SubmitDecisionDTO dto, string chairId);
     }
 }

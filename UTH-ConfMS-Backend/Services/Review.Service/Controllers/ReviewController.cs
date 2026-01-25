@@ -130,6 +130,21 @@ namespace Review.Service.Controllers
                 return BadRequest(ApiResponse<object>.ErrorResponse(ex.Message));
             }
         }
+
+        [HttpPost("decision")]
+        [AllowAnonymous] // Tạm thời để test demo
+        public async Task<IActionResult> SubmitDecision([FromBody] SubmitDecisionDTO dto)
+        {
+            try
+            {
+                await _reviewService.SubmitDecisionAsync(dto, GetUserId());
+                return Ok(ApiResponse<object>.SuccessResponse(null, "Quyết định đã được lưu thành công."));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ApiResponse<object>.ErrorResponse(ex.Message));
+            }
+        }
     }
 }
 

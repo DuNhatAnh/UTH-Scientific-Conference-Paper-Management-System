@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Review.Service.Data;
 using Review.Service.DTOs;
 using Review.Service.Entities;
@@ -6,6 +7,8 @@ using Review.Service.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace Review.Service.Services
@@ -13,13 +16,17 @@ namespace Review.Service.Services
     public class ReviewService : IReviewService
     {
         private readonly ReviewDbContext _context;
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IConfiguration _configuration;
         
         // Giữ lại mock list cho Discussion vì chưa có bảng Discussion trong DB
         private static List<DiscussionCommentDTO> _discussions = new List<DiscussionCommentDTO>();
 
-        public ReviewService(ReviewDbContext context)
+        public ReviewService(ReviewDbContext context, IHttpClientFactory httpClientFactory, IConfiguration configuration)
         {
             _context = context;
+            _httpClientFactory = httpClientFactory;
+            _configuration = configuration;
         }
 
         public async Task SubmitReviewAsync(SubmitReviewDTO dto, string reviewerId)
@@ -29,52 +36,14 @@ namespace Review.Service.Services
 
             if (!string.IsNullOrEmpty(reviewerId) && reviewerId != "0")
             {
-                assignment = await _context.Assignments
-                    .FirstOrDefaultAsync(a => a.PaperId == dto.PaperId.ToString());
-            }
-
-            // [AUTO-CREATE ASSIGNMENT IF MISSING]
-            if (assignment == null)
-            {
-                // 1a. Đảm bảo có Reviewer thực sự trong Database (Ánh xạ từ GUID sang INT ID)
-                Reviewer? reviewer = null;
-                
-                if (!string.IsNullOrEmpty(reviewerId) && reviewerId != "0")
+                // FIX: Tìm Reviewer Entity trước để lấy ID (int)
+                var reviewer = await _context.Reviewers.FirstOrDefaultAsync(r => r.UserId == reviewerId);
+                if (reviewer != null)
                 {
-                    // Tìm reviewer theo GUID UserId
-                    reviewer = await _context.Reviewers.FirstOrDefaultAsync(r => r.UserId == reviewerId);
+                    // FIX: Phải lọc theo cả PaperId VÀ ReviewerId để tránh lấy nhầm bài của người khác
+                    assignment = await _context.Assignments
+                        .FirstOrDefaultAsync(a => a.PaperId == dto.PaperId.ToString() && a.ReviewerId == reviewer.Id);
                 }
-
-                if (reviewer == null)
-                {
-                    // Nếu không thấy hoặc là anonymous, lấy/tạo Dummy Reviewer
-                    reviewer = await _context.Reviewers.FirstOrDefaultAsync(r => r.Email == "reviewer@uth.edu.vn");
-                    if (reviewer == null)
-                    {
-                        reviewer = new Reviewer
-                        {
-                            Email = "reviewer@uth.edu.vn",
-                            FullName = "Reviewer Auto",
-                            ConferenceId = 1,
-                            MaxPapers = 5,
-                            UserId = reviewerId ?? "0",
-                            Expertise = "General"
-                        };
-                        _context.Reviewers.Add(reviewer);
-                        await _context.SaveChangesAsync();
-                    }
-                }
-
-                // 1b. Tạo Assignment sử dụng Integer Id của Reviewer
-                assignment = new Assignment
-                {
-                    PaperId = dto.PaperId.ToString(),
-                    ReviewerId = reviewer.Id,
-                    Status = "Pending",
-                    AssignedDate = DateTime.UtcNow
-                };
-                _context.Assignments.Add(assignment);
-                await _context.SaveChangesAsync();
             }
 
             if (assignment == null)
@@ -219,15 +188,17 @@ namespace Review.Service.Services
         {
             if (string.IsNullOrEmpty(userId) || userId == "0") return new List<ReviewAssignmentDTO>();
 
-            // Lọc các phân công đã được reviewer chấp nhận hoặc đã hoàn thành
+            // Lấy tất cả phân công của reviewer (bao gồm Pending, Accepted, Completed, Rejected)
             var query = from a in _context.Assignments
                         join r in _context.Reviewers on a.ReviewerId equals r.Id
-                        where r.UserId == userId && (a.Status == "Accepted" || a.Status == "Completed")
+                        where r.UserId == userId
                         select new ReviewAssignmentDTO
                         {
                             Id = a.Id,
                             PaperId = a.PaperId,
                             SubmissionTitle = null,
+                            SubmissionAbstract = null,
+                            SubmissionFileName = null,
                             ConferenceId = r.ConferenceId,
                             Status = a.Status,
                             AssignedAt = a.AssignedDate.ToString("o"),
@@ -242,6 +213,40 @@ namespace Review.Service.Services
 
             var skipped = (page - 1) * pageSize;
             var list = await query.Skip(skipped).Take(pageSize).ToListAsync();
+
+            // Gọi Submission Service để lấy Title/Abstract cho từng bài báo
+            if (list.Any())
+            {
+                try
+                {
+                    var client = _httpClientFactory.CreateClient();
+                    var submissionUrl = _configuration["ServiceUrls:Submission"] ?? "http://localhost:5003";
+
+                    foreach (var item in list)
+                    {
+                        try 
+                        {
+                            var response = await client.GetAsync($"{submissionUrl}/api/submissions/{item.PaperId}");
+                            if (response.IsSuccessStatusCode)
+                            {
+                                var content = await response.Content.ReadAsStringAsync();
+                                using var doc = JsonDocument.Parse(content);
+                                var root = doc.RootElement;
+                                
+                                if (root.TryGetProperty("title", out var titleProp)) item.SubmissionTitle = titleProp.GetString();
+                                if (root.TryGetProperty("abstract", out var absProp)) item.SubmissionAbstract = absProp.GetString();
+                                if (root.TryGetProperty("attachmentUrl", out var fileProp)) item.SubmissionFileName = fileProp.GetString();
+                            }
+                        }
+                        catch { /* Bỏ qua lỗi từng item để danh sách vẫn hiển thị */ }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ReviewService] Error fetching submission details: {ex.Message}");
+                }
+            }
+
             return list;
         }
 
@@ -278,16 +283,41 @@ namespace Review.Service.Services
 
                 // Tiêu đề giả lập nếu không có DB Submission ở đây
                 string title = $"Paper {group.PaperId}";
-                if (group.PaperId == "101") title = "Deep Learning Approaches for Traffic Flow Prediction";
-                else if (group.PaperId == "102") title = "Deep Learning Approaches for Traffic Flow Prediction in Smart Cities";
-                else if (group.PaperId == "103") title = "Deep Learning Approaches for Traffic Flow Prediction";
+                List<string> authors = new List<string>();
+                string topicName = "Unknown";
+                
+                // Gọi Submission Service để lấy Title thật (tương tự như Reviewer Dashboard)
+                try 
+                {
+                    var client = _httpClientFactory.CreateClient();
+                    var submissionUrl = _configuration["ServiceUrls:Submission"] ?? "http://localhost:5003";
+                    var response = await client.GetAsync($"{submissionUrl}/api/submissions/{group.PaperId}");
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var content = await response.Content.ReadAsStringAsync();
+                        using var doc = JsonDocument.Parse(content);
+                        var root = doc.RootElement;
+                        
+                        if (root.TryGetProperty("title", out var titleProp)) title = titleProp.GetString();
+                        if (root.TryGetProperty("topicName", out var topicProp)) topicName = topicProp.GetString();
+                        
+                        if (root.TryGetProperty("authors", out var authorsProp) && authorsProp.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var author in authorsProp.EnumerateArray())
+                            {
+                                if (author.TryGetProperty("fullName", out var nameProp)) authors.Add(nameProp.GetString());
+                            }
+                        }
+                    }
+                }
+                catch { /* Ignore error */ }
 
                 result.Add(new SubmissionForDecisionDTO
                 {
                     SubmissionId = group.PaperId,
                     Title = title,
-                    Authors = new List<string> { "Nguyễn Văn A", "Trần Thị B" },
-                    TopicName = "AI & Big Data",
+                    Authors = authors,
+                    TopicName = topicName,
                     TotalReviews = group.TotalAssignments,
                     CompletedReviews = group.CompletedReviews,
                     AverageScore = averageScore,

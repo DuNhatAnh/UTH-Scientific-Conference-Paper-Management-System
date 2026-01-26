@@ -5,6 +5,8 @@ namespace Review.Service.DTOs
         public int Id { get; set; }
         public string PaperId { get; set; }
         public string? SubmissionTitle { get; set; }
+        public string? SubmissionAbstract { get; set; }
+        public string? SubmissionFileName { get; set; }
         public int ConferenceId { get; set; }
         public string Status { get; set; }
         public string AssignedAt { get; set; }

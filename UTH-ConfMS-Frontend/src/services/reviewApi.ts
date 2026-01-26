@@ -1,11 +1,12 @@
-import apiClient, { ApiResponse, MOCK_MODE } from './apiClient';
+import apiClient, { ApiResponse } from './apiClient';
 
 // DTOs
 export interface ReviewAssignmentDto {
   id: number;
-  submissionId: number;
-  submissionTitle: string;
+  paperId: string;
+  submissionTitle: string | null;
   submissionAbstract?: string;
+  submissionFileName?: string;
   conferenceId: number;
   conferenceName?: string;
   topicName?: string;
@@ -84,59 +85,6 @@ export interface AssignReviewerRequest {
   dueDate?: string;
 }
 
-// Mock review assignments
-const MOCK_ASSIGNMENTS: ReviewAssignmentDto[] = [
-  {
-    id: 1,
-    submissionId: 1,
-    submissionTitle: 'Deep Learning Approaches for Traffic Flow Prediction',
-    submissionAbstract: 'This paper proposes a novel hybrid architecture...',
-    conferenceId: 1,
-    conferenceName: 'ICIST 2026',
-    topicName: 'Artificial Intelligence',
-    status: 'pending',
-    assignedAt: '2026-01-06T10:00:00Z',
-    dueDate: '2026-01-20T23:59:59Z',
-    isCompleted: false,
-  },
-  {
-    id: 2,
-    submissionId: 2,
-    submissionTitle: 'Blockchain-based Supply Chain Management',
-    submissionAbstract: 'We present a decentralized approach...',
-    conferenceId: 1,
-    conferenceName: 'ICIST 2026',
-    topicName: 'Blockchain',
-    status: 'accepted',
-    assignedAt: '2026-01-04T08:00:00Z',
-    dueDate: '2026-01-18T23:59:59Z',
-    isCompleted: false,
-  },
-];
-
-const MOCK_SUBMISSIONS_FOR_DECISION: SubmissionForDecisionDto[] = [
-  {
-    submissionId: 1,
-    title: 'Optimizing Neural Networks for Edge Devices',
-    authors: ['Nguyễn Văn A', 'Trần Thị B'],
-    topicName: 'Artificial Intelligence',
-    totalReviews: 2,
-    completedReviews: 2,
-    averageScore: 4.2,
-    currentStatus: 'under_review',
-  },
-  {
-    submissionId: 3,
-    title: 'Machine Learning Applications in Healthcare',
-    authors: ['Lê Văn C'],
-    topicName: 'Artificial Intelligence',
-    totalReviews: 2,
-    completedReviews: 2,
-    averageScore: 2.8,
-    currentStatus: 'under_review',
-  },
-];
-
 // Review API
 export const reviewApi = {
   // Reviewer APIs
@@ -146,10 +94,6 @@ export const reviewApi = {
     page: number = 1,
     pageSize: number = 10
   ): Promise<ApiResponse<ReviewAssignmentDto[]>> => {
-    if (MOCK_MODE) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      return { success: true, data: MOCK_ASSIGNMENTS };
-    }
     const params = new URLSearchParams();
     if (conferenceId) params.append('conferenceId', conferenceId.toString());
     if (status) params.append('status', status);
@@ -161,12 +105,6 @@ export const reviewApi = {
   },
 
   acceptAssignment: async (assignmentId: number): Promise<ApiResponse<void>> => {
-    if (MOCK_MODE) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const assignment = MOCK_ASSIGNMENTS.find(a => a.id === assignmentId);
-      if (assignment) assignment.status = 'accepted';
-      return { success: true };
-    }
     const response = await apiClient.post<ApiResponse<void>>(`/api/reviews/assignments/${assignmentId}/accept`);
     return response.data;
   },
@@ -197,10 +135,6 @@ export const reviewApi = {
     page: number = 1,
     pageSize: number = 10
   ): Promise<ApiResponse<SubmissionForDecisionDto[]>> => {
-    if (MOCK_MODE) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      return { success: true, data: MOCK_SUBMISSIONS_FOR_DECISION };
-    }
     const params = new URLSearchParams();
     if (conferenceId) params.append('conferenceId', conferenceId.toString());
     params.append('page', page.toString());
@@ -211,31 +145,11 @@ export const reviewApi = {
   },
 
   makeDecision: async (data: MakeDecisionRequest): Promise<ApiResponse<void>> => {
-    if (MOCK_MODE) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      return { success: true, message: 'Quyết định đã được lưu' };
-    }
     const response = await apiClient.post<ApiResponse<void>>('/api/reviews/decision', data);
     return response.data;
   },
 
   assignReviewer: async (data: AssignReviewerRequest): Promise<ApiResponse<ReviewAssignmentDto>> => {
-    if (MOCK_MODE) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      return {
-        success: true,
-        data: {
-          id: Date.now(),
-          submissionId: data.submissionId,
-          submissionTitle: 'Test Submission',
-          conferenceId: 1,
-          status: 'pending',
-          assignedAt: new Date().toISOString(),
-          dueDate: data.dueDate || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-          isCompleted: false,
-        }
-      };
-    }
     const response = await apiClient.post<ApiResponse<ReviewAssignmentDto>>('/api/reviews/assign', data);
     return response.data;
   },
@@ -248,57 +162,6 @@ export const reviewApi = {
 
   // Summary
   getReviewSummary: async (paperId: string | number): Promise<ApiResponse<ReviewSummaryDto>> => {
-    if (MOCK_MODE) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      // Return mock summary
-      return {
-        success: true,
-        data: {
-          paperId: paperId as any, // Bypass mock type check
-          totalReviews: 3,
-          averageNoveltyScore: 4.0,
-          averageMethodologyScore: 3.5,
-          averagePresentationScore: 4.5,
-          overallAverageScore: 4.0,
-          acceptCount: 2,
-          rejectCount: 0,
-          revisionCount: 1,
-          reviews: [
-            {
-              reviewerId: 101,
-              reviewerName: "Reviewer 101",
-              noveltyScore: 4,
-              methodologyScore: 4,
-              presentationScore: 5,
-              commentsForAuthor: "Good paper, but needs more experiments.",
-              confidentialComments: "Strong accept.",
-              recommendation: "Accept",
-              submittedAt: new Date().toISOString()
-            },
-            {
-              reviewerId: 102,
-              reviewerName: "Reviewer 102",
-              noveltyScore: 3,
-              methodologyScore: 3,
-              presentationScore: 4,
-              commentsForAuthor: "Methodology is slightly unclear.",
-              recommendation: "Revision",
-              submittedAt: new Date().toISOString()
-            },
-            {
-              reviewerId: 103,
-              reviewerName: "Reviewer 103",
-              noveltyScore: 5,
-              methodologyScore: 4,
-              presentationScore: 5,
-              commentsForAuthor: "Excellent work!",
-              recommendation: "Accept",
-              submittedAt: new Date().toISOString()
-            }
-          ]
-        }
-      };
-    }
     const response = await apiClient.get<ApiResponse<ReviewSummaryDto>>(`/api/reviews/summary/${paperId}`);
     return response.data;
   },

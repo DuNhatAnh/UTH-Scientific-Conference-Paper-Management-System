@@ -92,18 +92,42 @@ services:
   # Microservices
   # ====================
 
-  # ai-service:
-  #   build:
-  #     context: .
-  #     dockerfile: UTH-ConfMS-Backend/Services/AI.Service/Dockerfile
-  #   container_name: uth-confms-ai
-  #   environment:
-  #     - PORT=8000
-  #   ports:
-  #     - "8000:8000"
-  #   networks:
-  #     - uth-confms-network
-  #   restart: unless-stopped
+  ai-service:
+    build:
+      context: ./UTH-ConfMS-Backend/Services/AI.Service
+      dockerfile: Dockerfile
+    container_name: uth-confms-ai
+    environment:
+      - SERVICE_NAME=UTH-ConfMS AI Service
+      - SERVICE_VERSION=1.0.0
+      - DEBUG=false
+      - ENABLE_AUTHOR_SPELLCHECK=true
+      - ENABLE_AUTHOR_ABSTRACT_POLISHING=true
+      - ENABLE_AUTHOR_KEYWORD_SUGGESTION=true
+      - ENABLE_REVIEWER_SUMMARY=true
+      - ENABLE_REVIEWER_KEY_POINTS=true
+      - ENABLE_REVIEWER_SIMILARITY=true
+      - ENABLE_CHAIR_EMAIL_TEMPLATES=true
+      - ENABLE_AUDIT_LOGGING=true
+      - HASH_INPUT_IN_LOGS=true
+      - PRESERVE_DOUBLE_BLIND=true
+      # Groq AI Configuration
+      - GROQ_API_KEY=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
+      - GROQ_MODEL=llama-3.3-70b-versatile
+      - GROQ_MAX_TOKENS=2000
+      - GROQ_TEMPERATURE=0.7
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./logs/ai-service:/app/logs
+    networks:
+      - uth-confms-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
 
   identity-service:
     build:
@@ -246,6 +270,7 @@ services:
       - Services__SubmissionServiceUrl=http://submission-service:5003
       - Services__ReviewServiceUrl=http://review-service:5004
       - Services__NotificationServiceUrl=http://notification-service:5005
+      - Services__AIServiceUrl=http://ai-service:8000
       - JWT__Secret=UTH_CONFMS_JWT_SECRET_KEY_2026_CHANGE_IN_PRODUCTION
     ports:
       - "5000:5000"
@@ -255,6 +280,7 @@ services:
       - submission-service
       - review-service
       - notification-service
+      - ai-service
     networks:
       - uth-confms-network
     restart: unless-stopped

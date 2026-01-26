@@ -1,5 +1,9 @@
-fastapi
-uvicorn
-pydantic
-requests
-# langchains and spacy can be added later as needed to keep image small for now
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+nltk==3.8.1
+numpy>=1.24.0
+scikit-learn>=1.3.0
+groq>=0.4.0
+

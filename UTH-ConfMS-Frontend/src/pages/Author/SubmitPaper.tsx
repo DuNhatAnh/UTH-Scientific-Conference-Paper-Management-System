@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { ViewState } from "../../App";
 import { AIBadge } from "../../components/AIBadge";
+import { AISpellCheck } from "../../components/AISpellCheck";
 import { useAuth } from "../../contexts/AuthContext";
 import { paperApi, AuthorSubmission } from "../../services/paper";
 import conferenceApi, { ConferenceDto } from "../../services/conferenceApi";
@@ -270,6 +271,14 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate }) => {
                   className="w-full h-10 px-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none"
                   placeholder="Nhập tiêu đề đầy đủ..."
                 />
+                {title && (
+                  <AISpellCheck
+                    text={title}
+                    userId={user?.id || 'guest'}
+                    fieldType="title"
+                    onApply={(correctedText) => setTitle(correctedText)}
+                  />
+                )}
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-bold">
@@ -281,6 +290,14 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate }) => {
                   className="w-full h-32 p-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none resize-none"
                   placeholder="Tối đa 300 từ..."
                 ></textarea>
+                {abstract && (
+                  <AISpellCheck
+                    text={abstract}
+                    userId={user?.id || 'guest'}
+                    fieldType="abstract"
+                    onApply={(correctedText) => setAbstract(correctedText)}
+                  />
+                )}
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-bold">Từ khóa (Keywords)</label>
@@ -291,6 +308,14 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate }) => {
                   className="w-full h-10 px-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none"
                   placeholder="Ví dụ: AI, IoT, Smart City (ngăn cách bởi dấu phẩy)"
                 />
+                {keywords && (
+                  <AISpellCheck
+                    text={keywords}
+                    userId={user?.id || 'guest'}
+                    fieldType="keywords"
+                    onApply={(correctedText) => setKeywords(correctedText)}
+                  />
+                )}
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-bold">

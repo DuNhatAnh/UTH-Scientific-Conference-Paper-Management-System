@@ -25,6 +25,7 @@ public class UnitOfWork : IUnitOfWork
     public IUserRepository Users => _users ??= new UserRepository(_context);
     public IRefreshTokenRepository RefreshTokens => _refreshTokens ??= new RefreshTokenRepository(_context);
     public IRoleRepository Roles => _roles ??= new RoleRepository(_context);
+    public IUserActivityLogRepository UserActivityLogs => new UserActivityLogRepository(_context);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

@@ -10,6 +10,7 @@ public interface IUnitOfWork : IDisposable
     IUserRepository Users { get; }
     IRefreshTokenRepository RefreshTokens { get; }
     IRoleRepository Roles { get; }
+    IUserActivityLogRepository UserActivityLogs { get; }
     
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     Task BeginTransactionAsync(CancellationToken cancellationToken = default);

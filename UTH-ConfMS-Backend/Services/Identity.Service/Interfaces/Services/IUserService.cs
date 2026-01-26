@@ -14,7 +14,7 @@ public interface IUserService
     Task<List<RoleDto>> GetUserRolesAsync(Guid userId, Guid? conferenceId);
     Task AssignRoleAsync(Guid userId, AssignRoleRequest request);
     Task RemoveRoleAsync(Guid userId, AssignRoleRequest request);
-    Task SetUserRoleAsync(Guid userId, AssignRoleRequest request); // New method for atomic replace
+    Task SetUserRoleAsync(Guid userId, AssignRoleRequest request, Guid? actorId = null); // New method for atomic replace
 
     // Role operations
     Task<List<RoleDto>> GetAllRolesAsync();

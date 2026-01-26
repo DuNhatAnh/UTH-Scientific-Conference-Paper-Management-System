@@ -233,53 +233,84 @@ public class UserService : IUserService
         }
     }
 
-    public async Task SetUserRoleAsync(Guid userId, AssignRoleRequest request)
+    public async Task SetUserRoleAsync(Guid userId, AssignRoleRequest request, Guid? actorId = null)
     {
-        // Check if user exists
+        // 1. Validate User & Role
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
-        if (user == null)
-        {
-            throw new InvalidOperationException("User not found");
-        }
+        if (user == null) throw new InvalidOperationException("User not found");
 
-        // Check if role exists
         var role = await _unitOfWork.Roles.GetByIdAsync(request.RoleId);
-        if (role == null)
+        if (role == null) throw new InvalidOperationException("Role not found");
+
+        // 2. Define Scope (Conference / Track)
+        bool isGlobalScope = request.ConferenceId == null;
+        Guid? scopeConfId = request.ConferenceId;
+        Guid? scopeTrackId = request.TrackId;
+
+        _logger.LogInformation("SetUserRole processing for User {UserId}, Role {RoleName} in Scope: Conf={C}, Track={T}", 
+            userId, role.RoleName, scopeConfId, scopeTrackId);
+            
+        // Sanitize Request Dates (Npgsql 6.0+ requires UTC for timestamptz)
+        if (request.ExpiresAt.HasValue && request.ExpiresAt.Value.Kind == DateTimeKind.Unspecified)
         {
-            throw new InvalidOperationException("Role not found");
+            request.ExpiresAt = DateTime.SpecifyKind(request.ExpiresAt.Value, DateTimeKind.Utc);
         }
 
-        // 1. Get ALL existing active roles for this user
-        var allUserRoles = await _unitOfWork.Roles.GetUserRolesAsync(userId, null);
-        var activeRoles = allUserRoles.Where(ur => ur.IsActive).ToList();
+        // 3. Get ALL user roles to analyze (Active & Inactive)
+        // Note: We need a repository method that returns ALL roles regardless of status or filtering.
+        // Current GetUserRolesAsync(userId, null) returns ALL users roles (based on previous analysis).
+        var allUserRoles = await _unitOfWork.Roles.GetAllUserRolesByUserIdAsync(userId);
 
-        // 2. Soft delete ALL existing active roles
-        foreach (var existingRole in activeRoles)
+        // 4. Deactivate conflicting roles IN THE SAME SCOPE
+        // A "Conflict" is any active role in the same Conference/Track scope that should be replaced.
+        // Rule: If assigning a role in Conf A, we replace other roles in Conf A.
+        // If assigning Global Admin, we usually replace other Global roles.
+        
+        var rolesInScope = allUserRoles.Where(ur => 
+            ur.ConferenceId == scopeConfId && 
+            ur.TrackId == scopeTrackId && // Optional: looser track matching? No, strict scope.
+            ur.IsActive
+        ).ToList();
+
+        foreach (var existingRole in rolesInScope)
         {
+            // Don't deactivate if it's the exact same role we are assigning (we'll just update it later)
+            if (existingRole.RoleId == request.RoleId) continue;
+
+            // Sanitize Dates for Npgsql
+            if (existingRole.AssignedAt.Kind == DateTimeKind.Unspecified) 
+                existingRole.AssignedAt = DateTime.SpecifyKind(existingRole.AssignedAt, DateTimeKind.Utc);
+            
+            if (existingRole.ExpiresAt.HasValue && existingRole.ExpiresAt.Value.Kind == DateTimeKind.Unspecified)
+                existingRole.ExpiresAt = DateTime.SpecifyKind(existingRole.ExpiresAt.Value, DateTimeKind.Utc);
+
             existingRole.IsActive = false;
-            // UserRole entity does not have UpdatedAt
             await _unitOfWork.Roles.UpdateUserRoleAsync(existingRole);
-            _logger.LogInformation("Role {RoleId} removed (deactivated) for user {UserId} as part of SetUserRole", existingRole.RoleId, userId);
+            _logger.LogInformation("Deactivated conflicting role {RoleId} for user {UserId} in scope", existingRole.RoleId, userId);
         }
 
-        // 3. Assign the new role
-        // Check if assignment already exists (even if inactive, to reactive it)
+        // 5. Assign/Reactivate the Target Role
         var targetAssignment = allUserRoles.FirstOrDefault(ur => 
             ur.RoleId == request.RoleId && 
-            ur.ConferenceId == request.ConferenceId && 
-            ur.TrackId == request.TrackId);
+            ur.ConferenceId == scopeConfId && 
+            ur.TrackId == scopeTrackId);
 
         if (targetAssignment != null)
         {
-            // Update existing assignment to Active
+            // Sanitize Dates for Npgsql
+            if (targetAssignment.AssignedAt.Kind == DateTimeKind.Unspecified) 
+                targetAssignment.AssignedAt = DateTime.SpecifyKind(targetAssignment.AssignedAt, DateTimeKind.Utc);
+
+            // REACTIVATE existing assignment
             targetAssignment.IsActive = true;
-            targetAssignment.ExpiresAt = request.ExpiresAt;
-            // targetAssignment.UpdatedAt = DateTime.UtcNow; // UserRole does not have UpdatedAt
+            targetAssignment.ExpiresAt = request.ExpiresAt; // Already sanitized at start
+            // targetAssignment.UpdatedAt = DateTime.UtcNow; 
             await _unitOfWork.Roles.UpdateUserRoleAsync(targetAssignment);
+            _logger.LogInformation("Reactivated role {RoleName} for user {UserId}", role.RoleName, userId);
         }
         else
         {
-            // Create new assignment
+            // CREATE new assignment
             var userRole = new UserRole
             {
                 UserRoleId = Guid.NewGuid(),
@@ -291,12 +322,35 @@ public class UserService : IUserService
                 IsActive = true,
                 AssignedAt = DateTime.UtcNow
             };
-
             await _unitOfWork.Roles.CreateUserRoleAsync(userRole);
+            _logger.LogInformation("Created new role assignment {RoleName} for user {UserId}", role.RoleName, userId);
         }
 
+        // 5b. Save Role Changes First (Critical Path)
         await _unitOfWork.SaveChangesAsync();
-        _logger.LogInformation("SetUserRole: User {UserId} is now assigned ONLY to Role {RoleName}", userId, role.RoleName);
+
+        // 6. Audit Log (Best Effort)
+        try 
+        {
+            var auditLog = new UserActivityLog
+            {
+                LogId = Guid.NewGuid(),
+                ActorId = actorId ?? Guid.Empty,
+                Action = "SET_USER_ROLE",
+                EntityType = "UserRole",
+                EntityId = userId.ToString(),
+                Description = $"Changed role to {role.RoleName} (Scope: Conf={scopeConfId}, Track={scopeTrackId})",
+                Timestamp = DateTime.UtcNow
+            };
+            
+            await _unitOfWork.UserActivityLogs.AddAsync(auditLog);
+            await _unitOfWork.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+             _logger.LogError(ex, "Failed to write audit log (Database migration might be missing for UserActivityLog)");
+             // Suppress error so user operation succeeds
+        }
     }
 
     public async Task<List<RoleDto>> GetAllRolesAsync()

@@ -275,7 +275,10 @@ public class UsersController : ControllerBase
     {
         try
         {
-            await _userService.SetUserRoleAsync(userId, request);
+            var actorIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            Guid? actorId = actorIdStr != null ? Guid.Parse(actorIdStr) : null;
+
+            await _userService.SetUserRoleAsync(userId, request, actorId);
             return Ok(new ApiResponse<object>
             {
                 Success = true,
@@ -285,10 +288,11 @@ public class UsersController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Set user role failed");
+            var errorMessage = ex.InnerException?.Message ?? ex.Message;
             return BadRequest(new ApiResponse<object>
             {
                 Success = false,
-                Message = ex.Message
+                Message = errorMessage
             });
         }
     }

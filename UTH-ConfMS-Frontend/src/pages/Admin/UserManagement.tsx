@@ -155,26 +155,37 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
     setIsLoading(true);
     setModalError('');
 
-    // Chuẩn bị dữ liệu gửi đi
-    const payload = {
-      fullName: formData.name,
-      email: formData.email,
-      role: formData.role,
-      isActive: true,
-      // Nếu là tạo mới, backend có thể yêu cầu password mặc định hoặc gửi email kích hoạt
-      // password: 'DefaultPassword@123', 
-    };
-
     try {
       if (editingUser) {
-        // Gọi API Cập nhật thông tin cơ bản
+        // --- UPDATE FLOW ---
+        const payload = {
+          fullName: formData.name,
+          email: formData.email,
+          role: formData.role,
+          isActive: true,
+        };
         await userApi.updateUser(editingUser.id, payload);
 
-        // SINGLE ROLE POLICY:
-        // Sử dụng endpoint SetUserRole (PUT) để thay thế hoàn toàn role cũ bằng role mới (Atomic Replace)
+        // Robust Role Finder (Update)
+        let roleId = '';
+        const targetRoleName = formData.role.toUpperCase();
 
-        const selectedRoleObj = availableRoles.find(r => r.roleName === formData.role || r.name === formData.role);
-        const roleId = selectedRoleObj?.roleId || selectedRoleObj?.id;
+        const selectedRoleObj = availableRoles.find(r => {
+          const nameInfo = (r.name || r.roleName || r.displayName || '').toUpperCase();
+          return nameInfo === targetRoleName || nameInfo.includes(targetRoleName);
+        });
+
+        roleId = selectedRoleObj?.id || selectedRoleObj?.roleId;
+
+        // Fallback
+        if (!roleId) {
+          const exactMatch = availableRoles.find(r => (r.name === formData.role) || (r.roleName === formData.role));
+          roleId = exactMatch?.id || exactMatch?.roleId;
+        }
+
+        if (!roleId) {
+          throw new Error(`Không tìm thấy ID của vai trò '${formData.role}'. Vui lòng tải lại trang.`);
+        }
 
         await userApi.setUserRole({
           userId: editingUser.id,
@@ -182,15 +193,14 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
           roleId: roleId
         });
 
-        // Cập nhật state local ngay lập tức để giao diện hiển thị đúng role mới
         setUsers(prevUsers => prevUsers.map(u => {
           if (u.id === editingUser.id) {
             return {
               ...u,
               name: formData.name,
               email: formData.email,
-              role: mapBackendRoleToFrontend(formData.role), // Cập nhật màu badge
-              originalRole: formData.role // Chỉ hiển thị 1 role mới
+              role: mapBackendRoleToFrontend(formData.role),
+              originalRole: formData.role
             };
           }
           return u;
@@ -198,23 +208,64 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
 
         alert("Cập nhật thành công!");
       } else {
-        // Gọi API Tạo mới
-        await userApi.createUser({ ...payload, password: 'DefaultPassword@123' }); // Giả sử backend cần pass
-        alert("Thêm mới thành công!");
-      };
+        // --- CREATE FLOW ---
+        // Sanitize Payload: Only send what RegisterRequest expects
+        const registerPayload = {
+          fullName: formData.name,
+          email: formData.email,
+          password: 'DefaultPassword@123'
+        };
+        const res = await userApi.createUser(registerPayload);
 
-      // Tải lại danh sách sau khi lưu thành công (Wait 500ms để backend sync dữ liệu nếu cần)
-      setTimeout(() => fetchUsers(), 500);
-      setShowModal(false);
+        // Single Role Policy (Create)
+        const newUserId = res?.data?.id || res?.id;
+
+        if (newUserId && formData.role) {
+          // Robust Role Finder (Create)
+          let roleId = '';
+          const targetRoleName = formData.role.toUpperCase();
+
+          const selectedRoleObj = availableRoles.find(r => {
+            const nameInfo = (r.name || r.roleName || r.displayName || '').toUpperCase();
+            return nameInfo === targetRoleName || nameInfo.includes(targetRoleName);
+          });
+
+          roleId = selectedRoleObj?.id || selectedRoleObj?.roleId;
+
+          // Fallback
+          if (!roleId) {
+            const exactMatch = availableRoles.find(r => (r.name === formData.role) || (r.roleName === formData.role));
+            roleId = exactMatch?.id || exactMatch?.roleId;
+          }
+
+          if (roleId) {
+            try {
+              await userApi.setUserRole({
+                userId: newUserId,
+                roleName: formData.role,
+                roleId: roleId
+              });
+            } catch (roleErr) {
+              console.error("Warning: Failed to set initial role", roleErr);
+              // Optionally alert specific warning, or just log it.
+              // Since user is created, we proceed. Use can update role later.
+            }
+          }
+        }
+
+        alert("Thêm mới thành công!");
+
+        // Refresh list
+        setTimeout(() => fetchUsers(), 500);
+        setShowModal(false);
+      }
     } catch (err: any) {
       console.error(err);
-      // Hiển thị thông báo lỗi chi tiết từ Backend hoặc Axios
       const message = err.response?.data?.message ||
         (typeof err.response?.data === 'string' ? err.response.data : '') ||
         err.message || "Đã có lỗi xảy ra. Vui lòng thử lại.";
       setModalError(message);
 
-      // Hiển thị alert rõ ràng hơn cho lỗi 400
       if (err.response?.status === 400) {
         alert(`Lỗi từ Server (400): ${message}\n\n(Vui lòng kiểm tra lại tên Role hoặc quyền hạn)`);
       }
@@ -392,7 +443,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNavigate }) =>
                 <label className="block text-sm font-medium mb-1">Vai trò</label>
                 <select value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })} className="w-full p-2 border rounded-lg outline-none focus:ring-2 focus:ring-primary">
                   {availableRoles.length > 0 ? availableRoles.map((r) => (
-                    <option key={r.roleId} value={r.roleName}>{r.displayName || r.roleName}</option>
+                    <option key={r.id || r.roleId} value={r.name || r.roleName}>
+                      {r.displayName || r.name || r.roleName}
+                    </option>
                   )) : (
                     <option value="Author">Author</option>
                   )}

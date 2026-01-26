@@ -70,6 +70,13 @@ public class RoleRepository : IRoleRepository
         return await query.ToListAsync();
     }
 
+    public async Task<List<UserRole>> GetAllUserRolesByUserIdAsync(Guid userId)
+    {
+        return await _context.UserRoles
+            .Where(ur => ur.UserId == userId) // No IsActive filter
+            .ToListAsync();
+    }
+
     public async Task<UserRole?> GetUserRoleAsync(Guid userId, Guid roleId, Guid? conferenceId, Guid? trackId)
     {
         return await _context.UserRoles

@@ -17,6 +17,7 @@ public interface IRoleRepository
 
     // UserRole operations
     Task<List<UserRole>> GetUserRolesAsync(Guid userId, Guid? conferenceId = null);
+    Task<List<UserRole>> GetAllUserRolesByUserIdAsync(Guid userId); // Includes Inactive
     Task<UserRole?> GetUserRoleAsync(Guid userId, Guid roleId, Guid? conferenceId, Guid? trackId);
     Task<List<string>> GetUserRoleNamesAsync(Guid userId);
     Task CreateUserRoleAsync(UserRole userRole);

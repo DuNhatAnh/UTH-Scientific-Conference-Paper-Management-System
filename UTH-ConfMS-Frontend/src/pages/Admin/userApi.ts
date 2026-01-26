@@ -60,11 +60,9 @@ export const userApi = {
   // Set/Replace role cho user (Atomic)
   setUserRole: async (data: { userId: string; roleName: string; roleId?: string }) => {
     return axiosClient.put(`/users/${data.userId}/roles`, {
-      roleName: data.roleName,      // camelCase
-      RoleName: data.roleName,      // PascalCase
-      role: data.roleName,          // Fallback
-      roleId: data.roleId,          // ID nếu backend cần
-      RoleId: data.roleId           // PascalCase ID
+      roleName: data.roleName,
+      roleId: data.roleId,
+      userId: data.userId  // REQUIRED by Backend DTO [Required] public Guid UserId { get; set; }
     });
   },
 };

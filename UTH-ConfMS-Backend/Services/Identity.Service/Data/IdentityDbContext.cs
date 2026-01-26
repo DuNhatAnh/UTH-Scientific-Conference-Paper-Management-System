@@ -16,6 +16,7 @@ public class IdentityDbContext : DbContext
     public DbSet<RolePermission> RolePermissions { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<SsoProvider> SsoProviders { get; set; }
+    public DbSet<UserActivityLog> UserActivityLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -118,6 +119,16 @@ public class IdentityDbContext : DbContext
                   .OnDelete(DeleteBehavior.Cascade);
 
             entity.Property(e => e.LinkedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+        });
+
+        // UserActivityLog entity
+        modelBuilder.Entity<UserActivityLog>(entity =>
+        {
+            entity.HasKey(e => e.LogId);
+            entity.HasIndex(e => e.ActorId);
+            entity.HasIndex(e => e.Timestamp);
+            
+            entity.Property(e => e.Timestamp).HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
     }
 }

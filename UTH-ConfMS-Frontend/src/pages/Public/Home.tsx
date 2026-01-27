@@ -9,23 +9,12 @@ interface HomeProps {
 }
 
 export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
-  const handleSubmitPaper = () => {
-    if (onNavigate) {
-      onNavigate('submit-paper');
-    }
-  };
-
-  const handleViewCallForPapers = () => {
-    if (onNavigate) {
-      onNavigate('call-for-papers');
-    }
-  };
-
+  // Không cần handle functions trung gian để tránh lỗi scope
   return (
     <>
-      <Hero 
-        onSubmitPaper={handleSubmitPaper} 
-        onViewCallForPapers={handleViewCallForPapers} 
+      <Hero
+        onSubmitPaper={() => onNavigate?.('submit-paper')}
+        onViewCallForPapers={() => onNavigate?.('call-for-papers')}
       />
       <ImportantDates />
       <ProcessSection />

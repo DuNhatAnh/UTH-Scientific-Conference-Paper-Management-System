@@ -78,12 +78,12 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     switch (currentView) {
-      case 'home': return <Home />;
+      case 'home': return <Home onNavigate={setCurrentView} />;
       case 'login': return <Login onNavigate={setCurrentView} />;
       case 'register': return <Register onNavigate={setCurrentView} />;
       case 'forgot-password': return <ForgotPassword onNavigate={setCurrentView} />;
       case 'conference-details': return <ConferenceDetails />;
-      case 'call-for-papers': return <CallForPapers onNavigate={setCurrentView} />;
+      case 'call-for-papers': return <CallForPapers onNavigate={setCurrentView} conferenceId={selectedConferenceId || undefined} />;
       case 'program': return <Program />;
       case 'author-dashboard': return renderProtected(['author', 'admin', 'chair', 'reviewer'],
         <AuthorDashboard
@@ -100,6 +100,7 @@ const App: React.FC = () => {
       case 'chair-dashboard': return renderProtected(['chair', 'admin'],
         <ChairDashboard
           onNavigate={setCurrentView}
+          onSelectConference={setSelectedConferenceId}
           onManageConference={(id) => {
             setSelectedConferenceId(id);
             setCurrentView('cfp-management');
@@ -141,7 +142,7 @@ const App: React.FC = () => {
         />
       );
       case 'accept-invitation': return <AcceptInvitation />;
-      default: return <Home />;
+      default: return <Home onNavigate={setCurrentView} />;
     }
   };
 

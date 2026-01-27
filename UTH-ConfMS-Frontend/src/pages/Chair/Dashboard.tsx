@@ -9,6 +9,7 @@ interface DashboardProps {
   onManageConference?: (conferenceId: string) => void;
   onManagePC?: (conferenceId: string) => void;
   onManageSubmissions?: (conferenceId: string) => void;
+  onSelectConference?: (conferenceId: string | null) => void;
 }
 
 export const ChairDashboard: React.FC<DashboardProps> = ({
@@ -16,14 +17,20 @@ export const ChairDashboard: React.FC<DashboardProps> = ({
   onManageConference,
   onManagePC,
   onManageSubmissions,
+  onSelectConference,
 }) => {
   const [conferences, setConferences] = useState<ConferenceDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [selectedConferenceId, setSelectedConferenceId] = useState<
+  const [selectedConferenceId, _setSelectedConferenceId] = useState<
     string | null
   >(null);
+
+  const setSelectedConferenceId = (id: string | null) => {
+    _setSelectedConferenceId(id);
+    if (onSelectConference) onSelectConference(id);
+  };
   const [selectedConferenceName, setSelectedConferenceName] = useState<
     string | null
   >(null);

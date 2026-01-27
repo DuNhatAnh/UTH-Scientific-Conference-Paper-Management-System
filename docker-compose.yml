@@ -214,6 +214,7 @@ services:
       - ConnectionStrings__Redis=redis:6379
       - Services__IdentityServiceUrl=http://identity-service:5001
       - Services__SubmissionServiceUrl=http://submission-service:5003
+      - Services__ConferenceServiceUrl=http://conference-service:5002
       - Services__NotificationServiceUrl=http://notification-service:5005
     ports:
       - "5004:5004"
@@ -222,6 +223,7 @@ services:
       - redis
       - identity-service
       - submission-service
+      - conference-service
     networks:
       - uth-confms-network
     restart: unless-stopped

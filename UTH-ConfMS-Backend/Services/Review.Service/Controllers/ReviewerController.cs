@@ -63,6 +63,27 @@ namespace Review.Service.Controllers
             }
         }
 
+        // 2b. Xóa lời mời (Để cleanup ds)
+        [HttpDelete("invitation/{id}")]
+        [Authorize]
+        public async Task<IActionResult> DeleteInvitation(int id)
+        {
+            try
+            {
+                var userId = GetUserId();
+                if (userId == "0") return Unauthorized();
+
+                var success = await _reviewerService.DeleteInvitationAsync(id, userId);
+                if (!success) return NotFound(new { message = "Invitation not found." });
+
+                return Ok(new { message = "Đã xóa lời mời." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         // 3. Lấy danh sách Reviewer của Conference
         [HttpGet("conference/{conferenceId}")]
         public async Task<IActionResult> GetReviewers(string conferenceId)
@@ -92,6 +113,25 @@ namespace Review.Service.Controllers
 
                 var invitations = await _reviewerService.GetInvitationsForUserAsync(userId);
                 return Ok(invitations);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        // 6. Lấy danh sách bài báo cho Reviewer (Chỉ khi đã Accept invitation)
+        [HttpGet("{conferenceId}/submissions")]
+        [Authorize]
+        public async Task<IActionResult> GetReviewableSubmissions(string conferenceId)
+        {
+            try
+            {
+                var userId = GetUserId();
+                if (userId == "0") return Unauthorized(new { message = "Unauthorized" });
+
+                var submissions = await _reviewerService.GetReviewableSubmissionsAsync(userId, conferenceId);
+                return Ok(submissions);
             }
             catch (Exception ex)
             {

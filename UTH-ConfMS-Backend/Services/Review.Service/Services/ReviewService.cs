@@ -18,15 +18,17 @@ namespace Review.Service.Services
         private readonly ReviewDbContext _context;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _configuration;
+        private readonly Microsoft.AspNetCore.Http.IHttpContextAccessor _httpContextAccessor;
         
         // Giữ lại mock list cho Discussion vì chưa có bảng Discussion trong DB
         private static List<DiscussionCommentDTO> _discussions = new List<DiscussionCommentDTO>();
 
-        public ReviewService(ReviewDbContext context, IHttpClientFactory httpClientFactory, IConfiguration configuration)
+        public ReviewService(ReviewDbContext context, IHttpClientFactory httpClientFactory, IConfiguration configuration, Microsoft.AspNetCore.Http.IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
             _httpClientFactory = httpClientFactory;
             _configuration = configuration;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task SubmitReviewAsync(SubmitReviewDTO dto, string reviewerId)
@@ -188,6 +190,31 @@ namespace Review.Service.Services
         {
             if (string.IsNullOrEmpty(userId) || userId == "0") return new List<ReviewAssignmentDTO>();
 
+            // 0. Auto-link Reviewer profile if it exists by Email but UserId is 0/null (created by Chair via email assignment)
+            try 
+            {
+                var userEmail = _httpContextAccessor.HttpContext?.User?.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+                if (!string.IsNullOrEmpty(userEmail)) 
+                {
+                     var ghostReviewers = await _context.Reviewers
+                        .Where(r => r.Email.ToLower() == userEmail.ToLower() && (r.UserId == "0" || r.UserId == null || r.UserId == ""))
+                        .ToListAsync();
+                     
+                     if (ghostReviewers.Any())
+                     {
+                         foreach (var gr in ghostReviewers)
+                         {
+                             gr.UserId = userId;
+                         }
+                         await _context.SaveChangesAsync();
+                     }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ReviewService] Error auto-linking reviewer: {ex.Message}");
+            }
+
             // Lấy tất cả phân công của reviewer (bao gồm Pending, Accepted, Completed, Rejected)
             var query = from a in _context.Assignments
                         join r in _context.Reviewers on a.ReviewerId equals r.Id
@@ -220,7 +247,14 @@ namespace Review.Service.Services
                 try
                 {
                     var client = _httpClientFactory.CreateClient();
-                    var submissionUrl = _configuration["ServiceUrls:Submission"] ?? "http://localhost:5003";
+                    var submissionUrl = _configuration["Services:SubmissionServiceUrl"] ?? _configuration["ServiceUrls:Submission"] ?? "http://localhost:5003";
+
+                    // Add Authorization Header
+                    var token = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].ToString();
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", token);
+                    }
 
                     foreach (var item in list)
                     {
@@ -233,9 +267,29 @@ namespace Review.Service.Services
                                 using var doc = JsonDocument.Parse(content);
                                 var root = doc.RootElement;
                                 
-                                if (root.TryGetProperty("title", out var titleProp)) item.SubmissionTitle = titleProp.GetString();
-                                if (root.TryGetProperty("abstract", out var absProp)) item.SubmissionAbstract = absProp.GetString();
-                                if (root.TryGetProperty("attachmentUrl", out var fileProp)) item.SubmissionFileName = fileProp.GetString();
+                                // Unwrap ApiResponse if present (check for "data" property)
+                                JsonElement data = root;
+                                if (root.TryGetProperty("data", out var dataProp) && dataProp.ValueKind == JsonValueKind.Object)
+                                {
+                                    data = dataProp;
+                                }
+
+                                if (data.TryGetProperty("title", out var titleProp)) item.SubmissionTitle = titleProp.GetString();
+                                if (data.TryGetProperty("abstract", out var absProp)) item.SubmissionAbstract = absProp.GetString();
+                                
+                                // Fix: Submission Service returns 'files' array, not 'attachmentUrl'
+                                if (data.TryGetProperty("files", out var filesProp) && filesProp.ValueKind == JsonValueKind.Array)
+                                {
+                                    foreach (var file in filesProp.EnumerateArray())
+                                    {
+                                        // Take the first file (or filter by IsMainPaper if available)
+                                        if (file.TryGetProperty("fileName", out var nameProp))
+                                        {
+                                            item.SubmissionFileName = nameProp.GetString();
+                                            break; 
+                                        }
+                                    }
+                                }
                             }
                         }
                         catch { /* Bỏ qua lỗi từng item để danh sách vẫn hiển thị */ }
@@ -290,7 +344,14 @@ namespace Review.Service.Services
                 try 
                 {
                     var client = _httpClientFactory.CreateClient();
-                    var submissionUrl = _configuration["ServiceUrls:Submission"] ?? "http://localhost:5003";
+                    var submissionUrl = _configuration["Services:SubmissionServiceUrl"] ?? _configuration["ServiceUrls:Submission"] ?? "http://localhost:5003";
+
+                    // Add Authorization Header for Chair/Admin requests
+                    var token = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].ToString();
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", token);
+                    }
                     var response = await client.GetAsync($"{submissionUrl}/api/submissions/{group.PaperId}");
                     if (response.IsSuccessStatusCode)
                     {
@@ -298,10 +359,17 @@ namespace Review.Service.Services
                         using var doc = JsonDocument.Parse(content);
                         var root = doc.RootElement;
                         
-                        if (root.TryGetProperty("title", out var titleProp)) title = titleProp.GetString();
-                        if (root.TryGetProperty("topicName", out var topicProp)) topicName = topicProp.GetString();
+                        // Unwrap ApiResponse if present (check for "data" property)
+                        JsonElement data = root;
+                        if (root.TryGetProperty("data", out var dataProp) && dataProp.ValueKind == JsonValueKind.Object)
+                        {
+                            data = dataProp;
+                        }
                         
-                        if (root.TryGetProperty("authors", out var authorsProp) && authorsProp.ValueKind == JsonValueKind.Array)
+                        if (data.TryGetProperty("title", out var titleProp)) title = titleProp.GetString() ?? title;
+                        if (data.TryGetProperty("topicName", out var topicProp)) topicName = topicProp.GetString() ?? topicName;
+                        
+                        if (data.TryGetProperty("authors", out var authorsProp) && authorsProp.ValueKind == JsonValueKind.Array)
                         {
                             foreach (var author in authorsProp.EnumerateArray())
                             {

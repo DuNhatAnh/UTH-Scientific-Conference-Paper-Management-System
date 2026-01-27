@@ -105,12 +105,13 @@ export const reviewApi = {
   },
 
   acceptAssignment: async (assignmentId: number): Promise<ApiResponse<void>> => {
-    const response = await apiClient.post<ApiResponse<void>>(`/api/reviews/assignments/${assignmentId}/accept`);
+    const response = await apiClient.post<ApiResponse<void>>(`/api/assignments/${assignmentId}/accept`);
     return response.data;
   },
 
   declineAssignment: async (assignmentId: number, reason?: string): Promise<ApiResponse<void>> => {
-    const response = await apiClient.post<ApiResponse<void>>(`/api/reviews/assignments/${assignmentId}/decline`, { reason });
+    // Note: Backend AssignmentController.RejectAssignment does not currently use 'reason', but we categorize it as 'reject'
+    const response = await apiClient.post<ApiResponse<void>>(`/api/assignments/${assignmentId}/reject`, { reason });
     return response.data;
   },
 
@@ -150,7 +151,7 @@ export const reviewApi = {
   },
 
   assignReviewer: async (data: AssignReviewerRequest): Promise<ApiResponse<ReviewAssignmentDto>> => {
-    const response = await apiClient.post<ApiResponse<ReviewAssignmentDto>>('/api/reviews/assign', data);
+    const response = await apiClient.post<ApiResponse<ReviewAssignmentDto>>('/api/assignments', data);
     return response.data;
   },
 

@@ -15,13 +15,15 @@ namespace Review.Service.Services
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _configuration;
         private readonly ILogger<AssignmentService> _logger;
+        private readonly Microsoft.AspNetCore.Http.IHttpContextAccessor _httpContextAccessor;
 
-        public AssignmentService(ReviewDbContext context, IHttpClientFactory httpClientFactory, IConfiguration configuration, ILogger<AssignmentService> logger)
+        public AssignmentService(ReviewDbContext context, IHttpClientFactory httpClientFactory, IConfiguration configuration, ILogger<AssignmentService> logger, Microsoft.AspNetCore.Http.IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
             _httpClientFactory = httpClientFactory;
             _configuration = configuration;
             _logger = logger;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<bool> AssignReviewerAsync(AssignReviewerDTO dto)
@@ -87,7 +89,16 @@ namespace Review.Service.Services
             try
             {
                 var client = _httpClientFactory.CreateClient();
-                var submissionUrl = _configuration["ServiceUrls:Submission"] ?? "http://localhost:5003";
+                var submissionUrl = _configuration["Services:SubmissionServiceUrl"] ?? _configuration["ServiceUrls:Submission"] ?? "http://localhost:5003";
+
+                // Add Authorization Header
+
+                // Add Authorization Header
+                var token = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].ToString();
+                if (!string.IsNullOrEmpty(token))
+                {
+                    client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", token);
+                }
 
                 // Gọi Submission Service để lấy thông tin bài báo và tác giả
                 var response = await client.GetAsync($"{submissionUrl}/api/submissions/{paperId}");
@@ -144,7 +155,17 @@ namespace Review.Service.Services
             try 
             {
                 var client = _httpClientFactory.CreateClient();
-                var submissionUrl = _configuration["ServiceUrls:Submission"] ?? "http://localhost:5003";
+                var submissionUrl = _configuration["Services:SubmissionServiceUrl"] ?? _configuration["ServiceUrls:Submission"] ?? "http://localhost:5003";
+
+                // Add Authorization Header
+
+                // Add Authorization Header
+                var token = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].ToString();
+                if (!string.IsNullOrEmpty(token))
+                {
+                    client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", token);
+                }
+
                 var response = await client.GetAsync($"{submissionUrl}/api/submissions/{paperId}");
                 
                 if (response.IsSuccessStatusCode)

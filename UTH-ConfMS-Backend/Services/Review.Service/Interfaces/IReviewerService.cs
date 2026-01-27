@@ -11,5 +11,7 @@ public interface IReviewerService
     Task<bool> RespondToInvitationAsync(InvitationResponseDTO dto, string? userId = null);
     Task<List<Reviewer>> GetReviewersByConferenceAsync(string conferenceId);
     Task<List<ReviewerInvitation>> GetInvitationsByConferenceAsync(string conferenceId);
-    Task<List<ReviewerInvitation>> GetInvitationsForUserAsync(string userId);
+    Task<List<ReviewerInvitationDto>> GetInvitationsForUserAsync(string userId);
+    Task<List<ReviewableSubmissionDto>> GetReviewableSubmissionsAsync(string userId, string conferenceId);
+    Task<bool> DeleteInvitationAsync(int invitationId, string userId);
 }

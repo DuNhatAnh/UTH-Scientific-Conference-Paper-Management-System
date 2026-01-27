@@ -199,7 +199,240 @@ public class ReviewerService : IReviewerService
     public async Task<List<ReviewerInvitation>> GetInvitationsByConferenceAsync(string conferenceId)
         => await _context.ReviewerInvitations.Where(i => i.ConferenceId == conferenceId).ToListAsync();
 
-    public async Task<List<ReviewerInvitation>> GetInvitationsForUserAsync(string userId)
+    public async Task<List<ReviewerInvitationDto>> GetInvitationsForUserAsync(string userId)
+    {
+        var result = new List<ReviewerInvitationDto>();
+        try
+        {
+            // 1. Call Identity Service to get user info (email)
+            string? email = await GetUserEmailAsync(userId);
+            
+            var client = _httpClientFactory.CreateClient();
+            var conferenceUrl = _configuration["Services:ConferenceServiceUrl"] ?? _configuration["ServiceUrls:Conference"] ?? "http://localhost:5002";
+
+            // Propagate bearer token from current request if present
+            var token = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].ToString();
+            if (!string.IsNullOrEmpty(token))
+            {
+                client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", token);
+            }
+
+            // 2. Fetch invitations from DB
+            List<ReviewerInvitation> invitations = new List<ReviewerInvitation>();
+            if (!string.IsNullOrEmpty(email))
+            {
+                invitations = await _context.ReviewerInvitations.Where(i => i.Email == email).ToListAsync();
+            }
+
+            // 3. Enrich with Conference Name
+            foreach (var inv in invitations)
+            {
+                var dto = new ReviewerInvitationDto
+                {
+                    Id = inv.Id,
+                    ConferenceId = inv.ConferenceId,
+                    ConferenceName = inv.ConferenceId, // Default to ID if fetch fails
+                    Email = inv.Email,
+                    FullName = inv.FullName,
+                    Status = inv.Status,
+                    Token = inv.Token,
+                    SentAt = inv.SentAt,
+                    RespondedAt = inv.RespondedAt
+                };
+
+                // Call Conference Service to get name
+                try 
+                {
+                    var confResp = await client.GetAsync($"{conferenceUrl}/api/conferences/{inv.ConferenceId}");
+                    if (confResp.IsSuccessStatusCode)
+                    {
+                        var confContent = await confResp.Content.ReadAsStringAsync();
+                        using var confDoc = JsonDocument.Parse(confContent);
+                        // Access params: data -> name? Or direct?
+                        // Assuming ApiResponse<ConferenceDto>
+                        if (confDoc.RootElement.TryGetProperty("data", out var confData) && confData.ValueKind == JsonValueKind.Object)
+                        {
+                            if (confData.TryGetProperty("name", out var confName))
+                            {
+                                dto.ConferenceName = confName.GetString();
+                            }
+                        }
+                        // Fallback: check root properties just in case
+                        else if (confDoc.RootElement.TryGetProperty("name", out var confNameRoot))
+                        {
+                            dto.ConferenceName = confNameRoot.GetString();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to fetch name for conference {ConfId}", inv.ConferenceId);
+                }
+
+                result.Add(dto);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching invitations for user {UserId}", userId);
+        }
+
+        return result;
+    }
+
+    public async Task<List<ReviewableSubmissionDto>> GetReviewableSubmissionsAsync(string userId, string conferenceId)
+    {
+        // 1. Verify Reviewer exists (which implies Invitation Accepted)
+        var isReviewer = await _context.Reviewers
+            .AnyAsync(r => r.UserId == userId && r.ConferenceId == conferenceId);
+
+        if (!isReviewer)
+        {
+            return new List<ReviewableSubmissionDto>();
+        }
+
+        // 2. Fetch Submissions from Submission Service
+        var result = new List<ReviewableSubmissionDto>();
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            var submissionUrl = _configuration["Services:SubmissionServiceUrl"] ?? _configuration["ServiceUrls:Submission"] ?? "http://localhost:5003";
+
+            // Add Authorization Header for reading all submissions (assuming Submission Service allows Reviewer to read list)
+            var token = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].ToString();
+            if (!string.IsNullOrEmpty(token))
+            {
+                client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", token);
+            }
+
+            // Call API with large pageSize to get all
+            var response = await client.GetAsync($"{submissionUrl}/api/submissions?conferenceId={conferenceId}&pageSize=1000");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(content);
+                var root = doc.RootElement;
+                
+                JsonElement data = root;
+                // Unwrap ApiResponse logic
+                if (root.TryGetProperty("data", out var dataProp) && dataProp.ValueKind == JsonValueKind.Object)
+                {
+                    data = dataProp;
+                }
+
+                // Unwrap PagedResponse logic: items are in "items" array
+                if (data.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array)
+                {
+                    // Pre-fetch Reviews for this user and conference to minimize DB calls
+                    // Path: PaperReview (Reviews) -> Assignment -> Reviewer
+                    var myReviews = await _context.Reviews
+                        .Include(r => r.Assignment)
+                        .ThenInclude(a => a.Reviewer)
+                        .Where(r => r.Assignment.Reviewer.UserId == userId && r.Assignment.Reviewer.ConferenceId == conferenceId)
+                        .ToListAsync();
+
+                    foreach (var item in items.EnumerateArray())
+                    {
+                        var dto = new ReviewableSubmissionDto();
+                        if (item.TryGetProperty("id", out var id)) dto.Id = id.GetGuid();
+                        if (item.TryGetProperty("paperNumber", out var num)) dto.PaperNumber = num.GetInt32();
+                        if (item.TryGetProperty("title", out var title)) dto.Title = title.GetString();
+                        if (item.TryGetProperty("abstract", out var abs)) dto.Abstract = abs.GetString();
+                        if (item.TryGetProperty("submittedAt", out var subAt)) dto.SubmittedAt = subAt.GetString();
+                        if (item.TryGetProperty("trackName", out var tn)) dto.TrackName = tn.GetString();
+                        if (item.TryGetProperty("fileName", out var fn)) dto.FileName = fn.GetString();
+
+                        // Authors
+                        if (item.TryGetProperty("authors", out var auths) && auths.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var a in auths.EnumerateArray())
+                            {
+                                if (a.TryGetProperty("fullName", out var fnAuth)) dto.Authors.Add(fnAuth.GetString());
+                            }
+                        }
+                        
+                        // --- Populate Review Status ---
+                        // Match on SubmissionId (stored as PaperId string in Assignment)
+                        // PaperReview doesn't have Status property directly, but existence implies "Submitted"? 
+                        // Wait, PaperReview model has No "Status". Assignment has "Status".
+                        // Check logic: If Assignment.Status == Completed/Accepted ?
+                        // Or if PaperReview exists, is it done?
+                        // PaperReview has valid Scores/Comments.
+                        // Let's assume if a PaperReview record exists, it is at least a Draft or Submitted.
+                        // Check Assignment Status for "Completed".
+                        
+                        var reviewMatch = myReviews.FirstOrDefault(r => r.Assignment.PaperId == dto.Id.ToString());
+
+                        if (reviewMatch != null)
+                        {
+                            dto.ReviewId = reviewMatch.Id;
+                            dto.AssignmentId = reviewMatch.AssignmentId;
+                            
+                            // If Assignment Status is Completed, then "Submitted"
+                            // If Assignment Status is Accepted but Review exists, maybe "Draft"?
+                            // Review Service usually uses Assignment Status.
+                            dto.ReviewStatus = reviewMatch.Assignment.Status == "Completed" ? "Submitted" : "Draft";
+                        }
+                        else
+                        {
+                            // Check if there is an assignment even if no review yet?
+                            // We are only looking at "myReviews" which are entries in Reviews table.
+                            // If we want to show "Assigned" status even if no review record created yet?
+                            // But usually Review record is created when starting review.
+                            // For this specific Requirement "Reviewed/Not Reviewed":
+                            // If match found -> "Reviewed" (or Draft). If not -> "Not Reviewed".
+                            dto.ReviewStatus = reviewMatch != null ? "Submitted" : "None"; 
+                            // Update: Use robust status from assignment if possible, but we queried Reviews table.
+                            // If we want precise "Draft" vs "Submitted", we need to check fields or Assignment status.
+                            // For simplicity based on user request "Reviewed / Not Reviewed":
+                            if (reviewMatch != null)
+                            {
+                                // Refine: if Recommendation is present, it's likely submitted/drafted
+                                if (!string.IsNullOrEmpty(reviewMatch.Recommendation))
+                                {
+                                     dto.ReviewStatus = "Submitted";
+                                }
+                                else
+                                {
+                                     dto.ReviewStatus = "Draft";
+                                }
+                            }
+                        }
+
+                        result.Add(dto);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching submissions for reviewer");
+        }
+
+        return result;
+    }
+    public async Task<bool> DeleteInvitationAsync(int invitationId, string userId)
+    {
+        var invitation = await _context.ReviewerInvitations.FindAsync(invitationId);
+        if (invitation == null)
+        {
+            return false; // Not found
+        }
+
+        // Verify ownership
+        var email = await GetUserEmailAsync(userId);
+        if (string.IsNullOrEmpty(email) || !string.Equals(email, invitation.Email, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new UnauthorizedAccessException("You are not authorized to delete this invitation.");
+        }
+
+        _context.ReviewerInvitations.Remove(invitation);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    private async Task<string?> GetUserEmailAsync(string userId)
     {
         try
         {
@@ -213,39 +446,27 @@ public class ReviewerService : IReviewerService
                 client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", token);
             }
 
-            // Call Identity Service to get user info (email)
             var response = await client.GetAsync($"{identityUrl}/api/users/{userId}");
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("Failed to fetch user from Identity Service for {UserId}. Status: {Status}", userId, response.StatusCode);
-                return new List<ReviewerInvitation>();
+                return null;
             }
 
             var content = await response.Content.ReadAsStringAsync();
-            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
-            // Expect ApiResponse<UserDto> shape
             using var doc = JsonDocument.Parse(content);
-            var root = doc.RootElement;
-            if (root.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Object)
+            if (doc.RootElement.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Object)
             {
-                string? email = null;
-                if (data.TryGetProperty("email", out var emailProp))
-                {
-                    email = emailProp.GetString();
-                }
-
-                if (!string.IsNullOrEmpty(email))
-                {
-                    return await _context.ReviewerInvitations.Where(i => i.Email == email).ToListAsync();
-                }
+                 if (data.TryGetProperty("email", out var emailProp))
+                 {
+                     return emailProp.GetString();
+                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error fetching invitations for user {UserId}", userId);
+            _logger.LogError(ex, "Error getting user email for {UserId}", userId);
         }
-
-        return new List<ReviewerInvitation>();
+        return null;
     }
 }

@@ -8,7 +8,10 @@ public record SubmissionDto(
     string Title,
     string Status,
     DateTime? SubmittedAt,
-    List<AuthorDto> Authors
+    List<AuthorDto> Authors,
+    string? FileName = null,
+    Guid? FileId = null,
+    long? FileSizeBytes = null
 )
 {
     public string? TrackName { get; set; }

@@ -27,5 +27,6 @@ namespace Review.Service.Interfaces
         /// Chair đưa ra quyết định cuối cùng cho bài báo
         /// </summary>
         Task SubmitDecisionAsync(SubmitDecisionDTO dto, string chairId);
+        Task<SubmitReviewDTO?> GetMyReviewAsync(string paperId, string userId);
     }
 }

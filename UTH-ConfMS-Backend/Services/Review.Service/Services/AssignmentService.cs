@@ -37,7 +37,33 @@ namespace Review.Service.Services
             }
             else if (!string.IsNullOrEmpty(dto.ReviewerEmail))
             {
-                reviewer = await _context.Reviewers.FirstOrDefaultAsync(r => r.Email == dto.ReviewerEmail);
+                // Resolve ConferenceId from Paper first to ensure we match/create the reviewer for the correct conference
+                string? conferenceId = null;
+                try 
+                {
+                    var paperClient = _httpClientFactory.CreateClient();
+                    var submissionUrl = _configuration["Services:SubmissionServiceUrl"] ?? _configuration["ServiceUrls:Submission"] ?? "http://localhost:5003";
+                    var paperToken = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].ToString();
+                    if (!string.IsNullOrEmpty(paperToken)) paperClient.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", paperToken);
+                    
+                    var paperResp = await paperClient.GetAsync($"{submissionUrl}/api/submissions/{dto.PaperId}");
+                    if (paperResp.IsSuccessStatusCode)
+                    {
+                        var pContent = await paperResp.Content.ReadAsStringAsync();
+                        using var pDoc = JsonDocument.Parse(pContent);
+                        var root = pDoc.RootElement;
+                        
+                        JsonElement data = root;
+                        if (root.TryGetProperty("data", out var dProp)) data = dProp;
+                        
+                        if (data.TryGetProperty("conferenceId", out var cIdProp)) conferenceId = cIdProp.GetString();
+                    }
+                }
+                catch (Exception ex) { _logger.LogError(ex, "Error fetching conference ID for reviewer lookup"); }
+
+                // Now find the reviewer record FOR THIS SPECIFIC CONFERENCE
+                reviewer = await _context.Reviewers.FirstOrDefaultAsync(r => r.Email == dto.ReviewerEmail && r.ConferenceId == conferenceId);
+                
                 if (reviewer == null)
                 {
                     // Auto-create simplified Reviewer for Testing/UX
@@ -45,7 +71,7 @@ namespace Review.Service.Services
                     {
                         Email = dto.ReviewerEmail,
                         FullName = dto.ReviewerEmail.Split('@')[0], // Dummy Name
-                        ConferenceId = "00000000-0000-0000-0000-000000000000", // Default to empty GUID or fetch from paper
+                        ConferenceId = conferenceId ?? "00000000-0000-0000-0000-000000000000",
                         UserId = "0", // Unknown ID
                         CreatedAt = DateTime.UtcNow
                     };
@@ -108,17 +134,26 @@ namespace Review.Service.Services
                     var content = await response.Content.ReadAsStringAsync();
                     using var doc = JsonDocument.Parse(content);
                     var root = doc.RootElement;
+                    
+                    var data = root;
+                    if (root.TryGetProperty("data", out var dataProp))
+                    {
+                        data = dataProp;
+                    }
 
                     // Kiểm tra danh sách tác giả
-                    if (root.TryGetProperty("authors", out var authors) && authors.ValueKind == JsonValueKind.Array)
+                    if (data.TryGetProperty("authors", out var authors) && authors.ValueKind == JsonValueKind.Array)
                     {
                         foreach (var author in authors.EnumerateArray())
                         {
                             // Lấy email tác giả (cần đảm bảo Submission Service trả về trường này)
-                            var authorEmail = author.GetProperty("email").GetString();
-                            if (string.Equals(authorEmail, reviewerEmail, StringComparison.OrdinalIgnoreCase))
+                            if (author.TryGetProperty("email", out var emailProp))
                             {
-                                throw new Exception($"Conflict of Interest Detected: Reviewer ({reviewerEmail}) is an author of this paper.");
+                                var authorEmail = emailProp.GetString();
+                                if (string.Equals(authorEmail, reviewerEmail, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    throw new Exception($"Conflict of Interest Detected: Reviewer ({reviewerEmail}) is an author of this paper.");
+                                }
                             }
                         }
                     }

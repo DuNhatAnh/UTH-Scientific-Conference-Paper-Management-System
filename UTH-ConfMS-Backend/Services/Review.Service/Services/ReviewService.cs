@@ -400,7 +400,7 @@ namespace Review.Service.Services
         {
             // 1. Kiểm tra bài báo có tồn tại trong hệ thống Review không (thông qua Assignments)
             var hasAssignments = await _context.Assignments.AnyAsync(a => a.PaperId == dto.PaperId);
-            if (!hasAssignments)
+            if (!hasAssignments) // Reverted to original check as 'assignment' was undefined.
             {
                 throw new Exception($"Không tìm thấy dữ liệu phản biện cho bài báo {dto.PaperId}.");
             }
@@ -430,6 +430,27 @@ namespace Review.Service.Services
 
             await _context.SaveChangesAsync();
             Console.WriteLine($"[ReviewService] Chair {chairId} submitted decision '{dto.Status}' for Paper {dto.PaperId}");
+        }
+
+        public async Task<SubmitReviewDTO?> GetMyReviewAsync(string paperId, string userId)
+        {
+            var review = await _context.Reviews
+                .Include(r => r.Assignment)
+                .ThenInclude(a => a.Reviewer)
+                .FirstOrDefaultAsync(r => r.Assignment.PaperId == paperId && r.Assignment.Reviewer.UserId == userId);
+
+            if (review == null) return null;
+
+            return new SubmitReviewDTO
+            {
+                PaperId = review.Assignment.PaperId,
+                NoveltyScore = review.NoveltyScore,
+                MethodologyScore = review.MethodologyScore,
+                PresentationScore = review.PresentationScore,
+                CommentsForAuthor = review.CommentsForAuthor,
+                ConfidentialComments = review.ConfidentialComments,
+                Recommendation = review.Recommendation
+            };
         }
     }
 }

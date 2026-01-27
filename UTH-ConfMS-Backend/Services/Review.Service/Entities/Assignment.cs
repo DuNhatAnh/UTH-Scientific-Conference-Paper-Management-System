@@ -8,16 +8,16 @@ namespace Review.Service.Entities
         [Key]
         public int Id { get; set; }
 
-        public string PaperId { get; set; }
+        public string PaperId { get; set; } = string.Empty;
 
         public int ReviewerId { get; set; }
-        public virtual Reviewer Reviewer { get; set; }
+        public virtual Reviewer Reviewer { get; set; } = null!;
 
         public DateTime AssignedDate { get; set; } = DateTime.UtcNow;
 
         public string Status { get; set; } = "Pending"; // Pending, Accepted, Rejected, Completed
 
         // Navigation property (Dùng tên đầy đủ để tránh xung đột namespace)
-        public PaperReview PaperReview { get; set; }
+        public PaperReview? PaperReview { get; set; }
     }
 }

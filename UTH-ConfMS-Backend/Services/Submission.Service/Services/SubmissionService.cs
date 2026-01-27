@@ -380,7 +380,10 @@ public class SubmissionService : ISubmissionService
                 a.Affiliation,
                 a.AuthorOrder,
                 a.IsCorresponding
-            )).ToList()
+            )).ToList(),
+            submission.Files.FirstOrDefault()?.FileName,
+            submission.Files.FirstOrDefault()?.FileId,
+            submission.Files.FirstOrDefault()?.FileSizeBytes
         )
         {
             TrackName = GetTrackName(submission.TrackId)

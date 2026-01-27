@@ -61,6 +61,20 @@ namespace Review.Service.Controllers
             }
         }
 
+        [HttpGet("my-review/{paperId}")]
+        public async Task<IActionResult> GetMyReview(string paperId)
+        {
+            try
+            {
+                var review = await _reviewService.GetMyReviewAsync(paperId, GetUserId());
+                return Ok(ApiResponse<SubmitReviewDTO?>.SuccessResponse(review));
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ApiResponse<object>.ErrorResponse(ex.Message));
+            }
+        }
+
         // 2. API Thảo luận nội bộ (PC Members / Chairs / Reviewers)
         [HttpPost("discussion")]
         [Authorize(Roles = "chair,admin,reviewer")]

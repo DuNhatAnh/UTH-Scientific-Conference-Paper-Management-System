@@ -42,6 +42,7 @@ public class SubmissionRepository : ISubmissionRepository
     {
         var query = _context.Submissions
             .Include(s => s.Authors)
+            .Include(s => s.Files)
             .AsQueryable();
 
         if (conferenceId.HasValue)
@@ -65,6 +66,7 @@ public class SubmissionRepository : ISubmissionRepository
     {
         var query = _context.Submissions
             .Include(s => s.Authors)
+            .Include(s => s.Files)
             .Where(s => s.SubmittedBy == userId || s.Authors.Any(a => a.UserId == userId));
 
         if (conferenceId.HasValue)
@@ -94,6 +96,7 @@ public class SubmissionRepository : ISubmissionRepository
     {
         return await _context.Submissions
             .Include(s => s.Authors)
+            .Include(s => s.Files)
             .Where(s => s.ConferenceId == conferenceId)
             .ToListAsync();
     }

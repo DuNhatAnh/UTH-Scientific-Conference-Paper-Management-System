@@ -13,5 +13,6 @@ public interface IReviewerService
     Task<List<ReviewerInvitation>> GetInvitationsByConferenceAsync(string conferenceId);
     Task<List<ReviewerInvitationDto>> GetInvitationsForUserAsync(string userId);
     Task<List<ReviewableSubmissionDto>> GetReviewableSubmissionsAsync(string userId, string conferenceId);
+    Task<List<ReviewableSubmissionDto>> GetAllReviewableSubmissionsAsync(string userId);
     Task<bool> DeleteInvitationAsync(int invitationId, string userId);
 }

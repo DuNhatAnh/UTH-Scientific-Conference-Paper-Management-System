@@ -8,9 +8,9 @@ namespace UTH.ConfMS.Shared.Infrastructure.EventBus
     // Example Event: Email Notification
     public class SendEmailEvent : IIntegrationEvent
     {
-        public string ToEmail { get; set; }
-        public string Subject { get; set; }
-        public string Body { get; set; }
+        public string ToEmail { get; set; } = string.Empty;
+        public string Subject { get; set; } = string.Empty;
+        public string Body { get; set; } = string.Empty;
     }
     
     // Example Event: Review Assigned
@@ -19,6 +19,6 @@ namespace UTH.ConfMS.Shared.Infrastructure.EventBus
         public int ReviewId { get; set; }
         public int ReviewerId { get; set; }
         public int PaperId { get; set; }
-        public string PaperTitle { get; set; }
+        public string PaperTitle { get; set; } = string.Empty;
     }
 }

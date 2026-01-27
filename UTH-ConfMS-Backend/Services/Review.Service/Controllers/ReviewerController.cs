@@ -138,5 +138,24 @@ namespace Review.Service.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+
+        // 7. Lấy TẤT CẢ bài báo cho Reviewer (không phân biệt hội nghị - layer 1)
+        [HttpGet("my-submissions")]
+        [Authorize]
+        public async Task<IActionResult> GetAllMySubmissions()
+        {
+            try
+            {
+                var userId = GetUserId();
+                if (userId == "0") return Unauthorized(new { message = "Unauthorized" });
+
+                var submissions = await _reviewerService.GetAllReviewableSubmissionsAsync(userId);
+                return Ok(submissions);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
     }
 }

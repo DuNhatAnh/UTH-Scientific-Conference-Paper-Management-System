@@ -11,7 +11,7 @@ public class PaperReview
 
     public int AssignmentId { get; set; }
     // Navigation property to Assignment
-    public Assignment Assignment { get; set; }
+    public Assignment Assignment { get; set; } = null!;
 
     // Scores
     public int NoveltyScore { get; set; }
@@ -19,11 +19,11 @@ public class PaperReview
     public int PresentationScore { get; set; }
 
     // Comments
-    public string CommentsForAuthor { get; set; }
-    public string ConfidentialComments { get; set; }
+    public string CommentsForAuthor { get; set; } = string.Empty;
+    public string ConfidentialComments { get; set; } = string.Empty;
 
     // Decision Recommendation: Accept, Reject, Revision
-    public string Recommendation { get; set; }
+    public string Recommendation { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }

@@ -185,6 +185,44 @@
       }
     },
     {
+      "DownstreamPathTemplate": "/api/assignments/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "review-service",
+          "Port": 5004
+        }
+      ],
+      "UpstreamPathTemplate": "/api/assignments/{everything}",
+      "UpstreamHttpMethod": [
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE"
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer"
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/assignments",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "review-service",
+          "Port": 5004
+        }
+      ],
+      "UpstreamPathTemplate": "/api/assignments",
+      "UpstreamHttpMethod": [
+        "GET",
+        "POST"
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer"
+      }
+    },
+    {
       "DownstreamPathTemplate": "/api/reviewers/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [

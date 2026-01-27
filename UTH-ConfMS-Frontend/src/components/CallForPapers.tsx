@@ -245,7 +245,7 @@ export const CallForPapers: React.FC<CallForPapersProps> = ({ onNavigate, confer
             {/* Sticky Navigation */}
             <div className="fixed bottom-8 right-8 z-[100] flex flex-col gap-4 items-end">
                 <button
-                    onClick={() => window.history.back()}
+                    onClick={() => onNavigate('chair-dashboard')}
                     className="group flex items-center gap-3 px-8 py-4 bg-white/90 dark:bg-card-dark/90 backdrop-blur-md text-gray-800 dark:text-white rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.1)] border border-white/50 dark:border-white/10 font-black hover:bg-white dark:hover:bg-gray-800 transition-all hover:scale-105 active:scale-95"
                 >
                     <span className="material-symbols-outlined text-2xl group-hover:-translate-x-1 transition-transform">arrow_back</span>

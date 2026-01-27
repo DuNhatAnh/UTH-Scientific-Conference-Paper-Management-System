@@ -224,7 +224,11 @@ export const CFPManagement: React.FC<CFPManagementProps> = ({ onNavigate, confer
                         </div>
                         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200">
                             <CallForPapers
-                                onNavigate={() => { }}
+                                onNavigate={(target) => {
+                                    if (target === 'home' || target === 'chair-dashboard') {
+                                        setShowPreview(false);
+                                    }
+                                }}
                                 conferenceId={conference.conferenceId}
                             />
                         </div>

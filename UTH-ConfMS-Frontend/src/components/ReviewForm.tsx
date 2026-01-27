@@ -11,9 +11,10 @@ interface Discussion {
 
 interface ReviewFormProps {
     paperId?: string | number; // Nhận ID bài báo từ cha
+    onSuccess?: () => void; // Callback khi gửi thành công
 }
 
-export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId }) => {
+export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId, onSuccess }) => {
     // State lưu dữ liệu form
     const [formData, setFormData] = useState({
         paperId: paperId || '',
@@ -32,10 +33,10 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId }) => {
     const [discussions, setDiscussions] = useState<Discussion[]>([]);
     const [newComment, setNewComment] = useState('');
 
-    // Tự động tải danh sách thảo luận khi Paper ID thay đổi
     useEffect(() => {
         if (formData.paperId) {
             fetchDiscussions();
+            fetchMyReview();
         }
     }, [formData.paperId]);
 
@@ -49,9 +50,33 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId }) => {
     const fetchDiscussions = async () => {
         try {
             const response = await apiClient.get(`/api/reviews/discussion/${formData.paperId}`);
-            setDiscussions(response.data);
+            if (response.data && response.data.data) {
+                setDiscussions(response.data.data);
+            } else if (Array.isArray(response.data)) {
+                setDiscussions(response.data);
+            }
         } catch (error) {
             console.error("Lỗi tải thảo luận:", error);
+        }
+    };
+
+    const fetchMyReview = async () => {
+        try {
+            const response = await apiClient.get(`/api/reviews/my-review/${formData.paperId}`);
+            if (response.data && response.data.success && response.data.data) {
+                const d = response.data.data;
+                setFormData(prev => ({
+                    ...prev,
+                    noveltyScore: d.noveltyScore ?? 5,
+                    methodologyScore: d.methodologyScore ?? 5,
+                    presentationScore: d.presentationScore ?? 5,
+                    commentsForAuthor: d.commentsForAuthor || '',
+                    confidentialComments: d.confidentialComments || '',
+                    recommendation: d.recommendation || 'Accept'
+                }));
+            }
+        } catch (error) {
+            console.error("Lỗi tải bài đánh giá cũ:", error);
         }
     };
 
@@ -83,9 +108,10 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId }) => {
 
             const response = await apiClient.post('/api/reviews/submit', payload);
 
-            if (response.status === 200) {
+            if (response.status === 200 || response.status === 201) {
                 setMessage({ text: '✅ Đánh giá đã được gửi thành công!', type: 'success' });
                 console.log('Response:', response.data);
+                if (onSuccess) onSuccess();
             }
         } catch (error: any) {
             console.error(error);

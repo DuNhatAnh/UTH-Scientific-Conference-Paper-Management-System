@@ -37,41 +37,58 @@ export interface ReviewableSubmissionDto {
   reviewStatus: string; // 'None' | 'Draft' | 'Submitted'
   reviewId?: number;
   assignmentId?: number;
+  fileId?: string;
+  fileSizeBytes?: number;
+  conferenceId?: string;
+  conferenceName?: string;
 }
 
 export const reviewerApi = {
   // 1. Chair: Gửi lời mời tham gia PC
   inviteReviewer: async (data: InviteReviewerDTO) => {
-    return apiClient.post('/api/reviewers/invite', data);
+    const response = await apiClient.post('/api/reviewers/invite', data);
+    return response.data;
   },
 
   // 2. User: Phản hồi lời mời (Accept/Decline)
   respondInvitation: async (data: InvitationResponseDTO) => {
-    return apiClient.post('/api/reviewers/invitation/respond', data);
+    const response = await apiClient.post('/api/reviewers/invitation/respond', data);
+    return response.data;
   },
 
   // 2b. User: Xóa lời mời
   deleteInvitation: async (id: number) => {
-    return apiClient.delete(`/api/reviewers/invitation/${id}`);
+    const response = await apiClient.delete(`/api/reviewers/invitation/${id}`);
+    return response.data;
   },
 
   // 3. Chair: Lấy danh sách các lời mời đã gửi (để theo dõi trạng thái)
   getInvitations: async (conferenceId: string) => {
-    return apiClient.get<ReviewerInvitationDto[]>(`/api/reviewers/invitations/${conferenceId}`);
+    const response = await apiClient.get<ReviewerInvitationDto[]>(`/api/reviewers/invitations/${conferenceId}`);
+    return response.data;
   },
 
   // 3b. Reviewer: Lấy lời mời của user hiện tại
   getMyInvitations: async () => {
-    return apiClient.get<ReviewerInvitationDto[]>(`/api/reviewers/my-invitations`);
+    const response = await apiClient.get<ReviewerInvitationDto[]>(`/api/reviewers/my-invitations`);
+    return response.data;
   },
 
   // 4. Chair: Lấy danh sách Reviewer chính thức của hội nghị
   getReviewers: async (conferenceId: string) => {
-    return apiClient.get(`/api/reviewers/conference/${conferenceId}`);
+    const response = await apiClient.get(`/api/reviewers/conference/${conferenceId}`);
+    return response.data;
   },
 
   // 5. Reviewer: Lấy danh sách bài báo có thể review (Chỉ khi đã Accepted)
   getReviewableSubmissions: async (conferenceId: string) => {
-    return apiClient.get<ReviewableSubmissionDto[]>(`/api/reviewers/${conferenceId}/submissions`);
+    const response = await apiClient.get<ReviewableSubmissionDto[]>(`/api/reviewers/${conferenceId}/submissions`);
+    return response.data;
+  },
+
+  // 6. Reviewer: Lấy tất cả bài báo đã được gán cho reviewer hiện tại
+  getAllMySubmissions: async () => {
+    const response = await apiClient.get<ReviewableSubmissionDto[]>(`/api/reviewers/my-submissions`);
+    return response.data;
   }
 };

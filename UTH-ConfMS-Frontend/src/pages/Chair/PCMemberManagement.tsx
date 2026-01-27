@@ -33,10 +33,10 @@ export const PCMemberManagement: React.FC<PCMemberManagementProps> = ({
     try {
       if (activeTab === "invitations") {
         const res = await reviewerApi.getInvitations(confId);
-        setInvitations(res.data || []);
+        setInvitations(Array.isArray(res) ? res : (res as any).data || []);
       } else {
         const res = await reviewerApi.getReviewers(confId);
-        setReviewers(res.data || []);
+        setReviewers(Array.isArray(res) ? res : (res as any).data || []);
       }
     } catch (error) {
       console.error("Failed to fetch data", error);

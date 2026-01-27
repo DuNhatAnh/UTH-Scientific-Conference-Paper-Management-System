@@ -5,6 +5,7 @@ import { SubmissionManagement } from "./SubmissionManagement";
 import { CFPManagement } from "./CFPManagement";
 import { PCMemberManagement } from "./PCMemberManagement";
 import { ConferenceSettings } from "./ConferenceSettings";
+import { PaperAssignment } from "./PaperAssignment";
 
 interface ConferenceDetailProps {
   conferenceId: string;
@@ -22,11 +23,12 @@ export const ConferenceDetail: React.FC<ConferenceDetailProps> = ({
   onBack,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    "submissions" | "decision" | "cfp" | "pc" | "settings"
+    "submissions" | "assignment" | "decision" | "cfp" | "pc" | "settings"
   >("submissions");
 
   const tabs = [
     { id: "submissions", label: "Danh Sách Bài Nộp", icon: "description" },
+    { id: "assignment", label: "Phân Công Bài Báo", icon: "assignment_ind" },
     { id: "decision", label: "Quyết Định Bài Báo", icon: "fact_check" },
     { id: "cfp", label: "Gọi Bài Báo", icon: "announcement" },
     { id: "pc", label: "Hội Đồng Chương Trình", icon: "groups" },
@@ -53,7 +55,7 @@ export const ConferenceDetail: React.FC<ConferenceDetailProps> = ({
             </h1>
             <div className="flex items-center gap-4 mt-1">
               <p className="text-sm text-text-sec-light dark:text-text-sec-dark">
-                Quản lý bài nộp, quyết định, CFP và hội đồng chương trình
+                Quản lý bài nộp, phân công, quyết định, CFP và hội đồng chương trình
               </p>
               {submissionDeadline && (
                 <div className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-bold">
@@ -75,11 +77,10 @@ export const ConferenceDetail: React.FC<ConferenceDetailProps> = ({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-3 font-medium text-sm whitespace-nowrap transition-colors flex items-center gap-2 ${
-                activeTab === tab.id
-                  ? "text-primary border-b-2 border-primary"
-                  : "text-gray-600 hover:text-primary"
-              }`}
+              className={`px-4 py-3 font-medium text-sm whitespace-nowrap transition-colors flex items-center gap-2 ${activeTab === tab.id
+                ? "text-primary border-b-2 border-primary"
+                : "text-gray-600 hover:text-primary"
+                }`}
             >
               <span className="material-symbols-outlined text-[18px]">
                 {tab.icon}
@@ -93,6 +94,13 @@ export const ConferenceDetail: React.FC<ConferenceDetailProps> = ({
         <div className="bg-white dark:bg-card-dark rounded-xl border border-border-light shadow-sm p-6">
           {activeTab === "submissions" && (
             <SubmissionList conferenceId={conferenceId} />
+          )}
+          {activeTab === "assignment" && (
+            <PaperAssignment
+              conferenceId={conferenceId}
+              submissionDeadline={submissionDeadline}
+              onSwitchTab={setActiveTab}
+            />
           )}
           {activeTab === "decision" && (
             <SubmissionManagement
@@ -113,11 +121,11 @@ export const ConferenceDetail: React.FC<ConferenceDetailProps> = ({
             />
           )}
           {activeTab === "settings" && (
-            <ConferenceSettings 
-                conferenceId={conferenceId} 
-                onUpdateSuccess={() => {
-                    // Update header if needed or just keep current state
-                }}
+            <ConferenceSettings
+              conferenceId={conferenceId}
+              onUpdateSuccess={() => {
+                // Update header if needed or just keep current state
+              }}
             />
           )}
         </div>

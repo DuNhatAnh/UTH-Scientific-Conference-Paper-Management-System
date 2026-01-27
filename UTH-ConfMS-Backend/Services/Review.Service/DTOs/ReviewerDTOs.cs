@@ -4,7 +4,7 @@ namespace Review.Service.DTOs;
 
 public class InviteReviewerDTO
 {
-    public int ConferenceId { get; set; }
+    public string ConferenceId { get; set; }
     public string Email { get; set; }
     public string FullName { get; set; }
 }

@@ -4,10 +4,12 @@ import { SubmissionList } from "./SubmissionList";
 import { SubmissionManagement } from "./SubmissionManagement";
 import { CFPManagement } from "./CFPManagement";
 import { PCMemberManagement } from "./PCMemberManagement";
+import { ConferenceSettings } from "./ConferenceSettings";
 
 interface ConferenceDetailProps {
   conferenceId: string;
   conferenceName?: string;
+  submissionDeadline?: string;
   onNavigate: (view: ViewState) => void;
   onBack: () => void;
 }
@@ -15,11 +17,12 @@ interface ConferenceDetailProps {
 export const ConferenceDetail: React.FC<ConferenceDetailProps> = ({
   conferenceId,
   conferenceName,
+  submissionDeadline,
   onNavigate,
   onBack,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    "submissions" | "decision" | "cfp" | "pc"
+    "submissions" | "decision" | "cfp" | "pc" | "settings"
   >("submissions");
 
   const tabs = [
@@ -27,6 +30,7 @@ export const ConferenceDetail: React.FC<ConferenceDetailProps> = ({
     { id: "decision", label: "Quyết Định Bài Báo", icon: "fact_check" },
     { id: "cfp", label: "Gọi Bài Báo", icon: "announcement" },
     { id: "pc", label: "Hội Đồng Chương Trình", icon: "groups" },
+    { id: "settings", label: "Cài Đặt Hội Nghị", icon: "settings" },
   ] as const;
 
   return (
@@ -47,9 +51,21 @@ export const ConferenceDetail: React.FC<ConferenceDetailProps> = ({
             <h1 className="text-3xl font-bold text-text-main-light dark:text-text-main-dark">
               {conferenceName || "Chi Tiết Hội Nghị"}
             </h1>
-            <p className="text-sm text-text-sec-light dark:text-text-sec-dark mt-1">
-              Quản lý bài nộp, quyết định, CFP và hội đồng chương trình
-            </p>
+            <div className="flex items-center gap-4 mt-1">
+              <p className="text-sm text-text-sec-light dark:text-text-sec-dark">
+                Quản lý bài nộp, quyết định, CFP và hội đồng chương trình
+              </p>
+              {submissionDeadline && (
+                <div className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-bold">
+                  <span className="material-symbols-outlined text-[14px]">event</span>
+                  Hạn nộp: {(() => {
+                    const date = new Date(submissionDeadline);
+                    if (isNaN(date.getTime()) || date.getFullYear() < 1900) return "Chưa xác định";
+                    return date.toLocaleDateString("vi-VN");
+                  })()}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -94,6 +110,14 @@ export const ConferenceDetail: React.FC<ConferenceDetailProps> = ({
             <PCMemberManagement
               conferenceId={conferenceId}
               onNavigate={onNavigate}
+            />
+          )}
+          {activeTab === "settings" && (
+            <ConferenceSettings 
+                conferenceId={conferenceId} 
+                onUpdateSuccess={() => {
+                    // Update header if needed or just keep current state
+                }}
             />
           )}
         </div>

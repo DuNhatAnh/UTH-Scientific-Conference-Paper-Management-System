@@ -11,7 +11,7 @@ public interface ISubmissionService
     Task<PagedResponse<SubmissionDto>> GetUserSubmissionsAsync(Guid userId, Guid? conferenceId, string? status, int page, int pageSize);
     Task<SubmissionDetailDto> GetSubmissionByIdAsync(Guid submissionId);
     Task<SubmissionDto> CreateSubmissionAsync(CreateSubmissionRequest request, Guid submitterId);
-    Task<SubmissionDto> UpdateSubmissionAsync(Guid submissionId, UpdateSubmissionRequest request);
+    Task<SubmissionDto> UpdateSubmissionAsync(Guid submissionId, UpdateSubmissionRequest request, Guid userId);
     Task WithdrawSubmissionAsync(Guid submissionId, Guid userId, string reason);
     Task<FileInfoDto> UploadFileAsync(Guid submissionId, IFormFile file, Guid userId);
     Task<FileDownloadDto> DownloadFileAsync(Guid submissionId, Guid fileId);

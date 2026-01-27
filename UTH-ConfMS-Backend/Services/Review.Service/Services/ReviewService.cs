@@ -250,7 +250,7 @@ namespace Review.Service.Services
             return list;
         }
 
-        public async Task<List<SubmissionForDecisionDTO>> GetSubmissionsForDecisionAsync(int? conferenceId = null)
+        public async Task<List<SubmissionForDecisionDTO>> GetSubmissionsForDecisionAsync(string? conferenceId = null)
         {
             // Lấy tất cả Assignments
             var query = _context.Assignments.AsQueryable();

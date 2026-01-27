@@ -14,4 +14,7 @@ public record SubmissionDetailDto(
     DateTime UpdatedAt,
     List<AuthorDto> Authors,
     List<FileInfoDto> Files
-);
+)
+{
+    public string? TrackName { get; set; }
+}

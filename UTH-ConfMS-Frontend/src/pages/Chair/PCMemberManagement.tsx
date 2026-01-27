@@ -21,8 +21,8 @@ export const PCMemberManagement: React.FC<PCMemberManagementProps> = ({
   const [inviteName, setInviteName] = useState("");
   const [sending, setSending] = useState(false);
 
-  // Sử dụng conferenceId từ props, fallback về 1 nếu không có
-  const confId = Number(conferenceId) || 1;
+  // Sử dụng conferenceId từ props, fallback về GUID rỗng nếu không có
+  const confId = conferenceId ? String(conferenceId) : "00000000-0000-0000-0000-000000000000";
 
   useEffect(() => {
     fetchData();
@@ -149,41 +149,40 @@ export const PCMemberManagement: React.FC<PCMemberManagementProps> = ({
             <tbody>
               {activeTab === "members"
                 ? reviewers.map((r: any) => (
-                    <tr key={r.id} className="hover:bg-gray-50">
-                      <td className="p-4 border-b font-medium">{r.fullName}</td>
-                      <td className="p-4 border-b">{r.email}</td>
-                      <td className="p-4 border-b">
-                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">
-                          Active
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                  <tr key={r.id} className="hover:bg-gray-50">
+                    <td className="p-4 border-b font-medium">{r.fullName}</td>
+                    <td className="p-4 border-b">{r.email}</td>
+                    <td className="p-4 border-b">
+                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">
+                        Active
+                      </span>
+                    </td>
+                  </tr>
+                ))
                 : invitations.map((inv) => (
-                    <tr key={inv.id} className="hover:bg-gray-50">
-                      <td className="p-4 border-b font-medium">
-                        {inv.fullName}
-                      </td>
-                      <td className="p-4 border-b">{inv.email}</td>
-                      <td className="p-4 border-b">
-                        <span
-                          className={`px-2 py-1 rounded text-xs font-bold 
-                                                ${
-                                                  inv.status === "Accepted"
-                                                    ? "bg-green-100 text-green-700"
-                                                    : inv.status === "Declined"
-                                                      ? "bg-red-100 text-red-700"
-                                                      : "bg-yellow-100 text-yellow-700"
-                                                }`}
-                        >
-                          {inv.status}
-                        </span>
-                      </td>
-                      <td className="p-4 border-b text-sm text-gray-500">
-                        {new Date(inv.sentAt).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
+                  <tr key={inv.id} className="hover:bg-gray-50">
+                    <td className="p-4 border-b font-medium">
+                      {inv.fullName}
+                    </td>
+                    <td className="p-4 border-b">{inv.email}</td>
+                    <td className="p-4 border-b">
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-bold 
+                                                ${inv.status === "Accepted"
+                            ? "bg-green-100 text-green-700"
+                            : inv.status === "Declined"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-yellow-100 text-yellow-700"
+                          }`}
+                      >
+                        {inv.status}
+                      </span>
+                    </td>
+                    <td className="p-4 border-b text-sm text-gray-500">
+                      {new Date(inv.sentAt).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
               {!loading &&
                 ((activeTab === "members" && reviewers.length === 0) ||
                   (activeTab === "invitations" &&

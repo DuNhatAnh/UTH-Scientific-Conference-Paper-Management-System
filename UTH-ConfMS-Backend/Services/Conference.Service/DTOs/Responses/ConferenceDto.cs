@@ -9,6 +9,9 @@ public class ConferenceDto
     public string? Location { get; set; }
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
+    public DateTime? SubmissionDeadline { get; set; }
+    public DateTime? NotificationDate { get; set; }
+    public DateTime? CameraReadyDeadline { get; set; }
     public string Status { get; set; } = string.Empty;
     public string Visibility { get; set; } = string.Empty;
     public string ReviewMode { get; set; } = string.Empty;

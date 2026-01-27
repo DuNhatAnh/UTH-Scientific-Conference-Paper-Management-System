@@ -2,7 +2,7 @@ import apiClient from './apiClient';
 
 // DTO cho việc gửi lời mời
 export interface InviteReviewerDTO {
-  conferenceId: number;
+  conferenceId: string;
   email: string;
   fullName: string;
 }
@@ -26,26 +26,26 @@ export interface ReviewerInvitationDto {
 export const reviewerApi = {
   // 1. Chair: Gửi lời mời tham gia PC
   inviteReviewer: async (data: InviteReviewerDTO) => {
-    return apiClient.post('/reviewers/invite', data);
+    return apiClient.post('/api/reviewers/invite', data);
   },
 
   // 2. User: Phản hồi lời mời (Accept/Decline)
   respondInvitation: async (data: InvitationResponseDTO) => {
-    return apiClient.post('/reviewers/invitation/respond', data);
+    return apiClient.post('/api/reviewers/invitation/respond', data);
   },
 
   // 3. Chair: Lấy danh sách các lời mời đã gửi (để theo dõi trạng thái)
-  getInvitations: async (conferenceId: number) => {
-    return apiClient.get<ReviewerInvitationDto[]>(`/reviewers/invitations/${conferenceId}`);
+  getInvitations: async (conferenceId: string) => {
+    return apiClient.get<ReviewerInvitationDto[]>(`/api/reviewers/invitations/${conferenceId}`);
   },
 
   // 3b. Reviewer: Lấy lời mời của user hiện tại
   getMyInvitations: async () => {
-    return apiClient.get<ReviewerInvitationDto[]>(`/reviewers/my-invitations`);
+    return apiClient.get<ReviewerInvitationDto[]>(`/api/reviewers/my-invitations`);
   },
 
   // 4. Chair: Lấy danh sách Reviewer chính thức của hội nghị
-  getReviewers: async (conferenceId: number) => {
-    return apiClient.get(`/reviewers/conference/${conferenceId}`);
+  getReviewers: async (conferenceId: string) => {
+    return apiClient.get(`/api/reviewers/conference/${conferenceId}`);
   }
 };

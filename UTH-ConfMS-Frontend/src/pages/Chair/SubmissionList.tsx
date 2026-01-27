@@ -97,7 +97,7 @@ export const SubmissionList: React.FC<SubmissionListProps> = ({
     if (!dateString) return "N/A";
     try {
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) return "N/A";
+      if (isNaN(date.getTime()) || date.getFullYear() < 1900) return "N/A";
       return date.toLocaleDateString("vi-VN");
     } catch {
       return "N/A";

@@ -7,7 +7,7 @@ namespace Review.Service.DTOs
         public string? SubmissionTitle { get; set; }
         public string? SubmissionAbstract { get; set; }
         public string? SubmissionFileName { get; set; }
-        public int ConferenceId { get; set; }
+        public string ConferenceId { get; set; }
         public string Status { get; set; }
         public string AssignedAt { get; set; }
         public string? DueDate { get; set; }

@@ -4,6 +4,7 @@ using Submission.Service.DTOs.Responses;
 using Submission.Service.Entities;
 using Submission.Service.Interfaces;
 using Submission.Service.Interfaces.Services;
+using Submission.Service.DTOs.External;
 using SubmissionEntity = Submission.Service.Entities.Submission;
 
 namespace Submission.Service.Services;
@@ -13,15 +14,18 @@ public class SubmissionService : ISubmissionService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IFileStorageService _fileStorage;
     private readonly ILogger<SubmissionService> _logger;
+    private readonly IConferenceClient _conferenceClient;
 
     public SubmissionService(
         IUnitOfWork unitOfWork,
         IFileStorageService fileStorage,
-        ILogger<SubmissionService> logger)
+        ILogger<SubmissionService> logger,
+        IConferenceClient conferenceClient)
     {
         _unitOfWork = unitOfWork;
         _fileStorage = fileStorage;
         _logger = logger;
+        _conferenceClient = conferenceClient;
     }
 
     public async Task<PagedResponse<SubmissionDto>> GetSubmissionsAsync(
@@ -94,7 +98,10 @@ public class SubmissionService : ISubmissionService
                 f.FileSizeBytes,
                 f.UploadedAt
             )).ToList()
-        );
+        )
+        {
+            TrackName = GetTrackName(submission.TrackId)
+        };
     }
 
     public async Task<SubmissionDto> CreateSubmissionAsync(CreateSubmissionRequest request, Guid submitterId)
@@ -112,8 +119,9 @@ public class SubmissionService : ISubmissionService
             TrackId = request.TrackId,
             Title = request.Title,
             Abstract = request.Abstract,
-            Status = "DRAFT",
+            Status = "SUBMITTED",
             SubmittedBy = submitterId,
+            SubmittedAt = DateTime.UtcNow,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -162,8 +170,9 @@ public class SubmissionService : ISubmissionService
         return MapToDto(submission!);
     }
 
-    public async Task<SubmissionDto> UpdateSubmissionAsync(Guid submissionId, UpdateSubmissionRequest request)
+    public async Task<SubmissionDto> UpdateSubmissionAsync(Guid submissionId, UpdateSubmissionRequest request, Guid userId)
     {
+        // Sử dụng GetByIdWithAuthorsAsync để load đầy đủ object phục vụ cho việc xóa/thay thế authors
         var submission = await _unitOfWork.Submissions.GetByIdWithAuthorsAsync(submissionId);
 
         if (submission == null)
@@ -171,14 +180,44 @@ public class SubmissionService : ISubmissionService
             throw new InvalidOperationException("Submission not found");
         }
 
-        // Can only update if status is DRAFT
-        if (submission.Status != "DRAFT")
+        // Check ownership - chỉ người submit mới có quyền update
+        if (submission.SubmittedBy != userId)
         {
-            throw new InvalidOperationException("Can only update draft submissions");
+            throw new UnauthorizedAccessException("Only the submitter can update the submission");
         }
 
+        // Check if submission can be updated based on status
+        if (submission.Status == "ACCEPTED" || submission.Status == "REJECTED" || submission.Status == "WITHDRAWN")
+        {
+            throw new InvalidOperationException($"Cannot update submission with status {submission.Status}");
+        }
+
+        // Check deadline - gọi Conference Service để lấy thông tin deadline
+        try
+        {
+            var conference = await _conferenceClient.GetConferenceByIdAsync(submission.ConferenceId);
+            if (DateTime.UtcNow > conference.SubmissionDeadline)
+            {
+                throw new InvalidOperationException("Submission deadline has passed. Cannot update submission.");
+            }
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
+        {
+            _logger.LogError(ex, "Failed to check conference deadline for submission {SubmissionId}", submissionId);
+            throw new InvalidOperationException("Unable to verify submission deadline. Please try again later.", ex);
+        }
+
+        // Update metadata
+        if (request.TrackId != null) submission.TrackId = request.TrackId;
         if (request.Title != null) submission.Title = request.Title;
         if (request.Abstract != null) submission.Abstract = request.Abstract;
+
+        // Automatically set to submitted if it was draft or being updated
+        submission.Status = "SUBMITTED";
+        if (submission.SubmittedAt == null) 
+        {
+            submission.SubmittedAt = DateTime.UtcNow;
+        }
 
         // Update authors if provided
         if (request.Authors != null && request.Authors.Count > 0)
@@ -206,7 +245,10 @@ public class SubmissionService : ISubmissionService
 
         await _unitOfWork.SaveChangesAsync();
 
-        return MapToDto(submission);
+        _logger.LogInformation("Submission {SubmissionId} updated by user {UserId}", submission.Id, userId);
+
+        submission = await _unitOfWork.Submissions.GetByIdWithAuthorsAsync(submission.Id);
+        return MapToDto(submission!);
     }
 
     public async Task WithdrawSubmissionAsync(Guid submissionId, Guid userId, string reason)
@@ -339,6 +381,23 @@ public class SubmissionService : ISubmissionService
                 a.AuthorOrder,
                 a.IsCorresponding
             )).ToList()
-        );
+        )
+        {
+            TrackName = GetTrackName(submission.TrackId)
+        };
+    }
+
+    private string GetTrackName(Guid? trackId)
+    {
+        if (!trackId.HasValue) return "N/A";
+
+        var idString = trackId.Value.ToString().ToLower();
+        return idString switch
+        {
+            "e1b1b1b1-b1b1-b1b1-b1b1-b1b1b1b1b1b1" => "Hệ thống điều khiển thông minh",
+            "e2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2" => "Trí tuệ nhân tạo và Ứng dụng",
+            "e3b3b3b3-b3b3-b3b3-b3b3-b3b3b3b3b3b3" => "Hệ thống năng lượng tái tạo",
+            _ => "Chủ đề khác"
+        };
     }
 }

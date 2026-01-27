@@ -9,4 +9,7 @@ public record SubmissionDto(
     string Status,
     DateTime? SubmittedAt,
     List<AuthorDto> Authors
-);
+)
+{
+    public string? TrackName { get; set; }
+}

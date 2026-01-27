@@ -74,6 +74,7 @@ public class ConferenceService : IConferenceService
             Location = request.Location,
             StartDate = request.StartDate,
             EndDate = request.EndDate,
+            SubmissionDeadline = request.SubmissionDeadline,
             Status = "DRAFT",
             Visibility = "PRIVATE",
             ReviewMode = request.ReviewMode,
@@ -127,6 +128,9 @@ public class ConferenceService : IConferenceService
         if (request.Location != null) conference.Location = request.Location;
         if (request.StartDate.HasValue) conference.StartDate = request.StartDate;
         if (request.EndDate.HasValue) conference.EndDate = request.EndDate;
+        if (request.SubmissionDeadline.HasValue) conference.SubmissionDeadline = request.SubmissionDeadline;
+        if (request.NotificationDate.HasValue) conference.NotificationDate = request.NotificationDate;
+        if (request.CameraReadyDeadline.HasValue) conference.CameraReadyDeadline = request.CameraReadyDeadline;
         if (request.Status != null) conference.Status = request.Status;
         if (request.Visibility != null) conference.Visibility = request.Visibility;
 

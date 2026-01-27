@@ -151,12 +151,22 @@ public class SubmissionsController : ControllerBase
     {
         try
         {
-            var submission = await _submissionService.UpdateSubmissionAsync(submissionId, request);
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var submission = await _submissionService.UpdateSubmissionAsync(submissionId, request, Guid.Parse(userId!));
             return Ok(new ApiResponse<SubmissionDto>
             {
                 Success = true,
                 Message = "Submission updated successfully",
                 Data = submission
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized update attempt for submission {SubmissionId}", submissionId);
+            return StatusCode(403, new ApiResponse<object>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)

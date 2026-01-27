@@ -118,7 +118,7 @@ namespace Review.Service.Controllers
 
         [HttpGet("submissions-for-decision")]
         [AllowAnonymous] // Tạm thời mở để test
-        public async Task<IActionResult> GetSubmissionsForDecision([FromQuery] int? conferenceId = null)
+        public async Task<IActionResult> GetSubmissionsForDecision([FromQuery] string? conferenceId = null)
         {
             try
             {

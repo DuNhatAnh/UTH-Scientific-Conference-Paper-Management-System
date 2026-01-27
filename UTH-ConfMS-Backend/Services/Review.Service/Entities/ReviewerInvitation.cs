@@ -8,7 +8,7 @@ public class ReviewerInvitation
     [Key]
     public int Id { get; set; }
     
-    public int ConferenceId { get; set; }
+    public string ConferenceId { get; set; }
     public string Email { get; set; }
     public string FullName { get; set; }
     public string Status { get; set; } = "Pending"; // Pending, Accepted, Declined

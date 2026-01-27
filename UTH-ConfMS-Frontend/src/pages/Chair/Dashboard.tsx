@@ -93,10 +93,12 @@ export const ChairDashboard: React.FC<DashboardProps> = ({
 
   // Show conference detail
   if (selectedConferenceId) {
+    const selectedConf = conferences.find(c => c.conferenceId === selectedConferenceId);
     return (
       <ConferenceDetail
         conferenceId={selectedConferenceId}
         conferenceName={selectedConferenceName || undefined}
+        submissionDeadline={selectedConf?.submissionDeadline}
         onNavigate={onNavigate}
         onBack={() => {
           setSelectedConferenceId(null);
@@ -151,6 +153,7 @@ export const ChairDashboard: React.FC<DashboardProps> = ({
                   <th className="p-3">Viết tắt</th>
                   <th className="p-3">Địa điểm</th>
                   <th className="p-3">Ngày bắt đầu</th>
+                  <th className="p-3">Hạn nộp</th>
                   <th className="p-3">Trạng thái</th>
                   <th className="p-3">Tác vụ</th>
                 </tr>
@@ -169,9 +172,20 @@ export const ChairDashboard: React.FC<DashboardProps> = ({
                       </td>
                       <td className="p-3">{conf.location || "N/A"}</td>
                       <td className="p-3">
-                        {conf.startDate
-                          ? new Date(conf.startDate).toLocaleDateString("vi-VN")
-                          : "N/A"}
+                        {(() => {
+                          if (!conf.startDate) return "N/A";
+                          const date = new Date(conf.startDate);
+                          if (isNaN(date.getTime()) || date.getFullYear() < 1900) return "N/A";
+                          return date.toLocaleDateString("vi-VN");
+                        })()}
+                      </td>
+                      <td className="p-3">
+                        {(() => {
+                          if (!conf.submissionDeadline) return "N/A";
+                          const date = new Date(conf.submissionDeadline);
+                          if (isNaN(date.getTime()) || date.getFullYear() < 1900) return "N/A";
+                          return date.toLocaleDateString("vi-VN");
+                        })()}
                       </td>
                       <td className="p-3">
                         <span

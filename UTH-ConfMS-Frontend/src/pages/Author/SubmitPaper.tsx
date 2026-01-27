@@ -8,12 +8,15 @@ import conferenceApi, { ConferenceDto } from "../../services/conferenceApi";
 
 interface SubmitProps {
   onNavigate: (view: ViewState) => void;
+  editMode?: boolean; // Chế độ edit hay create
+  submissionId?: string; // ID của submission cần edit
 }
 
-export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate }) => {
+export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate, editMode = false, submissionId }) => {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingSubmission, setIsLoadingSubmission] = useState(false);
 
   // Form Data
   const [title, setTitle] = useState("");
@@ -28,9 +31,47 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate }) => {
   // Danh sách hội nghị
   const [conferences, setConferences] = useState<ConferenceDto[]>([]);
 
-  // Initialize first author
+  // Load submission data khi ở edit mode
   useEffect(() => {
-    if (user && authors.length === 0) {
+    const loadSubmissionData = async () => {
+      if (editMode && submissionId) {
+        setIsLoadingSubmission(true);
+        try {
+          const response = await paperApi.getPaperDetail(submissionId);
+          const data = response.data;
+          
+          setTitle(data.title || "");
+          setAbstract(data.abstract || "");
+          setConferenceId(data.conferenceId || "");
+          setTopicId(data.trackId || undefined);
+          
+          // Load authors
+          if (data.authors && data.authors.length > 0) {
+            const loadedAuthors = data.authors.map((a: any) => ({
+              fullName: a.fullName,
+              email: a.email,
+              affiliation: a.affiliation || "",
+              isCorresponding: a.isCorresponding,
+              order: a.authorOrder,
+            }));
+            setAuthors(loadedAuthors);
+          }
+        } catch (error) {
+          console.error("Failed to load submission:", error);
+          alert("Không thể tải thông tin bài báo. Vui lòng thử lại.");
+          onNavigate("author-dashboard");
+        } finally {
+          setIsLoadingSubmission(false);
+        }
+      }
+    };
+    
+    loadSubmissionData();
+  }, [editMode, submissionId]);
+
+  // Initialize first author (chỉ khi create mode)
+  useEffect(() => {
+    if (!editMode && user && authors.length === 0) {
       setAuthors([
         {
           fullName: user.name || "",
@@ -41,7 +82,7 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate }) => {
         },
       ]);
     }
-  }, [user]);
+  }, [editMode, user]);
 
   // Load danh sách hội nghị từ API
   useEffect(() => {
@@ -111,14 +152,18 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate }) => {
   };
 
   const handleSubmit = async () => {
-    if (!agree) {
-      alert("Vui lòng cam kết bài báo chưa từng được xuất bản.");
-      return;
+    // Validation khác nhau giữa create và edit mode
+    if (!editMode) {
+      if (!agree) {
+        alert("Vui lòng cam kết bài báo chưa từng được xuất bản.");
+        return;
+      }
+      if (!file) {
+        alert("Vui lòng tải lên file PDF.");
+        return;
+      }
     }
-    if (!file) {
-      alert("Vui lòng tải lên file PDF.");
-      return;
-    }
+    
     if (!conferenceId) {
       alert("Vui lòng chọn hội nghị.");
       return;
@@ -131,23 +176,36 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate }) => {
         .map((k) => k.trim())
         .filter((k) => k);
 
-      await paperApi.submitPaper({
-        title,
-        abstract,
-        keywords: keywordList,
-        conferenceId: conferenceId,
-        topicId: topicId,
-        authors: authors,
-        file: file,
-      });
-
-      alert("Nộp bài thành công!");
+      if (editMode && submissionId) {
+        // Edit mode - gọi updatePaper
+        await paperApi.updatePaper(submissionId, {
+          title,
+          abstract,
+          keywords: keywordList,
+          authors: authors,
+          file: file || undefined,
+        });
+        alert("Cập nhật bài báo thành công!");
+      } else {
+        // Create mode - gọi submitPaper
+        await paperApi.submitPaper({
+          title,
+          abstract,
+          keywords: keywordList,
+          conferenceId: conferenceId,
+          topicId: topicId,
+          authors: authors,
+          file: file!,
+        });
+        alert("Nộp bài thành công!");
+      }
+      
       onNavigate("author-dashboard");
     } catch (error: any) {
-      console.error("Error submitting paper:", error);
+      console.error("Error submitting/updating paper:", error);
       const msg =
         error.response?.data?.message ||
-        "Có lỗi xảy ra khi nộp bài. Vui lòng thử lại.";
+        (editMode ? "Có lỗi xảy ra khi cập nhật bài. Vui lòng thử lại." : "Có lỗi xảy ra khi nộp bài. Vui lòng thử lại.");
       alert(msg);
     } finally {
       setIsSubmitting(false);
@@ -158,7 +216,7 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate }) => {
     <div className="w-full bg-background-light dark:bg-background-dark py-12 px-5 md:px-10 flex justify-center">
       <div className="w-full max-w-[800px] flex flex-col gap-8">
         <h1 className="text-2xl font-bold text-center text-primary">
-          Nộp Bài Báo Mới
+          {editMode ? "Chỉnh Sửa Bài Báo" : "Nộp Bài Báo Mới"}
         </h1>
 
         {/* Stepper */}
@@ -197,7 +255,13 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate }) => {
 
         {/* Form Content */}
         <div className="bg-white dark:bg-card-dark p-8 rounded-xl border border-border-light shadow-sm">
-          {step === 1 && (
+          {isLoadingSubmission ? (
+            <div className="p-8 text-center text-text-sec-light">
+              Đang tải dữ liệu...
+            </div>
+          ) : (
+            <>
+              {step === 1 && (
             <div className="flex flex-col gap-5">
               {/* Chọn Hội Nghị - Load từ API */}
               <div className="flex flex-col gap-1.5">
@@ -207,15 +271,18 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate }) => {
                 <select
                   value={conferenceId}
                   onChange={(e) => setConferenceId(e.target.value)}
-                  className="w-full h-10 px-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none bg-white"
+                  disabled={editMode}
+                  className={`w-full h-10 px-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none ${editMode ? "bg-gray-100 cursor-not-allowed" : "bg-white"}`}
                 >
                   <option value="">Chọn hội nghị...</option>
                   {conferences.map((conf) => (
                     <option key={conf.conferenceId} value={conf.conferenceId}>
                       {conf.name} ({conf.acronym}) - Hạn:{" "}
-                      {new Date(conf.submissionDeadline).toLocaleDateString(
-                        "vi-VN",
-                      )}
+                      {(() => {
+                        const date = new Date(conf.submissionDeadline);
+                        if (isNaN(date.getTime()) || date.getFullYear() < 1900) return "Chưa có";
+                        return date.toLocaleDateString("vi-VN");
+                      })()}
                     </option>
                   ))}
                 </select>
@@ -241,8 +308,9 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate }) => {
                             if (!deadline) return "N/A";
                             try {
                               const date = new Date(deadline);
-                              if (isNaN(date.getTime())) {
-                                return deadline; // Fallback: show raw string if invalid
+                              // Handle 0001-01-01 or other invalid dates from backend
+                              if (isNaN(date.getTime()) || date.getFullYear() < 1900) {
+                                return "Chưa xác định";
                               }
                               return date.toLocaleDateString("vi-VN", {
                                 year: "numeric",
@@ -250,7 +318,7 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate }) => {
                                 day: "numeric",
                               });
                             } catch {
-                              return deadline;
+                              return "N/A";
                             }
                           })()}
                         </span>
@@ -327,9 +395,9 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate }) => {
                   className="w-full h-10 px-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none bg-white"
                 >
                   <option value="">Chọn chủ đề phù hợp...</option>
-                  <option value="1">Hệ thống điều khiển thông minh</option>
-                  <option value="2">Trí tuệ nhân tạo và Ứng dụng</option>
-                  <option value="3">Hệ thống năng lượng tái tạo</option>
+                  <option value="e1b1b1b1-b1b1-b1b1-b1b1-b1b1b1b1b1b1">Hệ thống điều khiển thông minh</option>
+                  <option value="e2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2">Trí tuệ nhân tạo và Ứng dụng</option>
+                  <option value="e3b3b3b3-b3b3-b3b3-b3b3-b3b3b3b3b3b3">Hệ thống năng lượng tái tạo</option>
                 </select>
               </div>
             </div>
@@ -458,21 +526,23 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate }) => {
                   Định dạng PDF, tối đa 10MB.
                 </p>
               </div>
-              <div className="flex items-center gap-2 mt-2">
-                <input
-                  type="checkbox"
-                  id="confirm"
-                  checked={agree}
-                  onChange={(e) => setAgree(e.target.checked)}
-                  className="rounded text-primary focus:ring-primary"
-                />
-                <label
-                  htmlFor="confirm"
-                  className="text-sm text-text-sec-light"
-                >
-                  Tôi cam kết bài báo này chưa từng được xuất bản ở bất kỳ đâu.
-                </label>
-              </div>
+              {!editMode && (
+                <div className="flex items-center gap-2 mt-2">
+                  <input
+                    type="checkbox"
+                    id="confirm"
+                    checked={agree}
+                    onChange={(e) => setAgree(e.target.checked)}
+                    className="rounded text-primary focus:ring-primary"
+                  />
+                  <label
+                    htmlFor="confirm"
+                    className="text-sm text-text-sec-light"
+                  >
+                    Tôi cam kết bài báo này chưa từng được xuất bản ở bất kỳ đâu.
+                  </label>
+                </div>
+              )}
             </div>
           )}
 
@@ -518,18 +588,20 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate }) => {
                 className={`px-6 py-2 rounded bg-green-600 text-white hover:bg-green-700 font-bold text-sm shadow-md flex items-center gap-2 ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 {isSubmitting ? (
-                  "Đang nộp..."
+                  editMode ? "Đang cập nhật..." : "Đang nộp..."
                 ) : (
                   <>
                     <span className="material-symbols-outlined text-[18px]">
                       check
                     </span>{" "}
-                    Hoàn tất nộp bài
+                    {editMode ? "Cập nhật bài báo" : "Hoàn tất nộp bài"}
                   </>
                 )}
               </button>
             )}
           </div>
+            </>
+          )}
         </div>
       </div>
     </div>

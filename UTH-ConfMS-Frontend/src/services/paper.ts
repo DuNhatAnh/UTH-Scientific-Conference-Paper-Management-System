@@ -43,8 +43,8 @@ export const paperApi = {
     const formData = new FormData();
     formData.append("title", data.title);
     formData.append("abstract", data.abstract);
-    formData.append("conferenceId", data.conferenceId.toString());
-    if (data.topicId) formData.append("topicId", data.topicId.toString());
+    formData.append("conferenceId", data.conferenceId);
+    if (data.topicId) formData.append("trackId", data.topicId);
 
     // Xử lý mảng keywords
     data.keywords.forEach((k) => {
@@ -63,7 +63,7 @@ export const paperApi = {
         `authors[${index}].isCorresponding`,
         author.isCorresponding.toString(),
       );
-      formData.append(`authors[${index}].order`, author.order.toString());
+      formData.append(`authors[${index}].orderIndex`, author.order.toString());
     });
 
     formData.append("file", data.file);
@@ -125,11 +125,30 @@ export const paperApi = {
   // 5. Cập nhật bài báo (Re-submit)
   updatePaper: async (id: string, data: Partial<PaperSubmission>) => {
     const formData = new FormData();
+    if (data.topicId) formData.append("trackId", data.topicId.toString()); // Backend expects TrackId
     if (data.title) formData.append("title", data.title);
     if (data.abstract) formData.append("abstract", data.abstract);
     if (data.keywords) {
       data.keywords.forEach((k) => formData.append("keywords", k));
     }
+
+    // Thêm authors nếu có
+    if (data.authors) {
+      data.authors.forEach((author, index) => {
+        formData.append(`authors[${index}].fullName`, author.fullName);
+        formData.append(`authors[${index}].email`, author.email);
+        formData.append(
+          `authors[${index}].affiliation`,
+          author.affiliation || "",
+        );
+        formData.append(
+          `authors[${index}].isCorresponding`,
+          author.isCorresponding.toString(),
+        );
+        formData.append(`authors[${index}].orderIndex`, author.order.toString());
+      });
+    }
+
     if (data.file) formData.append("file", data.file);
 
     const response = await apiClient.put<ApiResponse<PaperResponse>>(

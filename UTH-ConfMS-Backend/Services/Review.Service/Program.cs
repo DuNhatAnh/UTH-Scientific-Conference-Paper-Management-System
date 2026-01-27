@@ -179,7 +179,7 @@ if (app.Environment.IsDevelopment())
                     ""Email"" TEXT,
                     ""FullName"" TEXT,
                     ""UserId"" TEXT,
-                    ""ConferenceId"" INT,
+                    ""ConferenceId"" TEXT,
                     ""Expertise"" TEXT,
                     ""MaxPapers"" INT DEFAULT 5,
                     ""CreatedAt"" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -207,8 +207,50 @@ if (app.Environment.IsDevelopment())
                     ""CreatedAt"" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     ""UpdatedAt"" TIMESTAMP
                 );
+
+                CREATE TABLE IF NOT EXISTS ""ReviewerInvitations"" (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""ConferenceId"" TEXT,
+                    ""Email"" TEXT,
+                    ""FullName"" TEXT,
+                    ""Status"" TEXT,
+                    ""Token"" TEXT,
+                    ""SentAt"" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    ""RespondedAt"" TIMESTAMP
+                );
             ");
             Log.Information("Database tables checked/created successfully.");
+            
+             // MIGRATION: Auto-fix ConferenceId type if it is INT
+                try {
+                     dbContext.Database.ExecuteSqlRaw(@"
+                        DO $$ 
+                        BEGIN 
+                            IF EXISTS (SELECT 1 
+                                       FROM information_schema.columns 
+                                       WHERE table_name = 'Reviewers' 
+                                       AND column_name = 'ConferenceId' 
+                                       AND data_type = 'integer') THEN
+                                ALTER TABLE ""Reviewers"" ALTER COLUMN ""ConferenceId"" TYPE TEXT USING ""ConferenceId""::TEXT;
+                            END IF;
+                        END $$;
+                    ");
+                     dbContext.Database.ExecuteSqlRaw(@"
+                        DO $$ 
+                        BEGIN 
+                            IF EXISTS (SELECT 1 
+                                       FROM information_schema.columns 
+                                       WHERE table_name = 'ReviewerInvitations' 
+                                       AND column_name = 'ConferenceId' 
+                                       AND data_type = 'integer') THEN
+                                ALTER TABLE ""ReviewerInvitations"" ALTER COLUMN ""ConferenceId"" TYPE TEXT USING ""ConferenceId""::TEXT;
+                            END IF;
+                        END $$;
+                    ");
+                     Log.Information("Database migration (INT -> TEXT) checked/executed successfully.");
+                } catch (Exception ex) {
+                     Log.Warning($"Error migrating table columns: {ex.Message}");
+                }
         } catch (Exception ex) {
             Log.Error(ex, "Error creating tables.");
         }

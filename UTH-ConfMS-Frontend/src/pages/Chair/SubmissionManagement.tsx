@@ -158,7 +158,7 @@ export const SubmissionManagement: React.FC<SubmissionManagementProps> = ({
                         {sub.authors?.join(", ") || "Unknown Author"}
                       </div>
                     </td>
-                    <td className="p-3">{sub.topicName || "N/A"}</td>
+                    <td className="p-3">{sub.topicName || (sub as any).trackName || "N/A"}</td>
                     <td className="p-3 text-center">
                       <span
                         className={`px-2 py-1 rounded-full text-xs font-bold ${sub.completedReviews === sub.totalReviews ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}`}

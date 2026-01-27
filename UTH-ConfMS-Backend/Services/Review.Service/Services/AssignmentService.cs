@@ -43,7 +43,7 @@ namespace Review.Service.Services
                     {
                         Email = dto.ReviewerEmail,
                         FullName = dto.ReviewerEmail.Split('@')[0], // Dummy Name
-                        ConferenceId = 1, // Default to 1 or fetch from paper
+                        ConferenceId = "00000000-0000-0000-0000-000000000000", // Default to empty GUID or fetch from paper
                         UserId = "0", // Unknown ID
                         CreatedAt = DateTime.UtcNow
                     };
@@ -140,7 +140,7 @@ namespace Review.Service.Services
         public async Task<IEnumerable<object>> GetAvailableReviewersAsync(string paperId)
         {
             // 1. Gọi Submission Service để lấy ConferenceId của bài báo
-            int conferenceId = 0;
+            string conferenceId = string.Empty;
             try 
             {
                 var client = _httpClientFactory.CreateClient();
@@ -153,7 +153,7 @@ namespace Review.Service.Services
                     using var doc = JsonDocument.Parse(content);
                     if (doc.RootElement.TryGetProperty("conferenceId", out var confIdProp))
                     {
-                        conferenceId = confIdProp.GetInt32();
+                        conferenceId = confIdProp.GetString() ?? string.Empty;
                     }
                 }
             }

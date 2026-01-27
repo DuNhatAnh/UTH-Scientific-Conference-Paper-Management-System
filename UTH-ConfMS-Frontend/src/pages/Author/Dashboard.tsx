@@ -6,11 +6,13 @@ import { paperApi, PaperResponse } from "../../services/paper";
 interface DashboardProps {
   onNavigate: (view: ViewState) => void;
   onViewPaper?: (id: string) => void;
+  onEditPaper?: (id: string) => void;
 }
 
 export const AuthorDashboard: React.FC<DashboardProps> = ({
   onNavigate,
   onViewPaper,
+  onEditPaper,
 }) => {
   const [submissions, setSubmissions] = useState<PaperResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -161,13 +163,14 @@ export const AuthorDashboard: React.FC<DashboardProps> = ({
                           <td className="p-4 text-text-sec-light">
                             {(() => {
                               try {
+                                if (!sub.submissionDate) return "N/A";
                                 const date = new Date(sub.submissionDate);
-                                if (isNaN(date.getTime())) {
-                                  return sub.submissionDate || "N/A";
+                                if (isNaN(date.getTime()) || date.getFullYear() < 1900) {
+                                  return "N/A";
                                 }
                                 return date.toLocaleDateString("vi-VN");
                               } catch {
-                                return sub.submissionDate || "N/A";
+                                return "N/A";
                               }
                             })()}
                           </td>
@@ -178,6 +181,16 @@ export const AuthorDashboard: React.FC<DashboardProps> = ({
                             >
                               Xem
                             </button>
+                            {sub.status !== "withdrawn" &&
+                              sub.status !== "accepted" &&
+                              sub.status !== "rejected" && (
+                                <button
+                                  onClick={() => onEditPaper && onEditPaper(sub.id)}
+                                  className="text-blue-600 font-medium hover:underline text-xs mr-3"
+                                >
+                                  Sửa
+                                </button>
+                              )}
                             {sub.status !== "withdrawn" &&
                               sub.status !== "accepted" &&
                               sub.status !== "rejected" && (

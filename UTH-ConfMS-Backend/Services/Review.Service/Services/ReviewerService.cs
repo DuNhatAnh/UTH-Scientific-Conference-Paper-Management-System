@@ -68,14 +68,14 @@ public class ReviewerService : IReviewerService
         // Gửi email thông qua Notification Service
         try 
         {
-            // Lấy cấu hình từ appsettings.json (hoặc biến môi trường)
-            var notificationServiceUrl = _configuration["ServiceUrls:Notification"] ?? "http://localhost:5005";
-            var frontendUrl = _configuration["ServiceUrls:Frontend"] ?? "http://localhost:3000";
+            // Lấy cấu hình từ appsettings.json (hoặc biến môi trường từ docker-compose: Services__NotificationServiceUrl)
+            var notificationServiceUrl = _configuration["Services:NotificationServiceUrl"] ?? _configuration["ServiceUrls:Notification"] ?? "http://localhost:5005";
+            var frontendUrl = _configuration["Services:FrontendUrl"] ?? _configuration["ServiceUrls:Frontend"] ?? "http://localhost:3000";
 
             var client = _httpClientFactory.CreateClient();
             var emailPayload = new 
             {
-                To = dto.Email,
+                ToEmail = dto.Email,
                 Subject = "Invitation to PC Member - UTH ConfMS",
                 Body = $"Dear {dto.FullName},<br/>You have been invited to be a reviewer. Click here to accept: <a href='{frontendUrl}/invite/accept?token={invitation.Token}'>Accept Invitation</a>"
             };
@@ -83,11 +83,12 @@ public class ReviewerService : IReviewerService
             var content = new StringContent(JsonSerializer.Serialize(emailPayload), Encoding.UTF8, "application/json");
             
             // Giả định Notification Service có endpoint này (dựa trên kiến trúc microservices)
+            // LƯU Ý: Internal Service name là notification-service (port 5005 trong container)
             var response = await client.PostAsync($"{notificationServiceUrl}/api/notifications/send-email", content);
             
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError($"Failed to send email to {dto.Email}. Status: {response.StatusCode}");
+                _logger.LogError($"Failed to send email to {dto.Email}. Status: {response.StatusCode} - Url: {notificationServiceUrl}");
             }
         }
         catch (Exception ex)
@@ -155,16 +156,47 @@ public class ReviewerService : IReviewerService
                     _logger.LogWarning($"User {userId} is already a reviewer for conference {invitation.ConferenceId}.");
                 }
             }
+
+            // --- Call Identity Service to Grant REVIEWER Role ---
+            try
+            {
+                var identityUrl = _configuration["Services:IdentityServiceUrl"] ?? _configuration["ServiceUrls:Identity"] ?? "http://localhost:5001";
+                var internalApiKey = _configuration["InternalApiKey"] ?? "auth-secret-key-123";
+
+                var client = _httpClientFactory.CreateClient();
+                client.DefaultRequestHeaders.Add("X-Internal-Api-Key", internalApiKey);
+
+                var roleRequest = new { RoleName = "REVIEWER" };
+                var jsonContent = new StringContent(JsonSerializer.Serialize(roleRequest), Encoding.UTF8, "application/json");
+
+                // Note: User Internal API endpoint
+                var roleResponse = await client.PostAsync($"{identityUrl}/api/internal/users/{userId}/roles", jsonContent);
+
+                if (roleResponse.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation($"Successfully granted REVIEWER role to user {userId}");
+                }
+                else
+                {
+                    _logger.LogError($"Failed to grant REVIEWER role to user {userId}. Status: {roleResponse.StatusCode}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calling Identity Service to grant role: " + ex.Message);
+                // THROW to debug
+                throw new Exception($"Failed to grant role: {ex.Message}"); 
+            }
         }
 
         await _context.SaveChangesAsync();
         return true;
     }
 
-    public async Task<List<Reviewer>> GetReviewersByConferenceAsync(int conferenceId)
+    public async Task<List<Reviewer>> GetReviewersByConferenceAsync(string conferenceId)
         => await _context.Reviewers.Where(r => r.ConferenceId == conferenceId).ToListAsync();
 
-    public async Task<List<ReviewerInvitation>> GetInvitationsByConferenceAsync(int conferenceId)
+    public async Task<List<ReviewerInvitation>> GetInvitationsByConferenceAsync(string conferenceId)
         => await _context.ReviewerInvitations.Where(i => i.ConferenceId == conferenceId).ToListAsync();
 
     public async Task<List<ReviewerInvitation>> GetInvitationsForUserAsync(string userId)
@@ -172,7 +204,7 @@ public class ReviewerService : IReviewerService
         try
         {
             var client = _httpClientFactory.CreateClient();
-            var identityUrl = _configuration["ServiceUrls:Identity"] ?? "http://localhost:5001";
+            var identityUrl = _configuration["Services:IdentityServiceUrl"] ?? _configuration["ServiceUrls:Identity"] ?? "http://localhost:5001";
 
             // Propagate bearer token from current request if present
             var token = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].ToString();

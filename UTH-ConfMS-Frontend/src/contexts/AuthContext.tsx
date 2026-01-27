@@ -25,17 +25,19 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // --- HÀM HELPER QUAN TRỌNG ---
 // Hàm này giúp map các Role từ Backend (thường viết hoa hoặc có tiền tố) 
 // sang 4 role chuẩn của Frontend định nghĩa ở trên.
-const mapToUserRole = (backendRole: string): UserRole => {
+const mapToUserRole = (backendRole: string | string[]): UserRole => {
   if (!backendRole) return 'author';
-  
-  const upperRole = backendRole.toString().toUpperCase();
-  
-  // Logic mapping dựa trên AppConstants.cs của backend
-  if (upperRole.includes('ADMIN')) return 'admin'; // Map SYSTEM_ADMIN -> admin
-  if (upperRole.includes('CHAIR')) return 'chair'; // Map CONFERENCE_CHAIR, TRACK_CHAIR -> chair
-  if (upperRole === 'REVIEWER') return 'reviewer';
-  
-  return 'author'; // Mặc định là author
+
+  // Handle array of roles if decoded as array
+  const roleString = Array.isArray(backendRole) ? backendRole.join(',') : backendRole.toString();
+  const upperRole = roleString.toUpperCase();
+
+  // Priority: Admin > Chair > Reviewer > Author
+  if (upperRole.includes('ADMIN')) return 'admin';
+  if (upperRole.includes('CHAIR')) return 'chair';
+  if (upperRole.includes('REVIEWER')) return 'reviewer';
+
+  return 'author';
 };
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -52,16 +54,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const decoded = jwtDecode<any>(token);
 
       // 3. Lấy role raw từ token (xử lý trường hợp key role có thể khác nhau)
-      const rawRole = decoded.role || 
-                      decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || 
-                      'author';
+      const rawRole = decoded.role ||
+        decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ||
+        'author';
 
       // 4. Mapping Claims sang object User
       const userData: User = {
         id: decoded.nameid || decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'],
         email: decoded.email || decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'],
         name: decoded.unique_name || decoded.name || decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'],
-        
+
         // SỬ DỤNG HÀM MAP ROLE ĐÃ VIẾT Ở TRÊN
         role: mapToUserRole(rawRole),
       };

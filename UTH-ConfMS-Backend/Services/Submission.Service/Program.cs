@@ -129,6 +129,14 @@ builder.Services.AddHttpClient<IAIService, Submission.Service.Services.AIService
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 
+// Register Conference Client để gọi Conference Service
+builder.Services.AddHttpClient<IConferenceClient, Submission.Service.Services.ConferenceClient>(client =>
+{
+    var conferenceServiceUrl = builder.Configuration["ConferenceService:Url"] ?? "http://conference-service:5002";
+    client.BaseAddress = new Uri(conferenceServiceUrl);
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+
 // AutoMapper
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 

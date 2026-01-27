@@ -56,6 +56,7 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('home');
   const [selectedPaperId, setSelectedPaperId] = useState<string | null>(null);
   const [selectedConferenceId, setSelectedConferenceId] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
   const { user, isAuthenticated, isLoading } = useAuth();
 
   // Xử lý Deep Link từ Email (ví dụ: /invite/accept?token=...)
@@ -87,15 +88,33 @@ const App: React.FC = () => {
       case 'program': return <Program />;
       case 'author-dashboard': return renderProtected(['author', 'admin', 'chair', 'reviewer'],
         <AuthorDashboard
-          onNavigate={setCurrentView}
+          onNavigate={(view) => {
+            // Reset edit mode when navigating from dashboard (e.g. to create new paper)
+            if (view === 'submit-paper') {
+              setIsEditing(false);
+              setSelectedPaperId(null);
+            }
+            setCurrentView(view);
+          }}
           onViewPaper={(id) => {
             setSelectedPaperId(id);
             setCurrentView('paper-detail');
           }}
+          onEditPaper={(id) => {
+            setSelectedPaperId(id);
+            setIsEditing(true);
+            setCurrentView('submit-paper');
+          }}
         />
       );
       case 'paper-detail': return renderProtected(['author', 'admin', 'chair', 'reviewer'], <PaperDetail paperId={selectedPaperId} onNavigate={setCurrentView} />);
-      case 'submit-paper': return renderProtected(['author', 'admin', 'chair', 'reviewer'], <SubmitPaper onNavigate={setCurrentView} />);
+      case 'submit-paper': return renderProtected(['author', 'admin', 'chair', 'reviewer'], 
+        <SubmitPaper 
+          onNavigate={setCurrentView} 
+          editMode={isEditing}
+          submissionId={selectedPaperId || undefined}
+        />
+      );
       case 'reviewer-dashboard': return renderProtected(['reviewer', 'admin', 'chair'], <ReviewerDashboard />);
       case 'chair-dashboard': return renderProtected(['chair', 'admin'],
         <ChairDashboard
@@ -148,7 +167,11 @@ const App: React.FC = () => {
 
   return (
     <div className="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden bg-background-light dark:bg-background-dark transition-colors duration-200">
-      <Navbar onNavigate={setCurrentView} currentView={currentView} />
+      <Navbar onNavigate={(view) => {
+        setIsEditing(false); // Reset edit mode when navigating via Navbar
+        setSelectedPaperId(null);
+        setCurrentView(view);
+      }} currentView={currentView} />
       <main className="flex flex-col grow">
         {renderContent()}
       </main>

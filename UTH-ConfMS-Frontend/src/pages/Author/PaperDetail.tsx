@@ -139,13 +139,14 @@ export const PaperDetail: React.FC<PaperDetailProps> = ({
               <p>
                 {(() => {
                   try {
+                    if (!paper.submissionDate) return "N/A";
                     const date = new Date(paper.submissionDate);
-                    if (isNaN(date.getTime())) {
-                      return paper.submissionDate || "N/A";
+                    if (isNaN(date.getTime()) || date.getFullYear() < 1900) {
+                      return "N/A";
                     }
                     return date.toLocaleDateString("vi-VN");
                   } catch {
-                    return paper.submissionDate || "N/A";
+                    return "N/A";
                   }
                 })()}
               </p>

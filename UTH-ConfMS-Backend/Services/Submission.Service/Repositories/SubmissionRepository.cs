@@ -52,7 +52,15 @@ public class SubmissionRepository : ISubmissionRepository
 
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(s => s.Status == status);
+            if (status.Contains(','))
+            {
+                var statuses = status.Split(',').Select(st => st.Trim().ToUpper()).ToList();
+                query = query.Where(s => statuses.Contains(s.Status));
+            }
+            else
+            {
+                query = query.Where(s => s.Status == status);
+            }
         }
 
         return await query
@@ -76,7 +84,15 @@ public class SubmissionRepository : ISubmissionRepository
 
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(s => s.Status == status);
+            if (status.Contains(','))
+            {
+                var statuses = status.Split(',').Select(st => st.Trim().ToUpper()).ToList();
+                query = query.Where(s => statuses.Contains(s.Status));
+            }
+            else
+            {
+                query = query.Where(s => s.Status == status);
+            }
         }
 
         // Exclude withdrawn submissions if requested
@@ -112,7 +128,15 @@ public class SubmissionRepository : ISubmissionRepository
 
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(s => s.Status == status);
+            if (status.Contains(','))
+            {
+                var statuses = status.Split(',').Select(st => st.Trim().ToUpper()).ToList();
+                query = query.Where(s => statuses.Contains(s.Status));
+            }
+            else
+            {
+                query = query.Where(s => s.Status == status);
+            }
         }
 
         return await query.CountAsync();
@@ -131,7 +155,15 @@ public class SubmissionRepository : ISubmissionRepository
 
         if (!string.IsNullOrEmpty(status))
         {
-            query = query.Where(s => s.Status == status);
+            if (status.Contains(','))
+            {
+                var statuses = status.Split(',').Select(st => st.Trim().ToUpper()).ToList();
+                query = query.Where(s => statuses.Contains(s.Status));
+            }
+            else
+            {
+                query = query.Where(s => s.Status == status);
+            }
         }
 
         // Exclude withdrawn submissions if requested

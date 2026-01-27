@@ -153,6 +153,7 @@ builder.Services.AddHealthChecks()
 builder.Services.AddHttpClient();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IReviewerService, Review.Service.Services.ReviewerService>();
+builder.Services.AddHttpClient<ISubmissionClient, Review.Service.Services.SubmissionClient>();
 
 
 var app = builder.Build();
@@ -217,6 +218,15 @@ if (app.Environment.IsDevelopment())
                     ""Token"" TEXT,
                     ""SentAt"" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     ""RespondedAt"" TIMESTAMP
+                );
+
+                CREATE TABLE IF NOT EXISTS ""Decisions"" (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""PaperId"" TEXT NOT NULL,
+                    ""Status"" TEXT NOT NULL,
+                    ""Comments"" TEXT,
+                    ""DecisionDate"" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    ""DecidedBy"" INT
                 );
             ");
             Log.Information("Database tables checked/created successfully.");

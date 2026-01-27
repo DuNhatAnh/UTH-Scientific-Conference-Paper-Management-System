@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Review.Service.Data;
 using Review.Service.DTOs;
 using Review.Service.Entities;
@@ -19,16 +20,25 @@ namespace Review.Service.Services
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _configuration;
         private readonly Microsoft.AspNetCore.Http.IHttpContextAccessor _httpContextAccessor;
+        private readonly ISubmissionClient _submissionClient;
+        private readonly ILogger<ReviewService> _logger;
         
         // Giữ lại mock list cho Discussion vì chưa có bảng Discussion trong DB
         private static List<DiscussionCommentDTO> _discussions = new List<DiscussionCommentDTO>();
 
-        public ReviewService(ReviewDbContext context, IHttpClientFactory httpClientFactory, IConfiguration configuration, Microsoft.AspNetCore.Http.IHttpContextAccessor httpContextAccessor)
+        public ReviewService(ReviewDbContext context, 
+                             IHttpClientFactory httpClientFactory, 
+                             IConfiguration configuration, 
+                             Microsoft.AspNetCore.Http.IHttpContextAccessor httpContextAccessor,
+                             ISubmissionClient submissionClient,
+                             ILogger<ReviewService> logger)
         {
             _context = context;
             _httpClientFactory = httpClientFactory;
             _configuration = configuration;
             _httpContextAccessor = httpContextAccessor;
+            _submissionClient = submissionClient;
+            _logger = logger;
         }
 
         public async Task SubmitReviewAsync(SubmitReviewDTO dto, string reviewerId)
@@ -309,6 +319,12 @@ namespace Review.Service.Services
             // Lấy tất cả Assignments
             var query = _context.Assignments.AsQueryable();
             
+            // Lọc theo conferenceId nếu có (Phải thông qua Reviewer để biết ConferenceId)
+            if (!string.IsNullOrEmpty(conferenceId))
+            {
+                query = query.Where(a => a.Reviewer.ConferenceId == conferenceId);
+            }
+            
             var paperGroups = await query
                 .GroupBy(a => a.PaperId)
                 .Select(g => new
@@ -416,7 +432,7 @@ namespace Review.Service.Services
                     Status = dto.Status,
                     Comments = dto.Comments,
                     DecisionDate = DateTime.UtcNow,
-                    DecidedBy = 0 // Tạm thời để 0 cho demo, thực tế map từ chairId int
+                    DecidedBy = int.TryParse(chairId, out int id) ? id : 0
                 };
                 _context.Decisions.Add(decision);
             }
@@ -425,10 +441,25 @@ namespace Review.Service.Services
                 decision.Status = dto.Status;
                 decision.Comments = dto.Comments;
                 decision.DecisionDate = DateTime.UtcNow;
+                decision.DecidedBy = int.TryParse(chairId, out int id) ? id : decision.DecidedBy;
                 _context.Decisions.Update(decision);
             }
 
             await _context.SaveChangesAsync();
+            
+            // 3. Cập nhật trạng thái bài báo sang Submission Service
+            try
+            {
+                // Map "Accepted" -> "ACCEPTED", "Rejected" -> "REJECTED", "Revision" -> "REVISION"
+                var submissionStatus = dto.Status.ToUpper();
+                
+                await _submissionClient.UpdateSubmissionStatusAsync(dto.PaperId, submissionStatus);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Failed to update submission status in Submission Service for paper {dto.PaperId}");
+            }
+
             Console.WriteLine($"[ReviewService] Chair {chairId} submitted decision '{dto.Status}' for Paper {dto.PaperId}");
         }
 

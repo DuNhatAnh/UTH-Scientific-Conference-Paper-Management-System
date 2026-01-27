@@ -206,4 +206,36 @@ public class SubmissionsController : ControllerBase
             });
         }
     }
+
+    /// <summary>
+    /// Update submission status (Internal/Admin)
+    /// </summary>
+    [HttpPut("{submissionId:guid}/status")]
+    [AllowAnonymous] // Tạm thời mở cho liên lạc nội bộ giữa các service
+    public async Task<IActionResult> UpdateSubmissionStatus(Guid submissionId, [FromBody] UpdateStatusRequest request)
+    {
+        try
+        {
+            await _submissionService.UpdateStatusAsync(submissionId, request.Status);
+            return Ok(new ApiResponse<object>
+            {
+                Success = true,
+                Message = "Status updated successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Update status failed for {SubmissionId}", submissionId);
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+    }
+}
+
+public class UpdateStatusRequest
+{
+    public string Status { get; set; } = string.Empty;
 }

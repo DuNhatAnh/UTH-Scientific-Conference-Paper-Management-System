@@ -273,6 +273,21 @@ public class SubmissionService : ISubmissionService
         _logger.LogInformation("Submission {SubmissionId} withdrawn by user {UserId}", submissionId, userId);
     }
 
+    public async Task UpdateStatusAsync(Guid submissionId, string status)
+    {
+        var submission = await _unitOfWork.Submissions.GetByIdAsync(submissionId);
+        if (submission == null)
+        {
+            throw new InvalidOperationException("Submission not found");
+        }
+
+        submission.Status = status.ToUpper();
+        submission.UpdatedAt = DateTime.UtcNow;
+
+        await _unitOfWork.SaveChangesAsync();
+        _logger.LogInformation("Submission {SubmissionId} status updated to {Status}", submissionId, status);
+    }
+
     public async Task<FileInfoDto> UploadFileAsync(Guid submissionId, IFormFile file, Guid userId)
     {
         var submission = await _unitOfWork.Submissions.GetByIdAsync(submissionId);

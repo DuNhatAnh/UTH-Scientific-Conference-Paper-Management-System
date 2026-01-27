@@ -13,6 +13,7 @@ public interface ISubmissionService
     Task<SubmissionDto> CreateSubmissionAsync(CreateSubmissionRequest request, Guid submitterId);
     Task<SubmissionDto> UpdateSubmissionAsync(Guid submissionId, UpdateSubmissionRequest request, Guid userId);
     Task WithdrawSubmissionAsync(Guid submissionId, Guid userId, string reason);
+    Task UpdateStatusAsync(Guid submissionId, string status);
     Task<FileInfoDto> UploadFileAsync(Guid submissionId, IFormFile file, Guid userId);
     Task<FileDownloadDto> DownloadFileAsync(Guid submissionId, Guid fileId);
     Task<SubmissionStatisticsDto> GetSubmissionStatisticsAsync(Guid conferenceId);

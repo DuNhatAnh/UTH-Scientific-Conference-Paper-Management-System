@@ -27,6 +27,12 @@ export const SubmissionList: React.FC<SubmissionListProps> = ({
     "all" | "pending" | "under-review" | "decided"
   >("all");
   const [page, setPage] = useState(1);
+  const [counts, setCounts] = useState<{ [key: string]: number }>({
+    all: 0,
+    pending: 0,
+    underReview: 0,
+    decided: 0,
+  });
 
   useEffect(() => {
     loadSubmissions();
@@ -35,15 +41,57 @@ export const SubmissionList: React.FC<SubmissionListProps> = ({
   const loadSubmissions = async () => {
     try {
       setLoading(true);
-      const status = activeTab === "all" ? undefined : activeTab.toUpperCase();
+      const getStatusFromTab = (tab: string) => {
+        switch (tab) {
+          case "pending": return "SUBMITTED";
+          case "under-review": return "UNDER_REVIEW";
+          case "decided": return "ACCEPTED,REJECTED,REVISION";
+          case "revision": return "REVISION";
+          default: return undefined;
+        }
+      };
+
+      const status = activeTab === "all" ? undefined : getStatusFromTab(activeTab);
+      console.log(`Loading submissions for conference: ${conferenceId}, status: ${status}`);
       const response = await paperApi.getConferenceSubmissions(
         conferenceId,
         status,
         page,
         10,
       );
+      console.log("Submissions response:", response);
       if (response?.success && response.data?.items) {
+        console.log(`Found ${response.data.items.length} submissions`);
         setSubmissions(response.data.items);
+
+        // Update counts if loading 'all' or just set them from response total if available
+        // For simplicity, if we are on 'all' tab, we can calculate all counts
+        if (activeTab === "all") {
+          const items = response.data.items as Submission[];
+          const cByStatus = (st: string) =>
+            items.filter((s) => s.status?.toUpperCase() === st.toUpperCase())
+              .length;
+
+          setCounts({
+            all: response.data.totalCount || items.length,
+            pending: cByStatus("SUBMITTED"),
+            underReview: cByStatus("UNDER_REVIEW"),
+            decided:
+              cByStatus("ACCEPTED") +
+              cByStatus("REJECTED") +
+              cByStatus("REVISION"),
+          });
+        } else {
+          // If on a specific tab, update only that tab's count from the totalCount
+          setCounts((prev) => ({
+            ...prev,
+            [activeTab === "under-review" ? "underReview" : activeTab]:
+              response.data.totalCount || response.data.items.length,
+          }));
+        }
+      } else {
+        console.warn("No submissions found or request failed", response);
+        setSubmissions([]);
       }
     } catch (error) {
       console.error("Failed to load submissions:", error);
@@ -65,6 +113,8 @@ export const SubmissionList: React.FC<SubmissionListProps> = ({
         return "bg-green-100 text-green-700";
       case "REJECTED":
         return "bg-red-100 text-red-700";
+      case "REVISION":
+        return "bg-orange-100 text-orange-700";
       case "WITHDRAWN":
         return "bg-gray-100 text-gray-700";
       default:
@@ -86,6 +136,8 @@ export const SubmissionList: React.FC<SubmissionListProps> = ({
         return "Được Chấp Nhận";
       case "REJECTED":
         return "Bị Từ Chối";
+      case "REVISION":
+        return "Cần Chỉnh Sửa";
       case "WITHDRAWN":
         return "Đã Rút";
       default:
@@ -111,15 +163,15 @@ export const SubmissionList: React.FC<SubmissionListProps> = ({
   };
 
   const tabs = [
-    { id: "all", label: `Tất cả (${submissions.length})` },
-    { id: "pending", label: `Chờ Review (${countByStatus("SUBMITTED")})` },
+    { id: "all", label: `Tất cả (${counts.all})` },
+    { id: "pending", label: `Chờ Review (${counts.pending})` },
     {
       id: "under-review",
-      label: `Đang Review (${countByStatus("UNDER_REVIEW")})`,
+      label: `Đang Review (${counts.underReview})`,
     },
     {
       id: "decided",
-      label: `Đã Quyết Định (${countByStatus("ACCEPTED") + countByStatus("REJECTED")})`,
+      label: `Đã Quyết Định (${counts.decided})`,
     },
   ];
 
@@ -134,11 +186,10 @@ export const SubmissionList: React.FC<SubmissionListProps> = ({
               setActiveTab(tab.id as any);
               setPage(1);
             }}
-            className={`px-4 py-3 font-medium text-sm transition-colors ${
-              activeTab === tab.id
-                ? "text-primary border-b-2 border-primary"
-                : "text-gray-600 hover:text-primary"
-            }`}
+            className={`px-4 py-3 font-medium text-sm transition-colors ${activeTab === tab.id
+              ? "text-primary border-b-2 border-primary"
+              : "text-gray-600 hover:text-primary"
+              }`}
           >
             {tab.label}
           </button>

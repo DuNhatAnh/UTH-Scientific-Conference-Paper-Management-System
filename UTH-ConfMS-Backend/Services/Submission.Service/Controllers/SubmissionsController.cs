@@ -233,6 +233,34 @@ public class SubmissionsController : ControllerBase
             });
         }
     }
+
+    /// <summary>
+    /// Upload camera-ready version
+    /// </summary>
+    [HttpPost("{submissionId:guid}/camera-ready")]
+    public async Task<IActionResult> UploadCameraReady(Guid submissionId, IFormFile file)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var result = await _submissionService.UploadFileAsync(submissionId, file, Guid.Parse(userId!), "CAMERA_READY");
+            return Ok(new ApiResponse<FileInfoDto>
+            {
+                Success = true,
+                Message = "Camera-ready file uploaded successfully",
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Upload camera-ready failed for {SubmissionId}", submissionId);
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+    }
 }
 
 public class UpdateStatusRequest

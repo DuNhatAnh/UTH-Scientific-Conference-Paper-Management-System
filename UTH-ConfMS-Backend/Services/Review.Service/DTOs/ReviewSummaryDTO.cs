@@ -21,6 +21,18 @@ namespace Review.Service.DTOs
         
         // Danh sách review chi tiết
         public List<ReviewDetailDTO> Reviews { get; set; } = new();
+
+        // Danh sách file đính kèm
+        public List<ReviewSubmissionFileDTO> Files { get; set; } = new();
+    }
+
+    public class ReviewSubmissionFileDTO
+    {
+        public Guid FileId { get; set; }
+        public string FileName { get; set; } = string.Empty;
+        public long FileSizeBytes { get; set; }
+        public string? FileType { get; set; }
+        public DateTime UploadedAt { get; set; }
     }
 
     /// <summary>

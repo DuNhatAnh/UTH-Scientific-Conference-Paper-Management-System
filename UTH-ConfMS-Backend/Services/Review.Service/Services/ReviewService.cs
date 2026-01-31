@@ -144,8 +144,79 @@ namespace Review.Service.Services
                 {
                     PaperId = paperId,
                     TotalReviews = 0,
-                    Reviews = new List<ReviewDetailDTO>()
+                    Reviews = new List<ReviewDetailDTO>(),
+                    Files = new List<ReviewSubmissionFileDTO>()
                 };
+            }
+            
+            // Lấy thông tin bài báo và file từ Submission Service
+            List<ReviewSubmissionFileDTO> files = new();
+            try
+            {
+                var client = _httpClientFactory.CreateClient();
+                var submissionUrl = _configuration["Services:SubmissionServiceUrl"] ?? _configuration["ServiceUrls:Submission"] ?? "http://localhost:5003";
+
+                // Add Authorization Header for Chair/Admin requests
+                var token = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].ToString();
+                if (!string.IsNullOrEmpty(token))
+                {
+                    client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", token);
+                }
+
+                var response = await client.GetAsync($"{submissionUrl}/api/submissions/{paperId}");
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(content);
+                    var root = doc.RootElement;
+                    
+                    JsonElement data = root;
+                    if (root.TryGetProperty("data", out var dataProp) && dataProp.ValueKind == JsonValueKind.Object)
+                    {
+                        data = dataProp;
+                    }
+                    
+                    if (data.TryGetProperty("files", out var filesProp) && filesProp.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var file in filesProp.EnumerateArray())
+                        {
+                            // Try multiple property name variants for better resilience
+                            Guid fileId = Guid.Empty;
+                            if (file.TryGetProperty("id", out var idProp)) fileId = idProp.GetGuid();
+                            else if (file.TryGetProperty("Id", out var idProp2)) fileId = idProp2.GetGuid();
+                            else if (file.TryGetProperty("fileId", out var idProp3)) fileId = idProp3.GetGuid();
+
+                            string fileName = "";
+                            if (file.TryGetProperty("fileName", out var nameProp)) fileName = nameProp.GetString() ?? "";
+                            else if (file.TryGetProperty("FileName", out var nameProp2)) fileName = nameProp2.GetString() ?? "";
+
+                            string? fileType = null;
+                            if (file.TryGetProperty("fileType", out var typeProp)) fileType = typeProp.GetString();
+                            else if (file.TryGetProperty("FileType", out var typeProp2)) fileType = typeProp2.GetString();
+
+                            long fileSizeBytes = 0;
+                            if (file.TryGetProperty("fileSizeBytes", out var sizeProp)) fileSizeBytes = sizeProp.GetInt64();
+                            else if (file.TryGetProperty("FileSizeBytes", out var sizeProp2)) fileSizeBytes = sizeProp2.GetInt64();
+
+                            DateTime uploadedAt = DateTime.MinValue;
+                            if (file.TryGetProperty("uploadedAt", out var dateProp)) uploadedAt = dateProp.GetDateTime();
+                            else if (file.TryGetProperty("UploadedAt", out var dateProp2)) uploadedAt = dateProp2.GetDateTime();
+
+                            files.Add(new ReviewSubmissionFileDTO
+                            {
+                                FileId = fileId,
+                                FileName = fileName,
+                                FileSizeBytes = fileSizeBytes,
+                                FileType = fileType,
+                                UploadedAt = uploadedAt
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error fetching submission files for Paper {paperId}");
             }
             
             // Tính điểm trung bình
@@ -188,7 +259,8 @@ namespace Review.Service.Services
                 AcceptCount = acceptCount,
                 RejectCount = rejectCount,
                 RevisionCount = revisionCount,
-                Reviews = reviewDetails
+                Reviews = reviewDetails,
+                Files = files.OrderByDescending(f => f.UploadedAt).ToList()
             };
             
             Console.WriteLine($"[ReviewService] Generated DB summary for Paper {paperId}: {summary.TotalReviews} reviews, avg: {summary.OverallAverageScore}");

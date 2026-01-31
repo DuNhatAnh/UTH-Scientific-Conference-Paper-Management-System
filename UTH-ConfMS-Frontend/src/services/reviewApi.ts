@@ -182,10 +182,19 @@ export interface ReviewSummaryDto {
   averageMethodologyScore: number;
   averagePresentationScore: number;
   overallAverageScore: number;
-  acceptCount: number;
-  rejectCount: number;
-  revisionCount: number;
+  AcceptCount: number;
+  RejectCount: number;
+  RevisionCount: number;
   reviews: ReviewDetailDto[];
+  files: ReviewSummaryFileDto[];
+}
+
+export interface ReviewSummaryFileDto {
+  fileId: string;
+  fileName: string;
+  fileSizeBytes: number;
+  fileType?: string;
+  uploadedAt: string;
 }
 
 export interface ReviewDetailDto {

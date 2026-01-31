@@ -16,21 +16,63 @@ export const AuthorDashboard: React.FC<DashboardProps> = ({
 }) => {
   const [submissions, setSubmissions] = useState<PaperResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [conferences, setConferences] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchSubmissions = async () => {
+    const fetchData = async () => {
       try {
-        const data = await paperApi.getMyPapers();
-        setSubmissions(Array.isArray(data) ? data : []);
+        const [papersData, confsData] = await Promise.all([
+          paperApi.getMyPapers(),
+          // Use any available conference API to get deadlines
+          // Assuming conferenceApi is available like in SubmitPaper
+          import("../../services/conferenceApi").then(m => m.default.getConferences())
+        ]);
+
+        setSubmissions(Array.isArray(papersData) ? papersData : []);
+
+        if (confsData.success && confsData.data) {
+          // @ts-ignore - Backend response varies
+          const list = confsData.data.items || confsData.data.data || confsData.data || [];
+          setConferences(Array.isArray(list) ? list : []);
+        }
       } catch (error) {
-        console.error("Failed to fetch submissions:", error);
+        console.error("Failed to fetch data:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchSubmissions();
+    fetchData();
   }, []);
+
+  const getDeadline = (conferenceId: string) => {
+    const conf = conferences.find(c => c.conferenceId === conferenceId);
+    return conf?.submissionDeadline;
+  };
+
+  const isDeadlinePassed = (conferenceId: string) => {
+    const deadline = getDeadline(conferenceId);
+    if (!deadline) return false;
+    const deadlineDate = new Date(deadline);
+    if (isNaN(deadlineDate.getTime()) || deadlineDate.getFullYear() < 1900) return false;
+    return deadlineDate < new Date();
+  };
+
+  const handleCameraReadyUpload = async (id: string, file: File) => {
+    try {
+      setLoading(true);
+      await paperApi.uploadCameraReady(id, file);
+      // Reload papers
+      const papersData = await paperApi.getMyPapers();
+      setSubmissions(Array.isArray(papersData) ? papersData : []);
+      alert("Đã nộp bản Camera-ready thành công.");
+    } catch (error) {
+      console.error("Failed to upload camera-ready:", error);
+      alert("Có lỗi xảy ra khi nộp bản Camera-ready.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleWithdraw = async (id: string) => {
     const reason = window.prompt("Vui lòng nhập lý do rút bài:");
@@ -48,46 +90,58 @@ export const AuthorDashboard: React.FC<DashboardProps> = ({
   };
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case "submitted":
         return (
-          <span className="inline-flex px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
-            Submitted
+          <span className="inline-flex w-fit px-3 py-1 rounded-full text-[11px] font-bold bg-blue-100 text-blue-700 whitespace-nowrap">
+            Đã nộp
           </span>
         );
       case "under_review":
         return (
-          <span className="inline-flex px-2 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700">
-            Under Review
+          <span className="inline-flex w-fit px-3 py-1 rounded-full text-[11px] font-bold bg-yellow-100 text-yellow-700 whitespace-nowrap">
+            Đang phản biện
           </span>
         );
       case "accepted":
         return (
-          <span className="inline-flex px-2 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
-            Accepted
+          <span className="inline-flex w-fit px-3 py-1 rounded-full text-[11px] font-bold bg-green-100 text-green-700 whitespace-nowrap">
+            Được chấp nhận
           </span>
         );
       case "rejected":
         return (
-          <span className="inline-flex px-2 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700">
-            Rejected
+          <span className="inline-flex w-fit px-3 py-1 rounded-full text-[11px] font-bold bg-red-100 text-red-700 whitespace-nowrap">
+            Bị từ chối
           </span>
         );
       case "revision_required":
         return (
-          <span className="inline-flex px-2 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-700">
-            Revision Required
+          <span className="inline-flex w-fit px-3 py-1 rounded-full text-[11px] font-bold bg-orange-100 text-orange-700 whitespace-nowrap">
+            Cần chỉnh sửa
+          </span>
+        );
+      case "camera_ready":
+        return (
+          <span className="inline-flex w-fit px-3 py-1 rounded-full text-[11px] font-bold bg-purple-100 text-purple-700 whitespace-nowrap">
+            Bản hoàn thiện (Camera-ready)
+          </span>
+        );
+      case "finalized":
+        return (
+          <span className="inline-flex w-fit px-3 py-1 rounded-full text-[11px] font-bold bg-indigo-100 text-indigo-700 whitespace-nowrap">
+            Đã chốt kỷ yếu
           </span>
         );
       case "withdrawn":
         return (
-          <span className="inline-flex px-2 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700">
-            Withdrawn
+          <span className="inline-flex w-fit px-3 py-1 rounded-full text-[11px] font-bold bg-gray-100 text-gray-700 whitespace-nowrap">
+            Đã rút bài
           </span>
         );
       default:
         return (
-          <span className="inline-flex px-2 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700">
+          <span className="inline-flex w-fit px-3 py-1 rounded-full text-[11px] font-bold bg-gray-100 text-gray-700 whitespace-nowrap">
             {status}
           </span>
         );
@@ -181,33 +235,67 @@ export const AuthorDashboard: React.FC<DashboardProps> = ({
                             >
                               Xem
                             </button>
-                            {sub.status !== "withdrawn" &&
-                              sub.status !== "accepted" &&
-                              sub.status !== "rejected" && (
+                            {sub.status.toLowerCase() !== "withdrawn" &&
+                              sub.status.toLowerCase() !== "accepted" &&
+                              sub.status.toLowerCase() !== "rejected" && (
                                 <button
                                   onClick={() => onEditPaper && onEditPaper(sub.id)}
-                                  className="text-blue-600 font-medium hover:underline text-xs mr-3"
+                                  disabled={isDeadlinePassed(sub.conferenceId)}
+                                  className={`font-medium hover:underline text-xs mr-3 ${isDeadlinePassed(sub.conferenceId)
+                                    ? "text-gray-400 cursor-not-allowed"
+                                    : "text-blue-600"
+                                    }`}
+                                  title={isDeadlinePassed(sub.conferenceId) ? "Hết hạn nộp bài" : ""}
                                 >
                                   Sửa
                                 </button>
                               )}
-                            {sub.status !== "withdrawn" &&
-                              sub.status !== "accepted" &&
-                              sub.status !== "rejected" && (
+                            {sub.status.toLowerCase() !== "withdrawn" &&
+                              sub.status.toLowerCase() !== "accepted" &&
+                              sub.status.toLowerCase() !== "rejected" && (
                                 <button
                                   onClick={() => handleWithdraw(sub.id)}
-                                  className="text-text-sec-light font-medium hover:text-red-500 hover:underline text-xs"
+                                  disabled={isDeadlinePassed(sub.conferenceId)}
+                                  className={`font-medium hover:underline text-xs ${isDeadlinePassed(sub.conferenceId)
+                                    ? "text-gray-400 cursor-not-allowed"
+                                    : "text-text-sec-light hover:text-red-500"
+                                    }`}
+                                  title={isDeadlinePassed(sub.conferenceId) ? "Hết hạn nộp bài" : ""}
                                 >
                                   Rút bài
                                 </button>
                               )}
-                            {sub.status === "accepted" && (
-                              <button
-                                onClick={() => onNavigate("decision")}
-                                className="text-primary font-medium hover:underline text-xs mr-3"
-                              >
-                                Kết quả
-                              </button>
+                            {sub.status.toLowerCase() === "accepted" && (
+                              <>
+                                <button
+                                  onClick={() => onNavigate("decision")}
+                                  className="text-primary font-medium hover:underline text-xs mr-3"
+                                >
+                                  Kết quả
+                                </button>
+                                <label className="text-purple-600 font-medium hover:underline text-xs cursor-pointer">
+                                  Nộp Camera-ready
+                                  <input
+                                    type="file"
+                                    className="hidden"
+                                    accept=".pdf"
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) handleCameraReadyUpload(sub.id, file);
+                                    }}
+                                  />
+                                </label>
+                              </>
+                            )}
+                            {sub.status.toLowerCase() === "camera_ready" && (
+                              <span className="text-text-sec-light text-xs italic">
+                                Chờ Chair duyệt
+                              </span>
+                            )}
+                            {sub.status.toLowerCase() === "finalized" && (
+                              <span className="text-green-600 text-xs font-medium">
+                                Đã chốt kỷ yếu
+                              </span>
                             )}
                           </td>
                         </tr>

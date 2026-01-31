@@ -14,6 +14,8 @@ export const PaperDetail: React.FC<PaperDetailProps> = ({
   const [paper, setPaper] = useState<PaperResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
   useEffect(() => {
     if (!paperId) {
@@ -41,26 +43,88 @@ export const PaperDetail: React.FC<PaperDetailProps> = ({
     fetchDetail();
   }, [paperId]);
 
+  const getStatusLabel = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "submitted":
+        return "Đã nộp";
+      case "under_review":
+      case "under review":
+        return "Đang phản biện";
+      case "accepted":
+        return "Được chấp nhận";
+      case "rejected":
+        return "Bị từ chối";
+      case "revision":
+      case "revision_required":
+        return "Cần chỉnh sửa";
+      case "camera_ready":
+        return "Bản hoàn thiện (Camera-ready)";
+      case "finalized":
+        return "Đã chốt kỷ yếu";
+      case "withdrawn":
+        return "Đã rút bài";
+      default:
+        return status;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "submitted":
+        return "bg-blue-100 text-blue-700";
+      case "under_review":
+      case "under review":
+        return "bg-yellow-100 text-yellow-700";
+      case "accepted":
+        return "bg-green-100 text-green-700";
+      case "rejected":
+        return "bg-red-100 text-red-700";
+      case "revision":
+      case "revision_required":
+        return "bg-orange-100 text-orange-700";
+      case "camera_ready":
+        return "bg-purple-100 text-purple-700";
+      case "finalized":
+        return "bg-indigo-100 text-indigo-700";
+      case "withdrawn":
+        return "bg-gray-100 text-gray-700";
+      default:
+        return "bg-blue-50 text-blue-700";
+    }
+  };
+
+  const handleCameraReadyUpload = async (file: File) => {
+    if (!paper || !paper.id) return;
+    try {
+      setIsPreviewLoading(true);
+      await paperApi.uploadCameraReady(paper.id, file);
+      // Reload paper details
+      const response = await paperApi.getPaperDetail(paper.id);
+      if (response && response.data) setPaper(response.data);
+      alert("Đã nộp bản Camera-ready thành công.");
+    } catch (error) {
+      console.error("Failed to upload camera-ready:", error);
+      alert("Có lỗi xảy ra khi nộp bản Camera-ready.");
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  };
+
   const handleDownload = async () => {
     if (!paper || !paper.id) return;
 
-    // Check if files exist
     if (!paper.files || paper.files.length === 0) {
       alert("Không tìm thấy file để tải.");
       return;
     }
 
-    // Assuming obtaining the first file for now, or finding one that matches fileName
-    // Backend FilesController: [HttpGet("{fileId:guid}/download")]
     const fileToDownload = paper.files[0];
 
     try {
       const response = await paperApi.downloadFile(paper.id, fileToDownload.id);
-      // Create blob link to download
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
-      // Use fileName from file info or paper
       const fileName =
         fileToDownload.fileName || paper.fileName || `paper-${paper.id}.pdf`;
       link.setAttribute("download", fileName);
@@ -72,6 +136,38 @@ export const PaperDetail: React.FC<PaperDetailProps> = ({
       alert("Không thể tải file. Vui lòng thử lại sau.");
     }
   };
+
+  const handlePreview = async () => {
+    if (!paper || !paper.id || !paper.files || paper.files.length === 0) {
+      alert("Không tìm thấy file để xem trước.");
+      return;
+    }
+
+    if (previewUrl) {
+      setPreviewUrl(null); // Toggle off
+      return;
+    }
+
+    setIsPreviewLoading(true);
+    try {
+      const fileToPreview = paper.files[0];
+      const response = await paperApi.downloadFile(paper.id, fileToPreview.id);
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      setPreviewUrl(url);
+    } catch (error) {
+      console.error("Preview failed:", error);
+      alert("Không thể xem trước file. Vui lòng tải về máy.");
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  };
+
+  // Cleanup blob URL
+  useEffect(() => {
+    return () => {
+      if (previewUrl) window.URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   if (loading)
     return <div className="p-10 text-center">Đang tải thông tin...</div>;
@@ -128,8 +224,8 @@ export const PaperDetail: React.FC<PaperDetailProps> = ({
               <h3 className="font-bold text-sm text-text-sec-light uppercase mb-1">
                 Trạng thái
               </h3>
-              <span className="inline-block px-3 py-1 rounded-full bg-blue-50 text-blue-700 font-bold text-sm">
-                {paper.status}
+              <span className={`inline-flex w-fit px-3 py-1 rounded-full text-[11px] font-bold uppercase whitespace-nowrap ${getStatusColor(paper.status)}`}>
+                {getStatusLabel(paper.status)}
               </span>
             </div>
             <div>
@@ -155,17 +251,55 @@ export const PaperDetail: React.FC<PaperDetailProps> = ({
               <h3 className="font-bold text-sm text-text-sec-light uppercase mb-1">
                 File đính kèm
               </h3>
-              <button
-                onClick={handleDownload}
-                className="flex items-center gap-2 text-primary hover:underline font-medium"
-              >
-                <span className="material-symbols-outlined">description</span>
-                {paper.files && paper.files.length > 0
-                  ? "Tải file xuống"
-                  : paper.fileName || "Tải file xuống"}
-              </button>
+              <div className="flex gap-4">
+                <button
+                  onClick={handleDownload}
+                  className="flex items-center gap-2 text-primary hover:underline font-medium"
+                >
+                  <span className="material-symbols-outlined">download</span>
+                  Tải xuống
+                </button>
+                <button
+                  onClick={handlePreview}
+                  disabled={isPreviewLoading}
+                  className="flex items-center gap-2 text-blue-600 hover:underline font-medium"
+                >
+                  <span className="material-symbols-outlined">visibility</span>
+                  {isPreviewLoading ? "Đang tải..." : previewUrl ? "Đóng xem trước" : "Xem trước"}
+                </button>
+              </div>
             </div>
+            {paper.status.toLowerCase() === "accepted" && (
+              <div>
+                <h3 className="font-bold text-sm text-text-sec-light uppercase mb-1">
+                  Bản hoàn thiện
+                </h3>
+                <label className="flex items-center gap-2 text-purple-600 hover:underline font-medium cursor-pointer">
+                  <span className="material-symbols-outlined">upload_file</span>
+                  Nộp Camera-ready
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleCameraReadyUpload(file);
+                    }}
+                  />
+                </label>
+              </div>
+            )}
           </div>
+
+          {previewUrl && (
+            <div className="mt-4 border border-border-light rounded-lg overflow-hidden h-[500px]">
+              <iframe
+                src={previewUrl}
+                className="w-full h-full"
+                title="Paper Preview"
+              ></iframe>
+            </div>
+          )}
 
           <div className="mt-8 pt-6 border-t border-border-light flex justify-end gap-3">
             <button

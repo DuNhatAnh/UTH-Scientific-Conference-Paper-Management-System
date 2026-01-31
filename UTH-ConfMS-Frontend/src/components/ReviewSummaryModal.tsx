@@ -1,15 +1,16 @@
-
 import React from 'react';
 import { ReviewSummaryDto, ReviewDetailDto } from '../services/reviewApi';
+import { paperApi } from '../services/paper';
 
 interface ReviewSummaryModalProps {
     isOpen: boolean;
     onClose: () => void;
     summary: ReviewSummaryDto | null;
     isLoading: boolean;
+    onFinalize?: (paperId: string | number) => void;
 }
 
-export const ReviewSummaryModal: React.FC<ReviewSummaryModalProps> = ({ isOpen, onClose, summary, isLoading }) => {
+export const ReviewSummaryModal: React.FC<ReviewSummaryModalProps> = ({ isOpen, onClose, summary, isLoading, onFinalize }) => {
     if (!isOpen) return null;
 
     if (isLoading) {
@@ -24,6 +25,22 @@ export const ReviewSummaryModal: React.FC<ReviewSummaryModalProps> = ({ isOpen, 
     }
 
     if (!summary) return null;
+
+    const handleDownload = async (fileId: string, fileName: string) => {
+        try {
+            const response = await paperApi.downloadFile(summary.paperId.toString(), fileId);
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement("a");
+            link.href = url;
+            link.setAttribute("download", fileName);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode?.removeChild(link);
+        } catch (error) {
+            console.error("Download failed:", error);
+            alert("Không thể tải file. Vui lòng thử lại sau.");
+        }
+    };
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
@@ -48,16 +65,79 @@ export const ReviewSummaryModal: React.FC<ReviewSummaryModalProps> = ({ isOpen, 
                             <div className="text-xs uppercase font-bold text-blue-400 mt-1">Điểm TB Chung</div>
                         </div>
                         <div className="bg-green-50 p-4 rounded-lg border border-green-100 text-center">
-                            <div className="text-3xl font-bold text-green-600">{summary.acceptCount}</div>
+                            <div className="text-3xl font-bold text-green-600">{summary.AcceptCount}</div>
                             <div className="text-xs uppercase font-bold text-green-400 mt-1">Accept</div>
                         </div>
                         <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100 text-center">
-                            <div className="text-3xl font-bold text-yellow-600">{summary.revisionCount}</div>
+                            <div className="text-3xl font-bold text-yellow-600">{summary.RevisionCount}</div>
                             <div className="text-xs uppercase font-bold text-yellow-400 mt-1">Revision</div>
                         </div>
                         <div className="bg-red-50 p-4 rounded-lg border border-red-100 text-center">
-                            <div className="text-3xl font-bold text-red-600">{summary.rejectCount}</div>
+                            <div className="text-3xl font-bold text-red-600">{summary.RejectCount}</div>
                             <div className="text-xs uppercase font-bold text-red-400 mt-1">Reject</div>
+                        </div>
+                    </div>
+
+                    {/* Files Section */}
+                    <div className="mb-8">
+                        <h3 className="font-bold text-lg mb-3 flex items-center gap-2 text-purple-600">
+                            <span className="material-symbols-outlined">description</span>
+                            File bài nộp (Bản mới nhất)
+                        </h3>
+                        <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
+                            {summary.files && summary.files.length > 0 ? (
+                                <div className="space-y-3">
+                                    {summary.files.map((file) => (
+                                        <div
+                                            key={file.fileId}
+                                            className={`flex items-center justify-between p-3 rounded border transition ${file.fileType?.toUpperCase() === "CAMERA_READY"
+                                                ? "bg-purple-50 border-purple-300 shadow-sm"
+                                                : "bg-white border-gray-200"
+                                                }`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className={`p-2 rounded-lg ${file.fileType?.toUpperCase() === "CAMERA_READY" ? "bg-purple-100 text-purple-600" : "bg-gray-100 text-gray-400"}`}>
+                                                    <span className="material-symbols-outlined">picture_as_pdf</span>
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="font-bold text-gray-800">{file.fileName}</div>
+                                                        {file.fileType?.toUpperCase() === "CAMERA_READY" && (
+                                                            <span className="bg-purple-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold uppercase">
+                                                                Bản Camera-ready
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-xs text-text-sec-light">
+                                                        {(file.fileSizeBytes / 1024 / 1024).toFixed(2)} MB • {new Date(file.uploadedAt).toLocaleString()}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    onClick={() => handleDownload(file.fileId, file.fileName)}
+                                                    className="flex items-center gap-1 text-primary hover:underline font-medium text-xs"
+                                                >
+                                                    <span className="material-symbols-outlined text-sm">download</span>
+                                                    Tải về
+                                                </button>
+
+                                                {file.fileType?.toUpperCase() === "CAMERA_READY" && onFinalize && (
+                                                    <button
+                                                        onClick={() => onFinalize(summary.paperId)}
+                                                        className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg font-bold text-xs shadow-sm transition"
+                                                    >
+                                                        <span className="material-symbols-outlined text-sm">verified_user</span>
+                                                        Duyệt & Xuất kỷ yếu
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-gray-500 text-sm italic text-center">Không có file đính kèm.</p>
+                            )}
                         </div>
                     </div>
 

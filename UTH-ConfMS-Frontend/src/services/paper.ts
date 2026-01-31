@@ -28,11 +28,13 @@ export interface FileInfoDto {
 export interface PaperResponse {
   id: string; // Guid - Backend trả về Guid không phải number
   paperNumber?: number; // Số thứ tự bài báo
+  conferenceId: string; // ID hội nghị
   title: string;
   abstract: string;
   status: string; // 'Submitted', 'UnderReview', 'Accepted', 'Rejected'
   trackName?: string;
   submissionDate: string;
+  submissionDeadline?: string; // Thêm hạn nộp bài
   fileName?: string;
   files?: FileInfoDto[]; // Thêm thông tin files
 }
@@ -199,5 +201,29 @@ export const paperApi = {
         })),
       },
     };
+  },
+
+  // 8. Nộp bản Camera-ready
+  uploadCameraReady: async (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await apiClient.post<ApiResponse<FileInfoDto>>(
+      `/api/submissions/${id}/camera-ready`,
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      },
+    );
+    return response.data;
+  },
+
+  // 9. Cập nhật trạng thái (cho Chair khóa bài)
+  updateStatus: async (id: string, status: string) => {
+    const response = await apiClient.put<ApiResponse<void>>(
+      `/api/submissions/${id}/status`,
+      { status }
+    );
+    return response.data;
   },
 };

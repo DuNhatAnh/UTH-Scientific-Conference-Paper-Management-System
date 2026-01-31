@@ -41,12 +41,12 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate, editMode = fals
         try {
           const response = await paperApi.getPaperDetail(submissionId);
           const data = response.data;
-          
+
           setTitle(data.title || "");
           setAbstract(data.abstract || "");
           setConferenceId(data.conferenceId || "");
           setTopicId(data.trackId || undefined);
-          
+
           // Load authors
           if (data.authors && data.authors.length > 0) {
             const loadedAuthors = data.authors.map((a: any) => ({
@@ -67,7 +67,7 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate, editMode = fals
         }
       }
     };
-    
+
     loadSubmissionData();
   }, [editMode, submissionId]);
 
@@ -110,7 +110,7 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate, editMode = fals
         setTracks([]);
         return;
       }
-      
+
       setIsLoadingTracks(true);
       try {
         const response = await conferenceApi.getTracks(conferenceId);
@@ -126,7 +126,7 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate, editMode = fals
         setIsLoadingTracks(false);
       }
     };
-    
+
     fetchTracks();
   }, [conferenceId]);
 
@@ -163,7 +163,21 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate, editMode = fals
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+
+      // Validation
+      if (selectedFile.type !== "application/pdf") {
+        alert("Vui lòng chọn file định dạng PDF.");
+        e.target.value = "";
+        return;
+      }
+      if (selectedFile.size > 10 * 1024 * 1024) {
+        alert("File quá lớn. Vui lòng chọn file dưới 10MB.");
+        e.target.value = "";
+        return;
+      }
+
+      setFile(selectedFile);
     }
   };
 
@@ -171,7 +185,19 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate, editMode = fals
     e.preventDefault();
     e.stopPropagation();
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setFile(e.dataTransfer.files[0]);
+      const selectedFile = e.dataTransfer.files[0];
+
+      // Validation
+      if (selectedFile.type !== "application/pdf") {
+        alert("Vui lòng chọn file định dạng PDF.");
+        return;
+      }
+      if (selectedFile.size > 10 * 1024 * 1024) {
+        alert("File quá lớn. Vui lòng chọn file dưới 10MB.");
+        return;
+      }
+
+      setFile(selectedFile);
     }
   };
 
@@ -192,7 +218,7 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate, editMode = fals
         return;
       }
     }
-    
+
     if (!conferenceId) {
       alert("Vui lòng chọn hội nghị.");
       return;
@@ -228,7 +254,7 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate, editMode = fals
         });
         alert("Nộp bài thành công!");
       }
-      
+
       onNavigate("author-dashboard");
     } catch (error: any) {
       console.error("Error submitting/updating paper:", error);
@@ -291,354 +317,354 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate, editMode = fals
           ) : (
             <>
               {step === 1 && (
-            <div className="flex flex-col gap-5">
-              {/* Chọn Hội Nghị - Load từ API */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-bold">
-                  Hội nghị <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={conferenceId}
-                  onChange={(e) => setConferenceId(e.target.value)}
-                  disabled={editMode}
-                  className={`w-full h-10 px-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none ${editMode ? "bg-gray-100 cursor-not-allowed" : "bg-white"}`}
-                >
-                  <option value="">Chọn hội nghị...</option>
-                  {conferences.map((conf) => (
-                    <option key={conf.conferenceId} value={conf.conferenceId}>
-                      {conf.name} ({conf.acronym}) - Hạn:{" "}
-                      {(() => {
-                        const date = new Date(conf.submissionDeadline);
-                        if (isNaN(date.getTime()) || date.getFullYear() < 1900) return "Chưa có";
-                        return date.toLocaleDateString("vi-VN");
-                      })()}
-                    </option>
-                  ))}
-                </select>
-                {conferences.length === 0 && (
-                  <p className="text-xs text-red-500">
-                    Không tìm thấy hội nghị nào đang mở. Vui lòng liên hệ quản
-                    trị viên.
-                  </p>
-                )}
-                {conferenceId && conferences.length > 0 && (
-                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary text-[20px]">
-                      event
-                    </span>
-                    <div className="text-sm text-blue-900">
-                      <p className="font-semibold">
-                        Ngày nộp bài:{" "}
-                        <span className="text-primary">
+                <div className="flex flex-col gap-5">
+                  {/* Chọn Hội Nghị - Load từ API */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-bold">
+                      Hội nghị <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={conferenceId}
+                      onChange={(e) => setConferenceId(e.target.value)}
+                      disabled={editMode}
+                      className={`w-full h-10 px-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none ${editMode ? "bg-gray-100 cursor-not-allowed" : "bg-white"}`}
+                    >
+                      <option value="">Chọn hội nghị...</option>
+                      {conferences.map((conf) => (
+                        <option key={conf.conferenceId} value={conf.conferenceId}>
+                          {conf.name} ({conf.acronym}) - Hạn:{" "}
                           {(() => {
-                            const deadline = conferences.find(
-                              (c) => c.conferenceId === conferenceId,
-                            )?.submissionDeadline;
-                            if (!deadline) return "N/A";
-                            try {
-                              const date = new Date(deadline);
-                              // Handle 0001-01-01 or other invalid dates from backend
-                              if (isNaN(date.getTime()) || date.getFullYear() < 1900) {
-                                return "Chưa xác định";
-                              }
-                              return date.toLocaleDateString("vi-VN", {
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric",
-                              });
-                            } catch {
-                              return "N/A";
-                            }
+                            const date = new Date(conf.submissionDeadline);
+                            if (isNaN(date.getTime()) || date.getFullYear() < 1900) return "Chưa có";
+                            return date.toLocaleDateString("vi-VN");
                           })()}
-                        </span>
+                        </option>
+                      ))}
+                    </select>
+                    {conferences.length === 0 && (
+                      <p className="text-xs text-red-500">
+                        Không tìm thấy hội nghị nào đang mở. Vui lòng liên hệ quản
+                        trị viên.
                       </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-bold">
-                  Tiêu đề bài báo <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full h-10 px-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none"
-                  placeholder="Nhập tiêu đề đầy đủ..."
-                />
-                {title && (
-                  <AISpellCheck
-                    text={title}
-                    userId={user?.id || 'guest'}
-                    fieldType="title"
-                    onApply={(correctedText) => setTitle(correctedText)}
-                  />
-                )}
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-bold">
-                  Tóm tắt (Abstract) <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  value={abstract}
-                  onChange={(e) => setAbstract(e.target.value)}
-                  className="w-full h-32 p-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none resize-none"
-                  placeholder="Tối đa 300 từ..."
-                ></textarea>
-                {abstract && (
-                  <AISpellCheck
-                    text={abstract}
-                    userId={user?.id || 'guest'}
-                    fieldType="abstract"
-                    onApply={(correctedText) => setAbstract(correctedText)}
-                  />
-                )}
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-bold">Từ khóa (Keywords)</label>
-                <input
-                  type="text"
-                  value={keywords}
-                  onChange={(e) => setKeywords(e.target.value)}
-                  className="w-full h-10 px-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none"
-                  placeholder="Ví dụ: AI, IoT, Smart City (ngăn cách bởi dấu phẩy)"
-                />
-                {keywords && (
-                  <AISpellCheck
-                    text={keywords}
-                    userId={user?.id || 'guest'}
-                    fieldType="keywords"
-                    onApply={(correctedText) => setKeywords(correctedText)}
-                  />
-                )}
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-bold">
-                  Chủ đề (Track) <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={topicId || ""}
-                  onChange={(e) => setTopicId(e.target.value)}
-                  disabled={!conferenceId || isLoadingTracks}
-                  className={`w-full h-10 px-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none ${!conferenceId || isLoadingTracks ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
-                >
-                  <option value="">
-                    {!conferenceId ? 'Vui lòng chọn hội nghị trước' : isLoadingTracks ? 'Đang tải tracks...' : 'Chọn chủ đề phù hợp...'}
-                  </option>
-                  {tracks.map((track) => (
-                    <option key={track.trackId} value={track.trackId}>
-                      {track.name}
-                    </option>
-                  ))}
-                </select>
-                {conferenceId && tracks.length === 0 && !isLoadingTracks && (
-                  <p className="text-xs text-orange-600">
-                    Hội nghị này chưa có track nào. Vui lòng liên hệ Chair để thêm track.
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {step === 2 && (
-            <div className="flex flex-col gap-5">
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 flex gap-2">
-                <span className="material-symbols-outlined text-primary">
-                  info
-                </span>
-                <p className="text-sm text-blue-800">
-                  Tác giả đầu tiên sẽ được mặc định là tác giả liên hệ
-                  (Corresponding Author).
-                </p>
-              </div>
-
-              {authors.map((author, index) => (
-                <div
-                  key={index}
-                  className="border border-border-light rounded-lg p-4 relative"
-                >
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="font-bold text-sm">
-                      Tác giả {index + 1} {index === 0 ? "(Bạn)" : ""}
-                    </h3>
-                    {index > 0 && (
-                      <button
-                        onClick={() => handleRemoveAuthor(index)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <span className="material-symbols-outlined text-sm">
-                          delete
+                    )}
+                    {conferenceId && conferences.length > 0 && (
+                      <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-primary text-[20px]">
+                          event
                         </span>
-                      </button>
+                        <div className="text-sm text-blue-900">
+                          <p className="font-semibold">
+                            Ngày nộp bài:{" "}
+                            <span className="text-primary">
+                              {(() => {
+                                const deadline = conferences.find(
+                                  (c) => c.conferenceId === conferenceId,
+                                )?.submissionDeadline;
+                                if (!deadline) return "N/A";
+                                try {
+                                  const date = new Date(deadline);
+                                  // Handle 0001-01-01 or other invalid dates from backend
+                                  if (isNaN(date.getTime()) || date.getFullYear() < 1900) {
+                                    return "Chưa xác định";
+                                  }
+                                  return date.toLocaleDateString("vi-VN", {
+                                    year: "numeric",
+                                    month: "long",
+                                    day: "numeric",
+                                  });
+                                } catch {
+                                  return "N/A";
+                                }
+                              })()}
+                            </span>
+                          </p>
+                        </div>
+                      </div>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-bold">
+                      Tiêu đề bài báo <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
-                      value={author.fullName}
-                      onChange={(e) =>
-                        handleAuthorChange(index, "fullName", e.target.value)
-                      }
-                      disabled={index === 0}
-                      placeholder="Họ và tên"
-                      className={`px-3 py-2 rounded text-sm border border-border-light ${index === 0 ? "bg-gray-100" : ""}`}
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      className="w-full h-10 px-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none"
+                      placeholder="Nhập tiêu đề đầy đủ..."
                     />
-                    <input
-                      type="text"
-                      value={author.email}
-                      onChange={(e) =>
-                        handleAuthorChange(index, "email", e.target.value)
-                      }
-                      disabled={index === 0}
-                      placeholder="Email"
-                      className={`px-3 py-2 rounded text-sm border border-border-light ${index === 0 ? "bg-gray-100" : ""}`}
-                    />
-                    <input
-                      type="text"
-                      value={author.affiliation || ""}
-                      onChange={(e) =>
-                        handleAuthorChange(index, "affiliation", e.target.value)
-                      }
-                      placeholder="Đơn vị công tác (Affiliation)"
-                      className="col-span-2 px-3 py-2 rounded text-sm border border-border-light"
-                    />
+                    {title && (
+                      <AISpellCheck
+                        text={title}
+                        userId={user?.id || 'guest'}
+                        fieldType="title"
+                        onApply={(correctedText) => setTitle(correctedText)}
+                      />
+                    )}
                   </div>
-                </div>
-              ))}
-
-              <button
-                onClick={handleAddAuthor}
-                className="flex items-center justify-center gap-2 border border-dashed border-primary text-primary py-3 rounded-lg hover:bg-blue-50 font-medium text-sm"
-              >
-                <span className="material-symbols-outlined">add</span> Thêm tác
-                giả
-              </button>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className="flex flex-col gap-5">
-              <div className="flex items-center justify-between bg-purple-50 dark:bg-purple-900/10 p-4 rounded-lg border border-purple-100 dark:border-purple-800">
-                <div className="flex items-start gap-3">
-                  <span className="material-symbols-outlined text-purple-600">
-                    psychology
-                  </span>
-                  <div>
-                    <h4 className="font-bold text-sm text-purple-800 dark:text-purple-300">
-                      AI Plagiarism Check
-                    </h4>
-                    <p className="text-xs text-purple-700 dark:text-purple-400">
-                      Hệ thống sẽ tự động quét trùng lặp sau khi tải lên.
-                    </p>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-bold">
+                      Tóm tắt (Abstract) <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={abstract}
+                      onChange={(e) => setAbstract(e.target.value)}
+                      className="w-full h-32 p-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none resize-none"
+                      placeholder="Tối đa 300 từ..."
+                    ></textarea>
+                    {abstract && (
+                      <AISpellCheck
+                        text={abstract}
+                        userId={user?.id || 'guest'}
+                        fieldType="abstract"
+                        onApply={(correctedText) => setAbstract(correctedText)}
+                      />
+                    )}
                   </div>
-                </div>
-                <AIBadge label="Powered" size="sm" />
-              </div>
-
-              <div
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                className="border-2 border-dashed border-gray-300 rounded-xl p-10 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-50 transition-colors relative"
-              >
-                <input
-                  type="file"
-                  accept=".pdf"
-                  onChange={handleFileChange}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                />
-                <span className="material-symbols-outlined text-[48px] text-gray-400 mb-2">
-                  cloud_upload
-                </span>
-                <p className="font-medium">
-                  {file ? (
-                    file.name
-                  ) : (
-                    <span>
-                      Kéo thả file PDF vào đây hoặc{" "}
-                      <span className="text-primary underline">chọn file</span>
-                    </span>
-                  )}
-                </p>
-                <p className="text-xs text-text-sec-light mt-2">
-                  Định dạng PDF, tối đa 10MB.
-                </p>
-              </div>
-              {!editMode && (
-                <div className="flex items-center gap-2 mt-2">
-                  <input
-                    type="checkbox"
-                    id="confirm"
-                    checked={agree}
-                    onChange={(e) => setAgree(e.target.checked)}
-                    className="rounded text-primary focus:ring-primary"
-                  />
-                  <label
-                    htmlFor="confirm"
-                    className="text-sm text-text-sec-light"
-                  >
-                    Tôi cam kết bài báo này chưa từng được xuất bản ở bất kỳ đâu.
-                  </label>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-bold">Từ khóa (Keywords)</label>
+                    <input
+                      type="text"
+                      value={keywords}
+                      onChange={(e) => setKeywords(e.target.value)}
+                      className="w-full h-10 px-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none"
+                      placeholder="Ví dụ: AI, IoT, Smart City (ngăn cách bởi dấu phẩy)"
+                    />
+                    {keywords && (
+                      <AISpellCheck
+                        text={keywords}
+                        userId={user?.id || 'guest'}
+                        fieldType="keywords"
+                        onApply={(correctedText) => setKeywords(correctedText)}
+                      />
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-bold">
+                      Chủ đề (Track) <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={topicId || ""}
+                      onChange={(e) => setTopicId(e.target.value)}
+                      disabled={!conferenceId || isLoadingTracks}
+                      className={`w-full h-10 px-3 rounded border border-border-light focus:ring-2 focus:ring-primary outline-none ${!conferenceId || isLoadingTracks ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
+                    >
+                      <option value="">
+                        {!conferenceId ? 'Vui lòng chọn hội nghị trước' : isLoadingTracks ? 'Đang tải tracks...' : 'Chọn chủ đề phù hợp...'}
+                      </option>
+                      {tracks.map((track) => (
+                        <option key={track.trackId} value={track.trackId}>
+                          {track.name}
+                        </option>
+                      ))}
+                    </select>
+                    {conferenceId && tracks.length === 0 && !isLoadingTracks && (
+                      <p className="text-xs text-orange-600">
+                        Hội nghị này chưa có track nào. Vui lòng liên hệ Chair để thêm track.
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
-            </div>
-          )}
 
-          {/* Actions */}
-          <div className="flex justify-between mt-8 pt-6 border-t border-border-light">
-            {step > 1 ? (
-              <button
-                onClick={() => setStep(step - 1)}
-                className="px-6 py-2 rounded border border-border-light hover:bg-gray-100 font-medium text-sm"
-              >
-                Quay lại
-              </button>
-            ) : (
-              <button
-                onClick={() => onNavigate("author-dashboard")}
-                className="px-6 py-2 rounded text-text-sec-light hover:text-red-500 font-medium text-sm"
-              >
-                Hủy bỏ
-              </button>
-            )}
+              {step === 2 && (
+                <div className="flex flex-col gap-5">
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 flex gap-2">
+                    <span className="material-symbols-outlined text-primary">
+                      info
+                    </span>
+                    <p className="text-sm text-blue-800">
+                      Tác giả đầu tiên sẽ được mặc định là tác giả liên hệ
+                      (Corresponding Author).
+                    </p>
+                  </div>
 
-            {step < 3 ? (
-              <button
-                onClick={() => {
-                  if (step === 1) {
-                    if (!title || !abstract || !topicId || !conferenceId) {
-                      alert(
-                        "Vui lòng điền đầy đủ thông tin bắt buộc (bao gồm Hội nghị).",
-                      );
-                      return;
-                    }
-                  }
-                  setStep(step + 1);
-                }}
-                className="px-6 py-2 rounded bg-primary text-white hover:bg-primary-hover font-medium text-sm shadow-sm"
-              >
-                Tiếp tục
-              </button>
-            ) : (
-              <button
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-                className={`px-6 py-2 rounded bg-green-600 text-white hover:bg-green-700 font-bold text-sm shadow-md flex items-center gap-2 ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                {isSubmitting ? (
-                  editMode ? "Đang cập nhật..." : "Đang nộp..."
+                  {authors.map((author, index) => (
+                    <div
+                      key={index}
+                      className="border border-border-light rounded-lg p-4 relative"
+                    >
+                      <div className="flex justify-between items-center mb-3">
+                        <h3 className="font-bold text-sm">
+                          Tác giả {index + 1} {index === 0 ? "(Bạn)" : ""}
+                        </h3>
+                        {index > 0 && (
+                          <button
+                            onClick={() => handleRemoveAuthor(index)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <span className="material-symbols-outlined text-sm">
+                              delete
+                            </span>
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <input
+                          type="text"
+                          value={author.fullName}
+                          onChange={(e) =>
+                            handleAuthorChange(index, "fullName", e.target.value)
+                          }
+                          disabled={index === 0}
+                          placeholder="Họ và tên"
+                          className={`px-3 py-2 rounded text-sm border border-border-light ${index === 0 ? "bg-gray-100" : ""}`}
+                        />
+                        <input
+                          type="text"
+                          value={author.email}
+                          onChange={(e) =>
+                            handleAuthorChange(index, "email", e.target.value)
+                          }
+                          disabled={index === 0}
+                          placeholder="Email"
+                          className={`px-3 py-2 rounded text-sm border border-border-light ${index === 0 ? "bg-gray-100" : ""}`}
+                        />
+                        <input
+                          type="text"
+                          value={author.affiliation || ""}
+                          onChange={(e) =>
+                            handleAuthorChange(index, "affiliation", e.target.value)
+                          }
+                          placeholder="Đơn vị công tác (Affiliation)"
+                          className="col-span-2 px-3 py-2 rounded text-sm border border-border-light"
+                        />
+                      </div>
+                    </div>
+                  ))}
+
+                  <button
+                    onClick={handleAddAuthor}
+                    className="flex items-center justify-center gap-2 border border-dashed border-primary text-primary py-3 rounded-lg hover:bg-blue-50 font-medium text-sm"
+                  >
+                    <span className="material-symbols-outlined">add</span> Thêm tác
+                    giả
+                  </button>
+                </div>
+              )}
+
+              {step === 3 && (
+                <div className="flex flex-col gap-5">
+                  <div className="flex items-center justify-between bg-purple-50 dark:bg-purple-900/10 p-4 rounded-lg border border-purple-100 dark:border-purple-800">
+                    <div className="flex items-start gap-3">
+                      <span className="material-symbols-outlined text-purple-600">
+                        psychology
+                      </span>
+                      <div>
+                        <h4 className="font-bold text-sm text-purple-800 dark:text-purple-300">
+                          AI Plagiarism Check
+                        </h4>
+                        <p className="text-xs text-purple-700 dark:text-purple-400">
+                          Hệ thống sẽ tự động quét trùng lặp sau khi tải lên.
+                        </p>
+                      </div>
+                    </div>
+                    <AIBadge label="Powered" size="sm" />
+                  </div>
+
+                  <div
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    className="border-2 border-dashed border-gray-300 rounded-xl p-10 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-50 transition-colors relative"
+                  >
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      onChange={handleFileChange}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <span className="material-symbols-outlined text-[48px] text-gray-400 mb-2">
+                      cloud_upload
+                    </span>
+                    <p className="font-medium">
+                      {file ? (
+                        file.name
+                      ) : (
+                        <span>
+                          Kéo thả file PDF vào đây hoặc{" "}
+                          <span className="text-primary underline">chọn file</span>
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-text-sec-light mt-2">
+                      Định dạng PDF, tối đa 10MB.
+                    </p>
+                  </div>
+                  {!editMode && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <input
+                        type="checkbox"
+                        id="confirm"
+                        checked={agree}
+                        onChange={(e) => setAgree(e.target.checked)}
+                        className="rounded text-primary focus:ring-primary"
+                      />
+                      <label
+                        htmlFor="confirm"
+                        className="text-sm text-text-sec-light"
+                      >
+                        Tôi cam kết bài báo này chưa từng được xuất bản ở bất kỳ đâu.
+                      </label>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex justify-between mt-8 pt-6 border-t border-border-light">
+                {step > 1 ? (
+                  <button
+                    onClick={() => setStep(step - 1)}
+                    className="px-6 py-2 rounded border border-border-light hover:bg-gray-100 font-medium text-sm"
+                  >
+                    Quay lại
+                  </button>
                 ) : (
-                  <>
-                    <span className="material-symbols-outlined text-[18px]">
-                      check
-                    </span>{" "}
-                    {editMode ? "Cập nhật bài báo" : "Hoàn tất nộp bài"}
-                  </>
+                  <button
+                    onClick={() => onNavigate("author-dashboard")}
+                    className="px-6 py-2 rounded text-text-sec-light hover:text-red-500 font-medium text-sm"
+                  >
+                    Hủy bỏ
+                  </button>
                 )}
-              </button>
-            )}
-          </div>
+
+                {step < 3 ? (
+                  <button
+                    onClick={() => {
+                      if (step === 1) {
+                        if (!title || !abstract || !topicId || !conferenceId) {
+                          alert(
+                            "Vui lòng điền đầy đủ thông tin bắt buộc (bao gồm Hội nghị).",
+                          );
+                          return;
+                        }
+                      }
+                      setStep(step + 1);
+                    }}
+                    className="px-6 py-2 rounded bg-primary text-white hover:bg-primary-hover font-medium text-sm shadow-sm"
+                  >
+                    Tiếp tục
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSubmit}
+                    disabled={isSubmitting}
+                    className={`px-6 py-2 rounded bg-green-600 text-white hover:bg-green-700 font-bold text-sm shadow-md flex items-center gap-2 ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    {isSubmitting ? (
+                      editMode ? "Đang cập nhật..." : "Đang nộp..."
+                    ) : (
+                      <>
+                        <span className="material-symbols-outlined text-[18px]">
+                          check
+                        </span>{" "}
+                        {editMode ? "Cập nhật bài báo" : "Hoàn tất nộp bài"}
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
             </>
           )}
         </div>

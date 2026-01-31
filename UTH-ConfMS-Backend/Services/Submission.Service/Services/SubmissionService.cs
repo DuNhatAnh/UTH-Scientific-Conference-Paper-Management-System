@@ -92,11 +92,12 @@ public class SubmissionService : ISubmissionService
                 a.AuthorOrder,
                 a.IsCorresponding
             )).ToList(),
-            submission.Files.Select(f => new FileInfoDto(
+            submission.Files.OrderByDescending(f => f.UploadedAt).Select(f => new FileInfoDto(
                 f.FileId,
                 f.FileName,
                 f.FileSizeBytes,
-                f.UploadedAt
+                f.UploadedAt,
+                f.FileType
             )).ToList()
         )
         {
@@ -212,6 +213,12 @@ public class SubmissionService : ISubmissionService
         if (request.Title != null) submission.Title = request.Title;
         if (request.Abstract != null) submission.Abstract = request.Abstract;
 
+        // Handle file upload if provided (Overwrite)
+        if (request.File != null && request.File.Length > 0)
+        {
+            await UploadFileAsync(submission.Id, request.File, userId);
+        }
+
         // Automatically set to submitted if it was draft or being updated
         submission.Status = "SUBMITTED";
         if (submission.SubmittedAt == null) 
@@ -288,12 +295,18 @@ public class SubmissionService : ISubmissionService
         _logger.LogInformation("Submission {SubmissionId} status updated to {Status}", submissionId, status);
     }
 
-    public async Task<FileInfoDto> UploadFileAsync(Guid submissionId, IFormFile file, Guid userId)
+    public async Task<FileInfoDto> UploadFileAsync(Guid submissionId, IFormFile file, Guid userId, string fileType = "PAPER")
     {
         var submission = await _unitOfWork.Submissions.GetByIdAsync(submissionId);
         if (submission == null)
         {
             throw new InvalidOperationException("Submission not found");
+        }
+
+        // If uploading camera-ready, update status
+        if (fileType.ToUpper() == "CAMERA_READY")
+        {
+            submission.Status = "CAMERA_READY";
         }
 
         var directory = $"submissions/{submission.ConferenceId}/{submissionId}";
@@ -303,11 +316,11 @@ public class SubmissionService : ISubmissionService
         {
             FileId = Guid.NewGuid(),
             SubmissionId = submissionId,
-            FileName = Path.GetFileName(filePath),
+            FileName = file.FileName, // Use original filename
             FilePath = filePath,
             FileSizeBytes = file.Length,
-            FileType = Path.GetExtension(file.FileName).TrimStart('.').ToUpper(),
-            IsMainPaper = true,
+            FileType = fileType.ToUpper(),
+            IsMainPaper = fileType.ToUpper() != "SUPPLEMENTARY", // Main paper or Camera-ready
             UploadedBy = userId,
             UploadedAt = DateTime.UtcNow
         };
@@ -321,7 +334,8 @@ public class SubmissionService : ISubmissionService
             submissionFile.FileId,
             submissionFile.FileName,
             submissionFile.FileSizeBytes,
-            submissionFile.UploadedAt
+            submissionFile.UploadedAt,
+            submissionFile.FileType
         );
     }
 
@@ -396,9 +410,10 @@ public class SubmissionService : ISubmissionService
                 a.AuthorOrder,
                 a.IsCorresponding
             )).ToList(),
-            submission.Files.FirstOrDefault()?.FileName,
-            submission.Files.FirstOrDefault()?.FileId,
-            submission.Files.FirstOrDefault()?.FileSizeBytes
+            submission.Files.OrderByDescending(f => f.UploadedAt).FirstOrDefault()?.FileName,
+            submission.Files.OrderByDescending(f => f.UploadedAt).FirstOrDefault()?.FileId,
+            submission.Files.OrderByDescending(f => f.UploadedAt).FirstOrDefault()?.FileSizeBytes,
+            null // Deadline will be populated separately if needed to avoid N+1 or use a cache
         )
         {
             TrackName = GetTrackName(submission.TrackId)

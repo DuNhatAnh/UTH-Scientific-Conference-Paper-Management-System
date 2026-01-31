@@ -5,6 +5,7 @@ import reviewApi, {
   ReviewSummaryDto,
   MakeDecisionRequest,
 } from "../../services/reviewApi";
+import { paperApi } from "../../services/paper";
 import { ReviewSummaryModal } from "../../components/ReviewSummaryModal";
 import { DecisionModal } from "../../components/DecisionModal";
 
@@ -100,6 +101,72 @@ export const SubmissionManagement: React.FC<SubmissionManagementProps> = ({
     }
   };
 
+  const getStatusLabel = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "submitted":
+        return "Đã nộp";
+      case "under_review":
+      case "under review":
+        return "Đang phản biện";
+      case "accepted":
+        return "Được chấp nhận";
+      case "rejected":
+        return "Bị từ chối";
+      case "revision":
+      case "revision_required":
+        return "Cần chỉnh sửa";
+      case "camera_ready":
+        return "Chờ duyệt kỷ yếu";
+      case "finalized":
+        return "Đã chốt kỷ yếu";
+      case "completed":
+        return "Hoàn thành phản biện";
+      default:
+        return status;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "submitted":
+        return "bg-blue-100 text-blue-700";
+      case "under_review":
+      case "under review":
+        return "bg-yellow-100 text-yellow-700";
+      case "accepted":
+        return "bg-green-100 text-green-700";
+      case "rejected":
+        return "bg-red-100 text-red-700";
+      case "revision":
+      case "revision_required":
+        return "bg-orange-100 text-orange-700";
+      case "camera_ready":
+        return "bg-purple-100 text-purple-700";
+      case "finalized":
+        return "bg-indigo-100 text-indigo-700";
+      case "completed":
+        return "bg-green-100 text-green-700";
+      default:
+        return "bg-gray-100 text-gray-700";
+    }
+  };
+
+  const handleFinalize = async (id: string | number) => {
+    if (window.confirm("Bạn có chắc chắn muốn duyệt và khóa bài báo này đưa vào kỷ yếu? Sau khi khóa, tác giả sẽ không thể thay đổi thông tin.")) {
+      try {
+        setLoading(true);
+        await paperApi.updateStatus(id.toString(), "FINALIZED");
+        alert("Đã khóa và duyệt kỷ yếu thành công!");
+        loadSubmissions();
+      } catch (error) {
+        console.error("Error finalizing paper:", error);
+        alert("Có lỗi xảy ra khi khóa bài báo.");
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
   return (
     <div className="w-full bg-background-light dark:bg-background-dark py-8 px-5 md:px-10 flex justify-center">
       <div className="w-full max-w-[1200px] flex flex-col gap-6">
@@ -115,7 +182,7 @@ export const SubmissionManagement: React.FC<SubmissionManagementProps> = ({
             className="text-gray-500 hover:text-primary transition font-medium flex items-center gap-1"
           >
             <span className="material-symbols-outlined">arrow_back</span>
-            Back to Dashboard
+            Quay lại Dashboard
           </button>
         </div>
 
@@ -139,8 +206,8 @@ export const SubmissionManagement: React.FC<SubmissionManagementProps> = ({
                   <th className="p-3">ID</th>
                   <th className="p-3">Tiêu đề</th>
                   <th className="p-3">Chủ đề</th>
-                  <th className="p-3 text-center">Reviews</th>
-                  <th className="p-3 text-center">Avg Score</th>
+                  <th className="p-3 text-center">Đánh giá</th>
+                  <th className="p-3 text-center">Điểm TB</th>
                   <th className="p-3">Trạng thái</th>
                   <th className="p-3 text-right">Tác vụ</th>
                 </tr>
@@ -170,8 +237,8 @@ export const SubmissionManagement: React.FC<SubmissionManagementProps> = ({
                       {sub.averageScore ? sub.averageScore.toFixed(1) : "-"}
                     </td>
                     <td className="p-3">
-                      <span className="px-2 py-1 bg-gray-100 rounded text-xs">
-                        {sub.currentStatus}
+                      <span className={`inline-flex w-fit px-3 py-1 rounded-full text-[11px] font-bold uppercase whitespace-nowrap ${getStatusColor(sub.currentStatus)}`}>
+                        {getStatusLabel(sub.currentStatus)}
                       </span>
                     </td>
                     <td className="p-3 text-right space-x-2">
@@ -189,6 +256,14 @@ export const SubmissionManagement: React.FC<SubmissionManagementProps> = ({
                       >
                         Quyết định
                       </button>
+                      {sub.currentStatus.toUpperCase() === "CAMERA_READY" && (
+                        <button
+                          onClick={() => handleFinalize(sub.submissionId)}
+                          className="bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1.5 rounded transition shadow-sm"
+                        >
+                          Duyệt kỷ yếu
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -204,6 +279,7 @@ export const SubmissionManagement: React.FC<SubmissionManagementProps> = ({
         onClose={closeSummary}
         summary={summaryData}
         isLoading={loadingSummary}
+        onFinalize={handleFinalize}
       />
 
       {/* Decision Modal */}

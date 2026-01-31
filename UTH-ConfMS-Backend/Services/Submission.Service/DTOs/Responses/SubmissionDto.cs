@@ -11,7 +11,8 @@ public record SubmissionDto(
     List<AuthorDto> Authors,
     string? FileName = null,
     Guid? FileId = null,
-    long? FileSizeBytes = null
+    long? FileSizeBytes = null,
+    DateTime? SubmissionDeadline = null
 )
 {
     public string? TrackName { get; set; }

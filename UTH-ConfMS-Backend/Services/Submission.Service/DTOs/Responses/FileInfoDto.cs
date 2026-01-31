@@ -4,5 +4,6 @@ public record FileInfoDto(
     Guid Id,
     string FileName,
     long FileSizeBytes,
-    DateTime UploadedAt
+    DateTime UploadedAt,
+    string? FileType = null
 );

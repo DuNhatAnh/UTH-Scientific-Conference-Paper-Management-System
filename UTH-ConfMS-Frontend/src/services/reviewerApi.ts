@@ -18,11 +18,12 @@ export interface ReviewerInvitationDto {
   id: number;
   email: string;
   fullName: string;
-  token?: string;
+  token: string;
   conferenceId: string;
   conferenceName?: string; // Added from Backend
   status: 'Pending' | 'Accepted' | 'Declined';
   sentAt: string;
+  respondedAt?: string;
 }
 
 export interface ReviewableSubmissionDto {
@@ -36,7 +37,7 @@ export interface ReviewableSubmissionDto {
   authors: string[];
   reviewStatus: string; // 'None' | 'Draft' | 'Submitted'
   reviewId?: number;
-  assignmentId?: number;
+  assignmentId?: string;
   fileId?: string;
   fileSizeBytes?: number;
   conferenceId?: string;
@@ -53,6 +54,12 @@ export const reviewerApi = {
   // 2. User: Phản hồi lời mời (Accept/Decline)
   respondInvitation: async (data: InvitationResponseDTO) => {
     const response = await apiClient.post('/api/reviewers/invitation/respond', data);
+    return response.data;
+  },
+
+  // 2a. Public: Lấy thông tin lời mời theo token (không cần auth)
+  getInvitationByToken: async (token: string): Promise<ReviewerInvitationDto> => {
+    const response = await apiClient.get(`/api/reviewers/invitation/by-token/${token}`);
     return response.data;
   },
 

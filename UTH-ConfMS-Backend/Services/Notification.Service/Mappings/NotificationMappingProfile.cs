@@ -1,5 +1,6 @@
 using AutoMapper;
-using Notification.Service.DTOs;
+using Notification.Service.DTOs.Requests;
+using Notification.Service.DTOs.Responses;
 using Notification.Service.Entities;
 
 namespace Notification.Service.Mappings;

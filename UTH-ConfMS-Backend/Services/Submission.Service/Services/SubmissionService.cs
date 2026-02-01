@@ -6,6 +6,8 @@ using Submission.Service.Interfaces;
 using Submission.Service.Interfaces.Services;
 using Submission.Service.DTOs.External;
 using SubmissionEntity = Submission.Service.Entities.Submission;
+using MassTransit;
+using UTH.ConfMS.Shared.Infrastructure.EventBus;
 
 namespace Submission.Service.Services;
 
@@ -15,17 +17,20 @@ public class SubmissionService : ISubmissionService
     private readonly IFileStorageService _fileStorage;
     private readonly ILogger<SubmissionService> _logger;
     private readonly IConferenceClient _conferenceClient;
+    private readonly IPublishEndpoint _publishEndpoint;
 
     public SubmissionService(
         IUnitOfWork unitOfWork,
         IFileStorageService fileStorage,
         ILogger<SubmissionService> logger,
-        IConferenceClient conferenceClient)
+        IConferenceClient conferenceClient,
+        IPublishEndpoint publishEndpoint)
     {
         _unitOfWork = unitOfWork;
         _fileStorage = fileStorage;
         _logger = logger;
         _conferenceClient = conferenceClient;
+        _publishEndpoint = publishEndpoint;
     }
 
     public async Task<PagedResponse<SubmissionDto>> GetSubmissionsAsync(
@@ -166,6 +171,44 @@ public class SubmissionService : ISubmissionService
                 // We don't rollback the submission but we log the error. 
                 // Alternatively, we could throw to let the controller handle it, but the submission is technically created.
             }
+        }
+
+        // Publish PaperSubmittedEvent to notify author
+        try
+        {
+            // Get author info - corresponding author or first author
+            var correspondingAuthor = authors.FirstOrDefault(a => a.IsCorresponding) ?? authors.FirstOrDefault();
+            var conferenceName = "Conference"; // Default fallback
+            
+            // Try to get conference name from conference service
+            try
+            {
+                var conference = await _conferenceClient.GetConferenceByIdAsync(submission.ConferenceId);
+                conferenceName = conference?.Title ?? conferenceName;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not retrieve conference name for {ConferenceId}", submission.ConferenceId);
+            }
+
+            await _publishEndpoint.Publish(new PaperSubmittedEvent
+            {
+                PaperId = submission.Id,
+                AuthorId = submitterId,
+                AuthorEmail = correspondingAuthor?.Email ?? string.Empty,
+                AuthorName = correspondingAuthor?.FullName ?? "Author",
+                PaperTitle = submission.Title,
+                ConferenceId = submission.ConferenceId,
+                ConferenceName = conferenceName,
+                SubmittedAt = submission.SubmittedAt ?? DateTime.UtcNow
+            });
+
+            _logger.LogInformation("Published PaperSubmittedEvent for submission {SubmissionId}", submission.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to publish PaperSubmittedEvent for submission {SubmissionId}", submission.Id);
+            // Don't throw - notification failure shouldn't fail the submission
         }
 
         return MapToDto(submission!);

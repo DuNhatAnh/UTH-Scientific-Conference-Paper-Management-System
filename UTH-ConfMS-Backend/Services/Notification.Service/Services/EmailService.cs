@@ -2,7 +2,7 @@ using Microsoft.Extensions.Options;
 using MimeKit;
 using MailKit.Net.Smtp; // Lưu ý: Class SmtpClient của MailKit khác System.Net.Mail
 using MailKit.Security;
-using Notification.Service.DTOs;
+using Notification.Service.DTOs.Requests;
 using Notification.Service.Interfaces;
 using Notification.Service.Configuration;
 

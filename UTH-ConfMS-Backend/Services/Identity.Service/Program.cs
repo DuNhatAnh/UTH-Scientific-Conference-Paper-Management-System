@@ -136,7 +136,11 @@ builder.Services.AddScoped<IRoleRepository, Identity.Service.Repositories.RoleRe
 builder.Services.AddScoped<IAuthService, Identity.Service.Services.AuthService>();
 builder.Services.AddScoped<IUserService, Identity.Service.Services.UserService>(); // TODO: Implement UserService
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>(); // TODO: Implement JwtTokenService
+builder.Services.AddScoped<IRoleContextService, RoleContextService>(); // Role context switching service
 builder.Services.AddSingleton<UTH.ConfMS.Shared.Infrastructure.Audit.IAuditLogger, UTH.ConfMS.Shared.Infrastructure.Audit.KafkaAuditLogger>();
+
+// HttpClient for inter-service communication
+builder.Services.AddHttpClient();
 
 
 // AutoMapper

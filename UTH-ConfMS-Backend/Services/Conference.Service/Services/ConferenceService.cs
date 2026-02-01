@@ -104,6 +104,20 @@ public class ConferenceService : IConferenceService
 
         _logger.LogInformation("Conference {Acronym} created by user {UserId}", conference.Acronym, createdBy);
 
+        // Sync Role to Identity Service (Assign "CONFERENCE_CHAIR" role)
+        try
+        {
+            // Note: Role name should match Identity Service constants. Assuming "Chair" based on user context.
+            // Using "Conference Chair" or just "Chair". Step 188 uses request.RoleName directly.
+            // Step 144: "AUTHOR, REVIEWER, CONFERENCE_CHAIR".
+            await _identityIntegration.AssignRoleAsync(createdBy, "CONFERENCE_CHAIR");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to sync Chair role to Identity Service for user {UserId}", createdBy);
+            // Don't fail the request, just log
+        }
+
         return _mapper.Map<ConferenceDto>(conference);
     }
 
@@ -364,6 +378,18 @@ public class ConferenceService : IConferenceService
             var user = (await _identityIntegration.GetUsersByIdsAsync(new List<Guid> { request.UserId })).FirstOrDefault();
             if (user != null && !string.IsNullOrEmpty(user.Email))
             {
+                // 1. Send In-App Notification
+                await _publishEndpoint.Publish(new CreateNotificationEvent
+                {
+                    UserId = user.Id,
+                    NotificationType = "INVITATION",
+                    Title = "Invitation to Program Committee",
+                    Message = $"You have been invited to join the Program Committee for {conference.Acronym} as {request.Role}.",
+                    ActionUrl = $"/conferences/{conference.ConferenceId}",
+                    SendEmail = false 
+                });
+
+                // 2. Send Email Notification
                 await _publishEndpoint.Publish(new SendEmailEvent
                 {
                     ToEmail = user.Email,
@@ -387,6 +413,21 @@ public class ConferenceService : IConferenceService
             // Don't block the main flow
         }
 
+        // Sync Role to Identity Service (Assign "REVIEWER" or role from request)
+        try
+        {
+            // request.Role usually is "Reviewer" or "Chair". Map to Identity Role Name.
+            // If request.Role is "Program Committee", maybe map to "REVIEWER"?
+            // Assuming request.Role is valid Identity Role for now, or "REVIEWER" as fallback.
+            string targetRole = request.Role?.ToUpper() == "CHAIR" ? "CONFERENCE_CHAIR" : "REVIEWER";
+            
+            await _identityIntegration.AssignRoleAsync(request.UserId, targetRole);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to sync role {Role} to Identity Service for user {UserId}", request.Role, request.UserId);
+        }
+
         return _mapper.Map<CommitteeMemberDto>(member);
     }
 
@@ -401,4 +442,6 @@ public class ConferenceService : IConferenceService
         await _unitOfWork.CommitteeMembers.DeleteAsync(member);
         await _unitOfWork.SaveChangesAsync();
     }
+
+
 }

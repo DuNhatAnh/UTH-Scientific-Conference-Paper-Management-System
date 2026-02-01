@@ -55,6 +55,8 @@ public class ConferencesController : ControllerBase
         }
     }
 
+
+
     /// <summary>
     /// Get conference by ID
     /// </summary>

@@ -61,14 +61,19 @@ namespace Review.Service.Controllers
         }
 
             // POST: api/assignments/{assignmentId}/accept
-            [HttpPost("{assignmentId}/accept")]
+            [HttpPost("{assignmentId:guid}/accept")]
             [Authorize]
-            public async Task<IActionResult> AcceptAssignment(int assignmentId)
+            public async Task<IActionResult> AcceptAssignment(Guid assignmentId)
             {
                 try
                 {
-                    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0";
-                    var result = await _assignmentService.RespondToAssignmentAsync(assignmentId, true, userId);
+                    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
+                    {
+                        return Unauthorized(new { message = "Invalid user ID" });
+                    }
+                    
+                    var result = await _assignmentService.RespondToAssignmentAsync(assignmentId, true, userGuid);
                     if (result) return Ok(new { message = "Đã chấp nhận phân công." });
                     return BadRequest(new { message = "Không thể chấp nhận phân công." });
                 }
@@ -79,14 +84,19 @@ namespace Review.Service.Controllers
             }
 
             // POST: api/assignments/{assignmentId}/reject
-            [HttpPost("{assignmentId}/reject")]
+            [HttpPost("{assignmentId:guid}/reject")]
             [Authorize]
-            public async Task<IActionResult> RejectAssignment(int assignmentId)
+            public async Task<IActionResult> RejectAssignment(Guid assignmentId, [FromBody] RejectAssignmentRequest? request)
             {
                 try
                 {
-                    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0";
-                    var result = await _assignmentService.RespondToAssignmentAsync(assignmentId, false, userId);
+                    var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
+                    {
+                        return Unauthorized(new { message = "Invalid user ID" });
+                    }
+                    
+                    var result = await _assignmentService.RespondToAssignmentAsync(assignmentId, false, userGuid);
                     if (result) return Ok(new { message = "Đã từ chối phân công." });
                     return BadRequest(new { message = "Không thể từ chối phân công." });
                 }
@@ -95,5 +105,10 @@ namespace Review.Service.Controllers
                     return BadRequest(new { message = ex.Message });
                 }
             }
+    }
+    
+    public class RejectAssignmentRequest
+    {
+        public string? Reason { get; set; }
     }
 }

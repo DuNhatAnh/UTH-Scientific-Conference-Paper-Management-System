@@ -10,12 +10,50 @@ public class HttpIdentityIntegration : IIdentityIntegration
     private readonly HttpClient _httpClient;
     private readonly ILogger<HttpIdentityIntegration> _logger;
     private readonly Microsoft.AspNetCore.Http.IHttpContextAccessor _httpContextAccessor;
+    private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
 
-    public HttpIdentityIntegration(HttpClient httpClient, ILogger<HttpIdentityIntegration> logger, Microsoft.AspNetCore.Http.IHttpContextAccessor httpContextAccessor)
+    public HttpIdentityIntegration(
+        HttpClient httpClient, 
+        ILogger<HttpIdentityIntegration> logger, 
+        Microsoft.AspNetCore.Http.IHttpContextAccessor httpContextAccessor,
+        Microsoft.Extensions.Configuration.IConfiguration configuration)
     {
         _httpClient = httpClient;
         _logger = logger;
         _httpContextAccessor = httpContextAccessor;
+        _configuration = configuration;
+    }
+
+    public async Task<bool> AssignRoleAsync(Guid userId, string roleName)
+    {
+        try
+        {
+            var apiKey = _configuration["Identity:InternalApiKey"] ?? "auth-secret-key-123";
+            
+            // Create a request message to avoid modifying the DefaultRequestHeaders of the shared HttpClient
+            var request = new HttpRequestMessage(HttpMethod.Post, $"/api/internal/users/{userId}/roles");
+            request.Headers.Add("X-Internal-Api-Key", apiKey);
+            request.Content = new StringContent(
+                JsonSerializer.Serialize(new { RoleName = roleName }), 
+                Encoding.UTF8, 
+                "application/json");
+
+            var response = await _httpClient.SendAsync(request);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation("Successfully assigned role {RoleName} to user {UserId}", roleName, userId);
+                return true;
+            }
+            
+            _logger.LogWarning("Failed to assign role {RoleName}. Status: {Status}", roleName, response.StatusCode);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception assigning role {RoleName} via Identity Integration", roleName);
+            return false;
+        }
     }
 
     public async Task<List<UserDto>> GetUsersByIdsAsync(List<Guid> userIds)

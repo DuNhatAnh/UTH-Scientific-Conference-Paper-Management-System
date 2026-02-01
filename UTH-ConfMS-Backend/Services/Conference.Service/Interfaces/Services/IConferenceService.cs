@@ -24,4 +24,5 @@ public interface IConferenceService
 
     Task<List<DeadlineDto>> GetDeadlinesAsync(Guid conferenceId);
     Task<DeadlineDto> AddDeadlineAsync(Guid conferenceId, CreateDeadlineRequest request);
+
 }

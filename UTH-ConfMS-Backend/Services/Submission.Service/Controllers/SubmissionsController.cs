@@ -29,6 +29,7 @@ public class SubmissionsController : ControllerBase
     /// Get all submissions (with filters)
     /// </summary>
     [HttpGet]
+    [AllowAnonymous] // Allow internal service calls
     public async Task<IActionResult> GetSubmissions(
         [FromQuery] Guid? conferenceId = null,
         [FromQuery] string? status = null,

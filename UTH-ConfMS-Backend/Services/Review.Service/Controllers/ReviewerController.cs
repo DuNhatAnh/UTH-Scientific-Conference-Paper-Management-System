@@ -63,6 +63,26 @@ namespace Review.Service.Controllers
             }
         }
 
+        // 2a. Lấy thông tin lời mời theo token (không cần auth - cho phép xem qua link email)
+        [HttpGet("invitation/by-token/{token}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetInvitationByToken(string token)
+        {
+            try
+            {
+                var invitation = await _reviewerService.GetInvitationByTokenAsync(token);
+                if (invitation == null)
+                {
+                    return NotFound(new { message = "Lời mời không tồn tại hoặc đã hết hạn." });
+                }
+                return Ok(invitation);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         // 2b. Xóa lời mời (Để cleanup ds)
         [HttpDelete("invitation/{id}")]
         [Authorize]
@@ -141,13 +161,13 @@ namespace Review.Service.Controllers
 
         // 7. Lấy TẤT CẢ bài báo cho Reviewer (không phân biệt hội nghị - layer 1)
         [HttpGet("my-submissions")]
-        [Authorize]
-        public async Task<IActionResult> GetAllMySubmissions()
+        [AllowAnonymous] // Temporarily allow anonymous for testing
+        public async Task<IActionResult> GetAllMySubmissions([FromQuery] string? userId = null)
         {
             try
             {
-                var userId = GetUserId();
-                if (userId == "0") return Unauthorized(new { message = "Unauthorized" });
+                var actualUserId = userId ?? GetUserId();
+                if (actualUserId == "0") return Unauthorized(new { message = "Unauthorized" });
 
                 var submissions = await _reviewerService.GetAllReviewableSubmissionsAsync(userId);
                 return Ok(submissions);

@@ -13,7 +13,7 @@ namespace UTH.ConfMS.Shared.Infrastructure.Audit
     public class KafkaAuditLogger : IAuditLogger
     {
         private readonly string _topic = "uth.audit.logs";
-        private readonly IProducer<Null, string> _producer;
+        private readonly IProducer<Null, string>? _producer;
         private readonly ILogger<KafkaAuditLogger> _logger;
 
         public KafkaAuditLogger(IConfiguration configuration, ILogger<KafkaAuditLogger> logger)

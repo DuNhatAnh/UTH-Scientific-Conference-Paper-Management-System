@@ -1,5 +1,5 @@
 using MassTransit;
-using Notification.Service.DTOs;
+using Notification.Service.DTOs.Requests;
 using Notification.Service.Interfaces;
 using UTH.ConfMS.Shared.Infrastructure.EventBus;
 

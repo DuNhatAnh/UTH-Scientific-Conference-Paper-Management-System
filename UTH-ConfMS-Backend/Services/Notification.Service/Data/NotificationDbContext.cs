@@ -16,7 +16,7 @@ public class NotificationDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.HasDefaultSchema("notification");
+        base.OnModelCreating(modelBuilder);
 
         modelBuilder.Entity<Entities.Notification>(entity =>
         {

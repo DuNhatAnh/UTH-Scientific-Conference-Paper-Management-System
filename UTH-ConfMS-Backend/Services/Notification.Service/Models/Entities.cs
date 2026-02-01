@@ -3,11 +3,11 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Notification.Service.Entities;
 
-[Table("notifications", Schema = "notification")]
+[Table("notifications")]
 public class Notification
 {
     [Key]
-    [Column("notification_id")]
+    [Column("id")]
     public Guid NotificationId { get; set; }
 
     [Column("user_id")]
@@ -19,7 +19,7 @@ public class Notification
     public string Type { get; set; } = string.Empty;
 
     [Required]
-    [MaxLength(200)]
+    [MaxLength(255)]
     [Column("title")]
     public string Title { get; set; } = string.Empty;
 
@@ -27,8 +27,9 @@ public class Notification
     [Column("message")]
     public string Message { get; set; } = string.Empty;
 
-    [Column("related_entity_id")]
-    public Guid? RelatedEntityId { get; set; }
+    [MaxLength(500)]
+    [Column("action_url")]
+    public string? ActionUrl { get; set; }
 
     [Column("is_read")]
     public bool IsRead { get; set; }
@@ -38,4 +39,8 @@ public class Notification
 
     [Column("read_at")]
     public DateTime? ReadAt { get; set; }
+
+    // Deprecated - keeping for backward compatibility
+    [Column("related_entity_id")]
+    public Guid? RelatedEntityId { get; set; }
 }

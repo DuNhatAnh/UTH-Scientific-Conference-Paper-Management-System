@@ -4,27 +4,31 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Review.Service.Entities;
 
+[Table("reviews")]
 public class PaperReview
 {
     [Key]
-    public int Id { get; set; }
+    public Guid Id { get; set; }
 
-    public int AssignmentId { get; set; }
+    public Guid AssignmentId { get; set; }
     // Navigation property to Assignment
     public Assignment Assignment { get; set; } = null!;
 
-    // Scores
-    public int NoveltyScore { get; set; }
-    public int MethodologyScore { get; set; }
-    public int PresentationScore { get; set; }
-
-    // Comments
-    public string CommentsForAuthor { get; set; } = string.Empty;
-    public string ConfidentialComments { get; set; } = string.Empty;
-
-    // Decision Recommendation: Accept, Reject, Revision
+    // Overall score 1-10
+    [Column("overall_score")]
+    public int OverallScore { get; set; }
+    // Confidence 1-5
+    [Column("confidence")]
+    public int Confidence { get; set; }
+    // Recommendation
+    [Column("recommendation")]
     public string Recommendation { get; set; } = string.Empty;
+    // Comments
+    [Column("comments")]
+    public string Comments { get; set; } = string.Empty;
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    [Column("submitted_at")]
+    public DateTime SubmittedAt { get; set; } = DateTime.UtcNow;
+    [Column("updated_at")]
     public DateTime? UpdatedAt { get; set; }
 }

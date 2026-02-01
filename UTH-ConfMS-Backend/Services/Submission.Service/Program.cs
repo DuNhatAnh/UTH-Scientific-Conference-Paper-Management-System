@@ -17,6 +17,7 @@ using Submission.Service.Interfaces;
 using Submission.Service.Interfaces.Repositories;
 using Submission.Service.Interfaces.Services;
 using Submission.Service.Repositories;
+using MassTransit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -160,6 +161,20 @@ builder.Services.AddCors(options =>
 builder.Services.AddHealthChecks()
     .AddNpgSql(builder.Configuration.GetConnectionString("DefaultConnection")!)
     .AddRedis(builder.Configuration.GetConnectionString("Redis")!);
+
+// MassTransit configuration for publishing events
+builder.Services.AddMassTransit(x =>
+{
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        var rabbitMqHost = builder.Configuration.GetConnectionString("RabbitMQ") ?? "rabbitmq";
+        cfg.Host(rabbitMqHost, "/", h =>
+        {
+            h.Username("guest");
+            h.Password("guest");
+        });
+    });
+});
 
 var app = builder.Build();
 

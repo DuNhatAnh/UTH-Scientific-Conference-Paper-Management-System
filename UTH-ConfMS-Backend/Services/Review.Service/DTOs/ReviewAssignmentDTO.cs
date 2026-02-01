@@ -2,7 +2,7 @@ namespace Review.Service.DTOs
 {
     public class ReviewAssignmentDTO
     {
-        public int Id { get; set; }
+        public Guid Id { get; set; }
         public string PaperId { get; set; }
         public string? SubmissionTitle { get; set; }
         public string? SubmissionAbstract { get; set; }

@@ -16,4 +16,5 @@ public interface IConferenceRepository
     Task<ConferenceEntity> CreateAsync(ConferenceEntity conference);
     Task UpdateAsync(ConferenceEntity conference);
     Task DeleteAsync(ConferenceEntity conference);
+
 }

@@ -99,6 +99,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = jwtSettings["Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
         };
+
+        // Configure JWT for SignalR
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+                
+                return Task.CompletedTask;
+            }
+        };
     });
 
 // Authorization Policies
@@ -111,14 +128,23 @@ builder.Services.AddScoped<INotificationService, Notification.Service.Services.N
 // AutoMapper
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
-// CORS
+// SignalR with Redis backplane
+builder.Services.AddSignalR()
+    .AddStackExchangeRedis(builder.Configuration.GetConnectionString("Redis")!, options =>
+    {
+        options.Configuration.ChannelPrefix = "NotificationService";
+    });
+
+// CORS - Updated for SignalR
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins(
+                builder.Configuration["Cors:AllowedOrigins"]?.Split(',') ?? new[] { "http://localhost:3000", "http://localhost:5173" })
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials(); // Required for SignalR
     });
 });
 
@@ -132,6 +158,11 @@ builder.Services.AddMassTransit(x =>
 {
     // Configure Consumers
     x.AddConsumer<EmailNotificationConsumer>();
+    x.AddConsumer<PaperSubmittedConsumer>();
+    x.AddConsumer<ReviewAssignedConsumer>();
+    x.AddConsumer<ReviewCompletedConsumer>();
+    x.AddConsumer<PaperDecisionMadeConsumer>();
+    x.AddConsumer<CreateNotificationConsumer>();
 
     x.UsingRabbitMq((context, cfg) =>
     {
@@ -141,9 +172,40 @@ builder.Services.AddMassTransit(x =>
             h.Password("guest");
         });
 
+        // Email notifications endpoint
         cfg.ReceiveEndpoint("email-notifications", e =>
         {
             e.ConfigureConsumer<EmailNotificationConsumer>(context);
+        });
+
+        // Paper submission notifications
+        cfg.ReceiveEndpoint("paper-submitted-notifications", e =>
+        {
+            e.ConfigureConsumer<PaperSubmittedConsumer>(context);
+        });
+
+        // Review assignment notifications
+        cfg.ReceiveEndpoint("review-assigned-notifications", e =>
+        {
+            e.ConfigureConsumer<ReviewAssignedConsumer>(context);
+        });
+
+        // Review completion notifications
+        cfg.ReceiveEndpoint("review-completed-notifications", e =>
+        {
+            e.ConfigureConsumer<ReviewCompletedConsumer>(context);
+        });
+
+        // Paper decision notifications
+        cfg.ReceiveEndpoint("paper-decision-notifications", e =>
+        {
+            e.ConfigureConsumer<PaperDecisionMadeConsumer>(context);
+        });
+
+        // Generic notification creation
+        cfg.ReceiveEndpoint("create-notifications", e =>
+        {
+            e.ConfigureConsumer<CreateNotificationConsumer>(context);
         });
     });
 });
@@ -171,7 +233,12 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
 
+// Map SignalR Hub
+app.MapHub<Notification.Service.Hubs.NotificationHub>("/hubs/notifications");
+
+
 Log.Information("Notification Service starting...");
+
 app.Run();
 Log.Information("Notification Service stopped.");
 Log.CloseAndFlush();

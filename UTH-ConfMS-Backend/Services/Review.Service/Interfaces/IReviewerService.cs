@@ -9,6 +9,7 @@ public interface IReviewerService
 {
     Task<ReviewerInvitation> InviteReviewerAsync(InviteReviewerDTO dto);
     Task<bool> RespondToInvitationAsync(InvitationResponseDTO dto, string? userId = null);
+    Task<ReviewerInvitationDto?> GetInvitationByTokenAsync(string token);
     Task<List<Reviewer>> GetReviewersByConferenceAsync(string conferenceId);
     Task<List<ReviewerInvitation>> GetInvitationsByConferenceAsync(string conferenceId);
     Task<List<ReviewerInvitationDto>> GetInvitationsForUserAsync(string userId);

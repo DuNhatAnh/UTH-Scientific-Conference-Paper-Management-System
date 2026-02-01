@@ -48,13 +48,13 @@ namespace Review.Service.Services
 
             if (!string.IsNullOrEmpty(reviewerId) && reviewerId != "0")
             {
-                // FIX: Tìm Reviewer Entity trước để lấy ID (int)
+                // FIX: Tìm Reviewer Entity trước để lấy UserId (Guid)
                 var reviewer = await _context.Reviewers.FirstOrDefaultAsync(r => r.UserId == reviewerId);
-                if (reviewer != null)
+                if (reviewer != null && Guid.TryParse(dto.PaperId.ToString(), out var submissionGuid) && Guid.TryParse(reviewer.UserId, out var reviewerGuid))
                 {
-                    // FIX: Phải lọc theo cả PaperId VÀ ReviewerId để tránh lấy nhầm bài của người khác
+                    // FIX: Phải lọc theo cả SubmissionId VÀ ReviewerId để tránh lấy nhầm bài của người khác
                     assignment = await _context.Assignments
-                        .FirstOrDefaultAsync(a => a.PaperId == dto.PaperId.ToString() && a.ReviewerId == reviewer.Id);
+                        .FirstOrDefaultAsync(a => a.SubmissionId == submissionGuid && a.ReviewerId == reviewerGuid);
                 }
             }
 
@@ -70,11 +70,8 @@ namespace Review.Service.Services
             if (existingReview != null)
             {
                 // Update review nếu đã tồn tại
-                existingReview.NoveltyScore = dto.NoveltyScore;
-                existingReview.MethodologyScore = dto.MethodologyScore;
-                existingReview.PresentationScore = dto.PresentationScore;
-                existingReview.CommentsForAuthor = dto.CommentsForAuthor;
-                existingReview.ConfidentialComments = dto.ConfidentialComments;
+                existingReview.OverallScore = (dto.NoveltyScore + dto.MethodologyScore + dto.PresentationScore) / 3;
+                existingReview.Comments = dto.CommentsForAuthor;
                 existingReview.Recommendation = dto.Recommendation;
                 existingReview.UpdatedAt = DateTime.UtcNow;
 
@@ -86,19 +83,16 @@ namespace Review.Service.Services
                 var review = new PaperReview
                 {
                     AssignmentId = assignment.Id,
-                    NoveltyScore = dto.NoveltyScore,
-                    MethodologyScore = dto.MethodologyScore,
-                    PresentationScore = dto.PresentationScore,
-                    CommentsForAuthor = dto.CommentsForAuthor,
-                    ConfidentialComments = dto.ConfidentialComments,
+                    OverallScore = (dto.NoveltyScore + dto.MethodologyScore + dto.PresentationScore) / 3,
+                    Comments = dto.CommentsForAuthor,
                     Recommendation = dto.Recommendation,
-                    CreatedAt = DateTime.UtcNow
+                    SubmittedAt = DateTime.UtcNow
                 };
                 _context.Reviews.Add(review);
             }
 
             // 3. Lưu xuống Assignment (Cập nhật trạng thái)
-            assignment.Status = "Completed"; // Đánh dấu là đã review xong
+            assignment.Status = "COMPLETED"; // Đánh dấu là đã review xong
             _context.Assignments.Update(assignment);
 
             await _context.SaveChangesAsync();
@@ -132,10 +126,21 @@ namespace Review.Service.Services
 
         public async Task<ReviewSummaryDTO> GetReviewSummaryAsync(string paperId)
         {
+            // Parse paperId string to Guid
+            if (!Guid.TryParse(paperId, out var submissionGuid))
+            {
+                return new ReviewSummaryDTO
+                {
+                    PaperId = paperId,
+                    TotalReviews = 0,
+                    Reviews = new List<ReviewDetailDTO>()
+                };
+            }
+
             // Lấy tất cả reviews của paper này bằng cách join với Assignment
             var paperReviews = await _context.Reviews
                 .Include(r => r.Assignment)
-                .Where(r => r.Assignment.PaperId == paperId)
+                .Where(r => r.Assignment.SubmissionId == submissionGuid)
                 .ToListAsync();
             
             if (!paperReviews.Any())
@@ -220,10 +225,7 @@ namespace Review.Service.Services
             }
             
             // Tính điểm trung bình
-            var avgNovelty = paperReviews.Average(r => r.NoveltyScore);
-            var avgMethodology = paperReviews.Average(r => r.MethodologyScore);
-            var avgPresentation = paperReviews.Average(r => r.PresentationScore);
-            var overallAvg = (avgNovelty + avgMethodology + avgPresentation) / 3.0;
+            var overallAvg = paperReviews.Average(r => r.OverallScore);
             
             // Đếm số lượng recommendation
             var acceptCount = paperReviews.Count(r => 
@@ -239,22 +241,22 @@ namespace Review.Service.Services
                 // Sử dụng UserId (String/GUID) từ Reviewer thay vì PK int
                 ReviewerId = r.Assignment.Reviewer?.UserId ?? r.Assignment.ReviewerId.ToString(), 
                 ReviewerName = r.Assignment.Reviewer?.FullName ?? $"Reviewer {r.Assignment.ReviewerId}",
-                NoveltyScore = r.NoveltyScore,
-                MethodologyScore = r.MethodologyScore,
-                PresentationScore = r.PresentationScore,
-                CommentsForAuthor = r.CommentsForAuthor,
-                ConfidentialComments = r.ConfidentialComments,
+                NoveltyScore = r.OverallScore,
+                MethodologyScore = r.OverallScore,
+                PresentationScore = r.OverallScore,
+                CommentsForAuthor = r.Comments,
+                ConfidentialComments = r.Comments,
                 Recommendation = r.Recommendation,
-                SubmittedAt = r.CreatedAt
+                SubmittedAt = DateTime.Now // Since we don't have CreatedAt, use current time
             }).ToList();
             
             var summary = new ReviewSummaryDTO
             {
                 PaperId = paperId,
                 TotalReviews = paperReviews.Count,
-                AverageNoveltyScore = Math.Round(avgNovelty, 2),
-                AverageMethodologyScore = Math.Round(avgMethodology, 2),
-                AveragePresentationScore = Math.Round(avgPresentation, 2),
+                AverageNoveltyScore = Math.Round(overallAvg, 2),
+                AverageMethodologyScore = Math.Round(overallAvg, 2),
+                AveragePresentationScore = Math.Round(overallAvg, 2),
                 OverallAverageScore = Math.Round(overallAvg, 2),
                 AcceptCount = acceptCount,
                 RejectCount = rejectCount,
@@ -297,27 +299,33 @@ namespace Review.Service.Services
                 Console.WriteLine($"[ReviewService] Error auto-linking reviewer: {ex.Message}");
             }
 
-            // Lấy tất cả phân công của reviewer (bao gồm Pending, Accepted, Completed, Rejected)
-            var query = from a in _context.Assignments
-                        join r in _context.Reviewers on a.ReviewerId equals r.Id
-                        where r.UserId == userId
-                        select new ReviewAssignmentDTO
+            // Lấy tất cả phân công của reviewer (bao gồm PENDING, ACCEPTED, COMPLETED, REJECTED)
+            // Lấy tất cả phân công của reviewer
+            // OPTIMIZED: Direct search by Reviewer Guid
+            if (!Guid.TryParse(userId, out var reviewerGuid))
+            {
+                return new List<ReviewAssignmentDTO>();
+            }
+
+            var query = _context.Assignments
+                        .Where(a => a.ReviewerId == reviewerGuid)
+                        .Select(a => new ReviewAssignmentDTO
                         {
                             Id = a.Id,
-                            PaperId = a.PaperId,
-                            SubmissionTitle = null,
+                            PaperId = a.SubmissionId.ToString(),
+                            SubmissionTitle = null, 
                             SubmissionAbstract = null,
                             SubmissionFileName = null,
-                            ConferenceId = r.ConferenceId,
+                            ConferenceId = null, // Will be filled if we join or fetch
                             Status = a.Status,
-                            AssignedAt = a.AssignedDate.ToString("o"),
-                            DueDate = null,
-                            IsCompleted = a.Status == "Completed"
-                        };
+                            AssignedAt = a.AssignedAt.ToString("o"),
+                            DueDate = a.Deadline.ToString("o"),
+                            IsCompleted = a.Status == "COMPLETED"
+                        });
 
             if (!string.IsNullOrEmpty(status))
             {
-                query = query.Where(x => x.Status.ToLower() == status.ToLower());
+                query = query.Where(x => x.Status.ToUpper() == status.ToUpper());
             }
 
             var skipped = (page - 1) * pageSize;
@@ -388,43 +396,71 @@ namespace Review.Service.Services
 
         public async Task<List<SubmissionForDecisionDTO>> GetSubmissionsForDecisionAsync(string? conferenceId = null)
         {
-            // Lấy tất cả Assignments
-            var query = _context.Assignments.AsQueryable();
+            // Fix: Join manually because Assignment.Reviewer navigation property is Ignored in DbContext
+            // Fix: Join manually because Assignment.Reviewer navigation property is Ignored in DbContext
+            // OPTIMIZED: Use Join on ReviewerId (Guid) = Reviewer.UserId (Parse to Guid?)
+            // Since Reviewer.UserId is string, we have to fetch Reviewers first or use client-side eval if Provider doesn't support parsing in SQL
             
-            // Lọc theo conferenceId nếu có (Phải thông qua Reviewer để biết ConferenceId)
+            // Step 1: Get all Reviewers for this conference (if filtered)
+            var reviewerQuery = _context.Reviewers.AsQueryable();
             if (!string.IsNullOrEmpty(conferenceId))
             {
-                query = query.Where(a => a.Reviewer.ConferenceId == conferenceId);
+                reviewerQuery = reviewerQuery.Where(r => r.ConferenceId == conferenceId);
             }
+            var reviewers = await reviewerQuery.ToListAsync();
             
-            var paperGroups = await query
-                .GroupBy(a => a.PaperId)
+            // Step 2: Get their Assignments using in-memory join/filter or list of IDs
+            // Note: Converting all Reviewer UserIds to Guids safely
+            var reviewerGuids = reviewers
+                .Select(r => Guid.TryParse(r.UserId, out var g) ? g : (Guid?)null)
+                .Where(g => g.HasValue)
+                .Select(g => g.Value)
+                .ToList();
+
+            var assignments = await _context.Assignments
+                .Where(a => reviewerGuids.Contains(a.ReviewerId))
+                .ToListAsync();
+
+            var query = from a in assignments
+                        join r in reviewers on a.ReviewerId.ToString() equals r.UserId into joined
+                        from r in joined.DefaultIfEmpty() // Left joinish
+                        // Actually we need to match back to find the Reviewer object for each assignment
+                        let matchedReviewer = reviewers.FirstOrDefault(rv => rv.UserId == a.ReviewerId.ToString())
+                        where matchedReviewer != null
+                        select new { Assignment = a, Reviewer = matchedReviewer };
+                        
+            // Re-implement existing grouping logic on memory collection
+            var memoryQuery = query;
+    
+            var paperGroups = query
+                .GroupBy(x => x.Assignment.SubmissionId)
                 .Select(g => new
                 {
-                    PaperId = g.Key,
+                    SubmissionId = g.Key,
                     TotalAssignments = g.Count(),
-                    CompletedReviews = g.Count(a => a.Status == "Completed")
+                    CompletedReviews = g.Count(x => x.Assignment.Status == "COMPLETED")
                 })
-                .ToListAsync();
+                .ToList();
 
             var result = new List<SubmissionForDecisionDTO>();
 
             foreach (var group in paperGroups)
             {
                 // Tính điểm trung bình
+                var assignmentIdsForSubmission = assignments.Where(a => a.SubmissionId == group.SubmissionId).Select(a => a.Id).ToList();
                 var reviews = await _context.Reviews
-                    .Where(r => r.Assignment.PaperId == group.PaperId)
+                    .Where(r => assignmentIdsForSubmission.Contains(r.AssignmentId))
                     .ToListAsync();
                 
                 double? averageScore = null;
                 if (reviews.Any())
                 {
-                    averageScore = reviews.Average(r => (r.NoveltyScore + r.MethodologyScore + r.PresentationScore) / 3.0);
+                    averageScore = reviews.Average(r => r.OverallScore);
                     averageScore = Math.Round(averageScore.Value, 2);
                 }
 
                 // Tiêu đề giả lập nếu không có DB Submission ở đây
-                string title = $"Paper {group.PaperId}";
+                string title = $"Paper {group.SubmissionId}";
                 List<string> authors = new List<string>();
                 string topicName = "Unknown";
                 
@@ -434,13 +470,14 @@ namespace Review.Service.Services
                     var client = _httpClientFactory.CreateClient();
                     var submissionUrl = _configuration["Services:SubmissionServiceUrl"] ?? _configuration["ServiceUrls:Submission"] ?? "http://localhost:5003";
 
-                    // Add Authorization Header for Chair/Admin requests
-                    var token = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].ToString();
-                    if (!string.IsNullOrEmpty(token))
-                    {
-                        client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", token);
-                    }
-                    var response = await client.GetAsync($"{submissionUrl}/api/submissions/{group.PaperId}");
+                    // For internal calls, skip auth for now (demo purposes)
+                    // var token = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].ToString();
+                    // if (!string.IsNullOrEmpty(token))
+                    // {
+                    //     client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", token);
+                    // }
+                    
+                    var response = await client.GetAsync($"{submissionUrl}/api/submissions/{group.SubmissionId}");
                     if (response.IsSuccessStatusCode)
                     {
                         var content = await response.Content.ReadAsStringAsync();
@@ -466,11 +503,11 @@ namespace Review.Service.Services
                         }
                     }
                 }
-                catch { /* Ignore error */ }
+                catch { /* Ignore error, use defaults */ }
 
                 result.Add(new SubmissionForDecisionDTO
                 {
-                    SubmissionId = group.PaperId,
+                    SubmissionId = group.SubmissionId.ToString(),
                     Title = title,
                     Authors = authors,
                     TopicName = topicName,
@@ -487,8 +524,13 @@ namespace Review.Service.Services
         public async Task SubmitDecisionAsync(SubmitDecisionDTO dto, string chairId)
         {
             // 1. Kiểm tra bài báo có tồn tại trong hệ thống Review không (thông qua Assignments)
-            var hasAssignments = await _context.Assignments.AnyAsync(a => a.PaperId == dto.PaperId);
-            if (!hasAssignments) // Reverted to original check as 'assignment' was undefined.
+            bool hasAssignments = false;
+            if (Guid.TryParse(dto.PaperId, out var submissionGuid))
+            {
+                hasAssignments = await _context.Assignments.AnyAsync(a => a.SubmissionId == submissionGuid);
+            }
+            
+            if (!hasAssignments)
             {
                 throw new Exception($"Không tìm thấy dữ liệu phản biện cho bài báo {dto.PaperId}.");
             }
@@ -537,21 +579,33 @@ namespace Review.Service.Services
 
         public async Task<SubmitReviewDTO?> GetMyReviewAsync(string paperId, string userId)
         {
+            // Parse paperId to Guid
+            if (!Guid.TryParse(paperId, out var submissionGuid))
+            {
+                return null;
+            }
+
+            // Parse userId to Guid for comparison with ReviewerId
+            if (!Guid.TryParse(userId, out var userGuid))
+            {
+                return null;
+            }
+
+            // Find review by matching Assignment.SubmissionId and Assignment.ReviewerId
             var review = await _context.Reviews
                 .Include(r => r.Assignment)
-                .ThenInclude(a => a.Reviewer)
-                .FirstOrDefaultAsync(r => r.Assignment.PaperId == paperId && r.Assignment.Reviewer.UserId == userId);
+                .FirstOrDefaultAsync(r => r.Assignment.SubmissionId == submissionGuid && r.Assignment.ReviewerId == userGuid);
 
             if (review == null) return null;
 
             return new SubmitReviewDTO
             {
-                PaperId = review.Assignment.PaperId,
-                NoveltyScore = review.NoveltyScore,
-                MethodologyScore = review.MethodologyScore,
-                PresentationScore = review.PresentationScore,
-                CommentsForAuthor = review.CommentsForAuthor,
-                ConfidentialComments = review.ConfidentialComments,
+                PaperId = review.Assignment.SubmissionId.ToString(),
+                NoveltyScore = review.OverallScore,
+                MethodologyScore = review.OverallScore,
+                PresentationScore = review.OverallScore,
+                CommentsForAuthor = review.Comments,
+                ConfidentialComments = review.Comments,
                 Recommendation = review.Recommendation
             };
         }

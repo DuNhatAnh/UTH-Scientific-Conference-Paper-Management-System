@@ -37,8 +37,8 @@ public class ReviewableSubmissionDto
 
     // New fields for Hierarchical View
     public string ReviewStatus { get; set; } = "None"; // None, Draft, Submitted
-    public int? ReviewId { get; set; } // To link to the review form if exists
-    public int? AssignmentId { get; set;} // To link to assignment if exists
+    public Guid? ReviewId { get; set; } // To link to the review form if exists
+    public Guid? AssignmentId { get; set;} // Assignment ID is Guid to match database
     public Guid? FileId { get; set; } // Added for file download
     public long? FileSizeBytes { get; set; } // Added to display size
     public string? ConferenceId { get; set; }

@@ -18,6 +18,7 @@ using Review.Service.Interfaces;
 // using Review.Service.Interfaces.Repositories; // TODO: Add interface repositories
 // using Review.Service.Interfaces.Services; // TODO: Add interface services
 // using Review.Service.Repositories; // TODO: Add repositories
+using MassTransit;
 
 // Enable legacy timestamp behavior for Npgsql to avoid DateTime Kind issues with PostgreSQL 'timestamp' type
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
@@ -155,6 +156,19 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IReviewerService, Review.Service.Services.ReviewerService>();
 builder.Services.AddHttpClient<ISubmissionClient, Review.Service.Services.SubmissionClient>();
 
+// MassTransit configuration for publishing events
+builder.Services.AddMassTransit(x =>
+{
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        var rabbitMqHost = builder.Configuration.GetConnectionString("RabbitMQ") ?? "rabbitmq";
+        cfg.Host(rabbitMqHost, "/", h =>
+        {
+            h.Username("guest");
+            h.Password("guest");
+        });
+    });
+});
 
 var app = builder.Build();
 

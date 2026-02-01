@@ -185,6 +185,7 @@ services:
       - ASPNETCORE_URLS=http://+:5003
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=uth_confms;Username=confms_admin;Password=123456
       - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__RabbitMQ=rabbitmq
       - Storage__Provider=Local
       - Storage__BasePath=/app/uploads
       - Services__IdentityServiceUrl=http://identity-service:5001
@@ -196,6 +197,7 @@ services:
     depends_on:
       - postgres
       - redis
+      - rabbitmq
       - identity-service
       - conference-service
     networks:
@@ -212,15 +214,19 @@ services:
       - ASPNETCORE_URLS=http://+:5004
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=uth_confms;Username=confms_admin;Password=123456
       - ConnectionStrings__Redis=redis:6379
+      - ConnectionStrings__RabbitMQ=rabbitmq
       - Services__IdentityServiceUrl=http://identity-service:5001
       - Services__SubmissionServiceUrl=http://submission-service:5003
       - Services__ConferenceServiceUrl=http://conference-service:5002
       - Services__NotificationServiceUrl=http://notification-service:5005
+      - Services__FrontendUrl=http://localhost:3000
+      - InternalApiKey=auth-secret-key-123
     ports:
       - "5004:5004"
     depends_on:
       - postgres
       - redis
+      - rabbitmq
       - identity-service
       - submission-service
       - conference-service

@@ -6,18 +6,20 @@ namespace Review.Service.Entities
     public class Assignment
     {
         [Key]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
-        public string PaperId { get; set; } = string.Empty;
+        public Guid SubmissionId { get; set; }
 
-        public int ReviewerId { get; set; }
+        public Guid ReviewerId { get; set; }
         public virtual Reviewer Reviewer { get; set; } = null!;
 
-        public DateTime AssignedDate { get; set; } = DateTime.UtcNow;
+        public Guid AssignedBy { get; set; }
+        public DateTime AssignedAt { get; set; } = DateTime.UtcNow;
+        public DateTime Deadline { get; set; }
 
-        public string Status { get; set; } = "Pending"; // Pending, Accepted, Rejected, Completed
+        public string Status { get; set; } = "PENDING"; // PENDING, ACCEPTED, DECLINED, COMPLETED
 
-        // Navigation property (Dùng tên đầy đủ để tránh xung đột namespace)
+        // Navigation property
         public PaperReview? PaperReview { get; set; }
     }
 }

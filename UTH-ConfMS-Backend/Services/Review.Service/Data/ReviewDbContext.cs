@@ -17,13 +17,41 @@ public class ReviewDbContext : DbContext
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Assignment>()
-            .HasOne(a => a.PaperReview)
-            .WithOne(r => r.Assignment)
-            .HasForeignKey<PaperReview>(r => r.AssignmentId);
+        // Map Assignment entity to review_assignments table with snake_case columns
+        modelBuilder.Entity<Assignment>(entity =>
+        {
+            entity.ToTable("review_assignments");
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.SubmissionId).HasColumnName("submission_id");
+            entity.Property(e => e.ReviewerId).HasColumnName("reviewer_id");
+            entity.Property(e => e.AssignedBy).HasColumnName("assigned_by");
+            entity.Property(e => e.AssignedAt).HasColumnName("assigned_at");
+            entity.Property(e => e.Deadline).HasColumnName("deadline");
+            entity.Property(e => e.Status).HasColumnName("status");
+            
+            // NOTE: Reviewer navigation is for convenience but NOT a formal foreign key
+            // ReviewerId (Guid) stores the user UUID from Identity Service
+            // The Reviewer table is a local cache with auto-increment int PK
+            // Joins must manually match: Assignment.ReviewerId.ToString() == Reviewer.UserId
+            entity.Ignore(a => a.Reviewer);  // Don't try to map this navigation property
+        });
 
         modelBuilder.Entity<Reviewer>()
             .HasIndex(r => new { r.UserId, r.ConferenceId })
             .IsUnique();
+
+        // Map PaperReview entity to reviews table with snake_case columns
+        modelBuilder.Entity<PaperReview>(entity =>
+        {
+            entity.ToTable("reviews");
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.AssignmentId).HasColumnName("assignment_id");
+            entity.Property(e => e.OverallScore).HasColumnName("overall_score");
+            entity.Property(e => e.Confidence).HasColumnName("confidence");
+            entity.Property(e => e.Recommendation).HasColumnName("recommendation");
+            entity.Property(e => e.Comments).HasColumnName("comments");
+            entity.Property(e => e.SubmittedAt).HasColumnName("submitted_at");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+        });
     }
 }

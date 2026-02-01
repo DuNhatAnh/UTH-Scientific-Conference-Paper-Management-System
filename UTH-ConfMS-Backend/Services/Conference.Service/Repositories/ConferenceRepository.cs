@@ -83,4 +83,6 @@ public class ConferenceRepository : IConferenceRepository
         _context.Conferences.Remove(conference);
         return Task.CompletedTask;
     }
+
+
 }

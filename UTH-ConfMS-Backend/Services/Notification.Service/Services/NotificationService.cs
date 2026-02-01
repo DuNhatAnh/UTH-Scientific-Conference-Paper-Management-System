@@ -1,8 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.SignalR;
 using Notification.Service.Data;
-using Notification.Service.DTOs;
+using Notification.Service.DTOs.Requests;
+using Notification.Service.DTOs.Responses;
 using Notification.Service.Interfaces;
 using Notification.Service.Entities;
+using Notification.Service.Hubs;
 
 namespace Notification.Service.Services;
 
@@ -11,15 +14,18 @@ public class NotificationService : INotificationService
     private readonly NotificationDbContext _context;
     private readonly IEmailService _emailService;
     private readonly ILogger<NotificationService> _logger;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
     public NotificationService(
         NotificationDbContext context,
         IEmailService emailService,
-        ILogger<NotificationService> logger)
+        ILogger<NotificationService> logger,
+        IHubContext<NotificationHub> hubContext)
     {
         _context = context;
         _emailService = emailService;
         _logger = logger;
+        _hubContext = hubContext;
     }
 
     public async Task<bool> SendNotificationAsync(NotificationDto notificationDto)
@@ -44,6 +50,30 @@ public class NotificationService : INotificationService
 
             _context.Notifications.Add(notification);
             await _context.SaveChangesAsync();
+
+            // Push real-time notification via SignalR
+            try
+            {
+                await _hubContext.Clients
+                    .User(notificationDto.UserId.ToString())
+                    .SendAsync("ReceiveNotification", new
+                    {
+                        id = notification.NotificationId,
+                        type = notification.Type,
+                        title = notification.Title,
+                        message = notification.Message,
+                        relatedEntityId = notification.RelatedEntityId,
+                        isRead = notification.IsRead,
+                        createdAt = notification.CreatedAt
+                    });
+                
+                _logger.LogInformation("SignalR notification sent to user {UserId}", notificationDto.UserId);
+            }
+            catch (Exception signalREx)
+            {
+                // Don't fail the entire operation if SignalR fails
+                _logger.LogWarning(signalREx, "Failed to send SignalR notification to user {UserId}", notificationDto.UserId);
+            }
 
             // Send email if requested
             if (notificationDto.SendEmail && !string.IsNullOrEmpty(notificationDto.Email))
@@ -99,6 +129,7 @@ public class NotificationService : INotificationService
                 Type = n.Type,
                 Title = n.Title,
                 Message = n.Message,
+                ActionUrl = n.ActionUrl,
                 RelatedEntityId = n.RelatedEntityId,
                 IsRead = n.IsRead,
                 CreatedAt = n.CreatedAt,
@@ -145,5 +176,76 @@ public class NotificationService : INotificationService
         return await _context.Notifications
             .Where(n => n.UserId == userId && !n.IsRead)
             .CountAsync();
+    }
+
+    public async Task<NotificationDto> CreateNotificationAsync(CreateNotificationRequest request)
+    {
+        try
+        {
+            _logger.LogInformation("Creating notification for user {UserId}: {Type}", 
+                request.UserId, request.Type);
+
+            var notification = new Entities.Notification
+            {
+                NotificationId = Guid.NewGuid(),
+                UserId = request.UserId,
+                Type = request.Type,
+                Title = request.Title,
+                Message = request.Message,
+                ActionUrl = request.ActionUrl,
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Notifications.Add(notification);
+            await _context.SaveChangesAsync();
+
+            // Push real-time notification via SignalR
+            try
+            {
+                await _hubContext.Clients
+                    .User(request.UserId.ToString())
+                    .SendAsync("ReceiveNotification", new
+                    {
+                        id = notification.NotificationId,
+                        type = notification.Type,
+                        title = notification.Title,
+                        message = notification.Message,
+                        actionUrl = notification.ActionUrl,
+                        isRead = notification.IsRead,
+                        createdAt = notification.CreatedAt
+                    });
+                
+                _logger.LogInformation("SignalR notification sent to user {UserId}", request.UserId);
+            }
+            catch (Exception signalREx)
+            {
+                _logger.LogWarning(signalREx, "Failed to send SignalR notification to user {UserId}", request.UserId);
+            }
+
+            _logger.LogInformation("Notification created successfully for user {UserId}", request.UserId);
+
+            return new NotificationDto
+            {
+                Id = notification.NotificationId,
+                UserId = notification.UserId,
+                Type = notification.Type,
+                Title = notification.Title,
+                Message = notification.Message,
+                ActionUrl = notification.ActionUrl,
+                IsRead = notification.IsRead,
+                CreatedAt = notification.CreatedAt
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create notification for user {UserId}", request.UserId);
+            throw;
+        }
+    }
+
+    public async Task<bool> SendEmailAsync(EmailRequest request)
+    {
+        return await _emailService.SendEmailAsync(request);
     }
 }

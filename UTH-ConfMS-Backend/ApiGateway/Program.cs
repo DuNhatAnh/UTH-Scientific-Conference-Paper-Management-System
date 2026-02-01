@@ -49,9 +49,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll",
-        b => b.AllowAnyOrigin()
+        b => b.WithOrigins("http://localhost:3000")
               .AllowAnyMethod()
-              .AllowAnyHeader());
+              .AllowAnyHeader()
+              .AllowCredentials());
 });
 
 // Ocelot with CacheManager

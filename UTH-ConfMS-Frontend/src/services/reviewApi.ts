@@ -1,8 +1,8 @@
-import apiClient, { ApiResponse } from './apiClient';
+import apiClient, { ApiResponse, PagedResponse } from './apiClient';
 
 // DTOs
 export interface ReviewAssignmentDto {
-  id: number;
+  id: string;
   paperId: string;
   submissionTitle: string | null;
   submissionAbstract?: string;
@@ -18,7 +18,7 @@ export interface ReviewAssignmentDto {
 
 export interface ReviewDto {
   id: number;
-  assignmentId: number;
+  assignmentId: string;
   submissionId: number;
   reviewerId: number;
   reviewerName?: string;
@@ -82,6 +82,7 @@ export interface MakeDecisionRequest {
 export interface AssignReviewerRequest {
   submissionId: number;
   reviewerEmail: string;
+  reviewerUserId?: string; // Added to support robust assignment
   dueDate?: string;
 }
 
@@ -104,12 +105,12 @@ export const reviewApi = {
     return response.data;
   },
 
-  acceptAssignment: async (assignmentId: number): Promise<ApiResponse<void>> => {
+  acceptAssignment: async (assignmentId: string): Promise<ApiResponse<void>> => {
     const response = await apiClient.post<ApiResponse<void>>(`/api/assignments/${assignmentId}/accept`);
     return response.data;
   },
 
-  declineAssignment: async (assignmentId: number, reason?: string): Promise<ApiResponse<void>> => {
+  declineAssignment: async (assignmentId: string, reason?: string): Promise<ApiResponse<void>> => {
     // Note: Backend AssignmentController.RejectAssignment does not currently use 'reason', but we categorize it as 'reject'
     const response = await apiClient.post<ApiResponse<void>>(`/api/assignments/${assignmentId}/reject`, { reason });
     return response.data;
@@ -135,13 +136,13 @@ export const reviewApi = {
     conferenceId?: string | number,
     page: number = 1,
     pageSize: number = 10
-  ): Promise<ApiResponse<SubmissionForDecisionDto[]>> => {
+  ): Promise<ApiResponse<PagedResponse<SubmissionForDecisionDto>>> => {
     const params = new URLSearchParams();
     if (conferenceId) params.append('conferenceId', conferenceId.toString());
     params.append('page', page.toString());
     params.append('pageSize', pageSize.toString());
 
-    const response = await apiClient.get<ApiResponse<SubmissionForDecisionDto[]>>(`/api/reviews/submissions-for-decision?${params}`);
+    const response = await apiClient.get<ApiResponse<PagedResponse<SubmissionForDecisionDto>>>(`/api/reviews/submissions-for-decision?${params}`);
     return response.data;
   },
 

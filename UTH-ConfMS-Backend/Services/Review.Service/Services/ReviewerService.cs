@@ -14,6 +14,8 @@ using Review.Service.Entities;
 using Review.Service.Interfaces;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
+using MassTransit;
+using UTH.ConfMS.Shared.Infrastructure.EventBus;
 
 namespace Review.Service.Services;
 
@@ -24,14 +26,22 @@ public class ReviewerService : IReviewerService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
     private readonly Microsoft.AspNetCore.Http.IHttpContextAccessor _httpContextAccessor;
+    private readonly IPublishEndpoint _publishEndpoint;
 
-    public ReviewerService(ReviewDbContext context, ILogger<ReviewerService> logger, IHttpClientFactory httpClientFactory, IConfiguration configuration, Microsoft.AspNetCore.Http.IHttpContextAccessor httpContextAccessor)
+    public ReviewerService(
+        ReviewDbContext context, 
+        ILogger<ReviewerService> logger, 
+        IHttpClientFactory httpClientFactory, 
+        IConfiguration configuration, 
+        Microsoft.AspNetCore.Http.IHttpContextAccessor httpContextAccessor,
+        IPublishEndpoint publishEndpoint)
     {
         _context = context;
         _logger = logger;
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
         _httpContextAccessor = httpContextAccessor;
+        _publishEndpoint = publishEndpoint;
     }
 
     public async Task<ReviewerInvitation> InviteReviewerAsync(InviteReviewerDTO dto)
@@ -67,36 +77,94 @@ public class ReviewerService : IReviewerService
         _context.ReviewerInvitations.Add(invitation);
         await _context.SaveChangesAsync();
 
-        // Gửi email thông qua Notification Service
-        try 
+        // Kiểm tra xem người được mời đã có tài khoản trong hệ thống chưa
+        Guid? existingUserId = null;
+        try
         {
-            // Lấy cấu hình từ appsettings.json (hoặc biến môi trường từ docker-compose: Services__NotificationServiceUrl)
-            var notificationServiceUrl = _configuration["Services:NotificationServiceUrl"] ?? _configuration["ServiceUrls:Notification"] ?? "http://localhost:5005";
-            var frontendUrl = _configuration["Services:FrontendUrl"] ?? _configuration["ServiceUrls:Frontend"] ?? "http://localhost:3000";
-
+            var identityServiceUrl = _configuration["Services:IdentityServiceUrl"] ?? _configuration["ServiceUrls:Identity"] ?? "http://localhost:5001";
+            var internalApiKey = _configuration["InternalApiKey"] ?? "auth-secret-key-123";
+            
             var client = _httpClientFactory.CreateClient();
-            var emailPayload = new 
-            {
-                ToEmail = dto.Email,
-                Subject = "Invitation to PC Member - UTH ConfMS",
-                Body = $"Dear {dto.FullName},<br/>You have been invited to be a reviewer. Click here to accept: <a href='{frontendUrl}/invite/accept?token={invitation.Token}'>Accept Invitation</a>"
-            };
-
-            var content = new StringContent(JsonSerializer.Serialize(emailPayload), Encoding.UTF8, "application/json");
+            client.DefaultRequestHeaders.Add("X-Internal-Api-Key", internalApiKey);
             
-            // Giả định Notification Service có endpoint này (dựa trên kiến trúc microservices)
-            // LƯU Ý: Internal Service name là notification-service (port 5005 trong container)
-            var response = await client.PostAsync($"{notificationServiceUrl}/api/notifications/send-email", content);
+            var response = await client.GetAsync($"{identityServiceUrl}/api/internal/users/by-email/{Uri.EscapeDataString(dto.Email)}");
             
-            if (!response.IsSuccessStatusCode)
+            if (response.IsSuccessStatusCode)
             {
-                _logger.LogError($"Failed to send email to {dto.Email}. Status: {response.StatusCode} - Url: {notificationServiceUrl}");
+                var responseContent = await response.Content.ReadAsStringAsync();
+                var userInfo = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(responseContent);
+                
+                if (userInfo != null && userInfo.ContainsKey("userId"))
+                {
+                    var userIdString = userInfo["userId"].GetString();
+                    if (Guid.TryParse(userIdString, out var parsedUserId))
+                    {
+                        existingUserId = parsedUserId;
+                        _logger.LogInformation($"Found existing user {existingUserId} for email {dto.Email}");
+                    }
+                }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Error communicating with Notification Service for {dto.Email}");
-            // Không throw exception ở đây để tránh rollback transaction mời thành công
+            _logger.LogWarning(ex, $"Could not check if user exists for email {dto.Email}");
+        }
+
+        // Gửi thông báo trong app nếu user đã có tài khoản
+        if (existingUserId.HasValue)
+        {
+            try
+            {
+                var frontendUrl = _configuration["Services:FrontendUrl"] ?? _configuration["ServiceUrls:Frontend"] ?? "http://localhost:3000";
+                
+                await _publishEndpoint.Publish(new CreateNotificationEvent
+                {
+                    UserId = existingUserId.Value,
+                    UserEmail = dto.Email,
+                    NotificationType = "REVIEW",
+                    Title = "Lời mời tham gia hội đồng phản biện",
+                    Message = $"Bạn đã được mời làm reviewer cho hội nghị. Bấm để xem chi tiết và chấp nhận lời mời.",
+                    ActionUrl = $"/invitation/{invitation.Token}",
+                    SendEmail = true,
+                    EmailSubject = "Invitation to PC Member - UTH ConfMS",
+                    EmailBody = $"Dear {dto.FullName},<br/>You have been invited to be a reviewer. Click here to accept: <a href='{frontendUrl}/invitation/{invitation.Token}'>Accept Invitation</a>"
+                });
+
+                _logger.LogInformation($"Published notification event for user {existingUserId} (email: {dto.Email})");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error publishing notification event for {dto.Email}");
+            }
+        }
+        else
+        {
+            // Nếu user chưa có tài khoản, chỉ gửi email qua HTTP call (fallback)
+            try 
+            {
+                var notificationServiceUrl = _configuration["Services:NotificationServiceUrl"] ?? _configuration["ServiceUrls:Notification"] ?? "http://localhost:5005";
+                var frontendUrl = _configuration["Services:FrontendUrl"] ?? _configuration["ServiceUrls:Frontend"] ?? "http://localhost:3000";
+
+                var client = _httpClientFactory.CreateClient();
+                var emailPayload = new 
+                {
+                    ToEmail = dto.Email,
+                    Subject = "Invitation to PC Member - UTH ConfMS",
+                    Body = $"Dear {dto.FullName},<br/>You have been invited to be a reviewer. Click here to accept: <a href='{frontendUrl}/invite/accept?token={invitation.Token}'>Accept Invitation</a>"
+                };
+
+                var content = new StringContent(JsonSerializer.Serialize(emailPayload), Encoding.UTF8, "application/json");
+                var response = await client.PostAsync($"{notificationServiceUrl}/api/notifications/send-email", content);
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogError($"Failed to send email to {dto.Email}. Status: {response.StatusCode}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error sending email to {dto.Email}");
+            }
         }
         
         return invitation;
@@ -122,27 +190,49 @@ public class ReviewerService : IReviewerService
                 throw new ArgumentException("User ID is required to accept the invitation.");
             }
 
-            // Nếu đã có reviewer được tạo trước (ví dụ Chair đã assign bằng email), cập nhật UserId cho bản ghi đó
-            var existingByEmail = await _context.Reviewers
-                .FirstOrDefaultAsync(r => r.Email == invitation.Email && r.ConferenceId == invitation.ConferenceId);
+            // CHECK 1: See if a reviewer already exists with this UserId + ConferenceId
+            var existingByUserId = await _context.Reviewers
+                .FirstOrDefaultAsync(r => r.UserId == userId && r.ConferenceId == invitation.ConferenceId);
 
-            if (existingByEmail != null)
+            if (existingByUserId != null)
             {
-                // Gán UserId nếu chưa có hoặc khác
-                if (string.IsNullOrEmpty(existingByEmail.UserId) || existingByEmail.UserId != userId)
-                {
-                    existingByEmail.UserId = userId;
-                    _context.Reviewers.Update(existingByEmail);
-                }
+                // Already exists, don't need to do anything - just log
+                _logger.LogWarning($"User {userId} is already a reviewer for conference {invitation.ConferenceId}.");
             }
             else
             {
-                // Nếu không có reviewer theo email, kiểm tra theo UserId
-                var alreadyExists = await _context.Reviewers
-                    .AnyAsync(r => r.UserId == userId && r.ConferenceId == invitation.ConferenceId);
+                // CHECK 2: See if reviewer exists by email
+                var existingByEmail = await _context.Reviewers
+                    .FirstOrDefaultAsync(r => r.Email == invitation.Email && r.ConferenceId == invitation.ConferenceId);
 
-                if (!alreadyExists)
+                if (existingByEmail != null)
                 {
+                    // Update existing reviewer with the new UserId
+                    string oldUserId = existingByEmail.UserId;
+                    existingByEmail.UserId = userId;
+                    _context.Reviewers.Update(existingByEmail);
+
+                    // FIX: Migrate Assignments if UserId changed
+                    if (!string.IsNullOrEmpty(oldUserId) && oldUserId != "0" && oldUserId != userId && Guid.TryParse(oldUserId, out var oldGuid))
+                    {
+                        if (Guid.TryParse(userId, out var newGuid))
+                        {
+                            var orphanAssignments = await _context.Assignments.Where(a => a.ReviewerId == oldGuid).ToListAsync();
+                            if (orphanAssignments.Any())
+                            {
+                                foreach (var assign in orphanAssignments)
+                                {
+                                    assign.ReviewerId = newGuid;
+                                }
+                                _context.Assignments.UpdateRange(orphanAssignments);
+                                _logger.LogInformation($"Migrated {orphanAssignments.Count} assignments from {oldGuid} to {newGuid}");
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // CHECK 3: Create new reviewer record
                     var reviewer = new Reviewer
                     {
                         UserId = userId,
@@ -152,10 +242,6 @@ public class ReviewerService : IReviewerService
                         Expertise = "General",
                     };
                     _context.Reviewers.Add(reviewer);
-                }
-                else
-                {
-                    _logger.LogWarning($"User {userId} is already a reviewer for conference {invitation.ConferenceId}.");
                 }
             }
 
@@ -193,6 +279,53 @@ public class ReviewerService : IReviewerService
 
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<ReviewerInvitationDto?> GetInvitationByTokenAsync(string token)
+    {
+        var invitation = await _context.ReviewerInvitations
+            .FirstOrDefaultAsync(x => x.Token == token);
+
+        if (invitation == null)
+        {
+            return null;
+        }
+
+        // Lấy thông tin conference nếu cần
+        string conferenceName = "Conference";
+        try
+        {
+            var conferenceServiceUrl = _configuration["Services:ConferenceServiceUrl"] ?? "http://conference-service:5002";
+            var client = _httpClientFactory.CreateClient();
+            var response = await client.GetAsync($"{conferenceServiceUrl}/api/conferences/{invitation.ConferenceId}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                var conferenceInfo = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(content);
+                if (conferenceInfo != null && conferenceInfo.ContainsKey("name"))
+                {
+                    conferenceName = conferenceInfo["name"].GetString() ?? conferenceName;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not retrieve conference name for {ConferenceId}", invitation.ConferenceId);
+        }
+
+        return new ReviewerInvitationDto
+        {
+            Id = invitation.Id,
+            ConferenceId = invitation.ConferenceId,
+            ConferenceName = conferenceName,
+            Email = invitation.Email,
+            FullName = invitation.FullName,
+            Status = invitation.Status,
+            Token = invitation.Token,
+            SentAt = invitation.SentAt,
+            RespondedAt = invitation.RespondedAt
+        };
     }
 
     public async Task<List<Reviewer>> GetReviewersByConferenceAsync(string conferenceId)
@@ -310,13 +443,33 @@ public class ReviewerService : IReviewerService
             return new List<ReviewableSubmissionDto>();
         }
 
-        _logger.LogInformation("[GetReviewableSubmissionsAsync] Found Reviewer record ID: {Id}, Current UserId in DB: {DBUserId}", reviewer.Id, reviewer.UserId);
+        // _logger.LogInformation("[GetReviewableSubmissionsAsync] Found Reviewer record ID: {Id}, Current UserId in DB: {DBUserId}", reviewer.Id, reviewer.UserId);
 
         // 2b. Auto-map UserId if it was "0" or missing
         if ((string.IsNullOrEmpty(reviewer.UserId) || reviewer.UserId == "0") && !string.IsNullOrEmpty(userId))
         {
+            string oldUserId = reviewer.UserId;
             reviewer.UserId = userId;
             _context.Reviewers.Update(reviewer);
+            
+            // FIX: Migrate Assignments if UserId changed (Self-healing)
+            if (!string.IsNullOrEmpty(oldUserId) && oldUserId != "0" && oldUserId != userId && Guid.TryParse(oldUserId, out var oldGuid))
+            {
+                 if (Guid.TryParse(userId, out var newGuid))
+                 {
+                     var orphanAssignments = await _context.Assignments.Where(a => a.ReviewerId == oldGuid).ToListAsync();
+                     if (orphanAssignments.Any())
+                     {
+                         foreach (var assign in orphanAssignments)
+                         {
+                             assign.ReviewerId = newGuid;
+                         }
+                         _context.Assignments.UpdateRange(orphanAssignments);
+                         _logger.LogInformation($"[Self-Healing] Migrated {orphanAssignments.Count} assignments from {oldGuid} to {newGuid}");
+                     }
+                 }
+            }
+
             await _context.SaveChangesAsync();
         }
 
@@ -332,6 +485,12 @@ public class ReviewerService : IReviewerService
             if (!string.IsNullOrEmpty(token))
             {
                 client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", token);
+            }
+            else
+            {
+                // Fallback to internal API key for service-to-service calls
+                var internalApiKey = _configuration["InternalApiKey"] ?? "auth-secret-key-123";
+                client.DefaultRequestHeaders.Add("X-Internal-Api-Key", internalApiKey);
             }
 
             // Call API with large pageSize to get all
@@ -354,32 +513,49 @@ public class ReviewerService : IReviewerService
                 if (data.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array)
                 {
                     // 1. Lấy danh sách Assignments của Reviewer này cho Conference hiện tại
-                var myAssignments = await _context.Assignments
-                    .Include(a => a.Reviewer)
-                    .Where(a => (a.Reviewer.UserId == userId || (!string.IsNullOrEmpty(userEmail) && a.Reviewer.Email == userEmail)) 
-                                && a.Reviewer.ConferenceId == conferenceId)
-                    .ToListAsync();
+                    // OPTIMIZED: Filter directly by ReviewerId (Guid) instead of fragile string Join
+                    List<Assignment> myAssignments = new List<Assignment>();
+                    
+                    if (Guid.TryParse(reviewer.UserId, out var reviewerGuid))
+                    {
+                        myAssignments = await _context.Assignments
+                            .Where(a => a.ReviewerId == reviewerGuid)
+                            .ToListAsync();
+                             
+                        // Double check: Ensure these assignments belong to submissions in the current conference?
+                        // Since Assignment stores SubmissionId, and we act as Filter on the fetched items, this is fine.
+                        // We are filtering the 'items' (submissions) list against 'myAssignments'.
+                    }
+                    else
+                    {
+                        _logger.LogWarning($"Reviewer UserID {reviewer.UserId} is not a valid Guid. Cannot fetch assignments.");
+                    }
 
-                // 2. Lấy danh sách Reviews để map thông tin
-                var myReviews = await _context.Reviews
-                    .Include(r => r.Assignment)
-                    .ThenInclude(a => a.Reviewer)
-                    .Where(r => (r.Assignment.Reviewer.UserId == userId || (!string.IsNullOrEmpty(userEmail) && r.Assignment.Reviewer.Email == userEmail)) 
-                                && r.Assignment.Reviewer.ConferenceId == conferenceId)
-                    .ToListAsync();
+                    // 2. Lấy danh sách Reviews để map thông tin
+                    var assignmentIds = myAssignments.Select(a => a.Id).ToList();
+                    var myReviews = await _context.Reviews
+                        .Where(r => assignmentIds.Contains(r.AssignmentId))
+                        .ToListAsync();
 
                     var resultList = new List<ReviewableSubmissionDto>();
 
                     foreach (var item in items.EnumerateArray())
                     {
-                        var paperId = string.Empty;
-                        if (item.TryGetProperty("id", out var idProp)) paperId = idProp.GetString();
-                        
-                        // CHỈ CHẤP NHẬN: Những bài báo đã được phân công cho người này
-                        var assignmentMatch = myAssignments.FirstOrDefault(a => a.PaperId == paperId);
-                        if (assignmentMatch == null) continue; // Phớt lờ bài báo nếu không được phân công
+                        try
+                        {
+                            var paperId = string.Empty;
+                            if (item.TryGetProperty("id", out var idProp)) paperId = idProp.GetString();
+                            
+                            // Parse paperId to Guid for comparison
+                            if (!Guid.TryParse(paperId, out var paperGuid)) continue;
 
-                        var dto = new ReviewableSubmissionDto();
+                            // CHỈ CHẤP NHẬN: Những bài báo đã được phân công cho người này
+                            var assignmentMatch = myAssignments.FirstOrDefault(a => a.SubmissionId.ToString() == paperId);
+                            if (assignmentMatch == null) continue; // Phớt lờ bài báo nếu không được phân công
+
+                            Console.WriteLine($"[GetReviewableSubmissionsAsync] Found assignment for paper {paperId}, status {assignmentMatch.Status}");
+
+                            var dto = new ReviewableSubmissionDto();
                         dto.Id = new Guid(paperId);
                         if (item.TryGetProperty("paperNumber", out var num)) dto.PaperNumber = num.GetInt32();
                         if (item.TryGetProperty("title", out var title)) dto.Title = title.GetString();
@@ -408,17 +584,22 @@ public class ReviewerService : IReviewerService
                         {
                             dto.ReviewId = reviewMatch.Id;
                             // Phân biệt trạng thái Draft và Submitted dựa trên Assignment Status
-                            dto.ReviewStatus = assignmentMatch.Status == "Completed" ? "Submitted" : "Draft";
+                            dto.ReviewStatus = assignmentMatch.Status == "COMPLETED" ? "Submitted" : "Draft";
                         }
                         else
                         {
                             // Nếu đã Assigned (Accepted) nhưng chưa có Review record
-                            dto.ReviewStatus = assignmentMatch.Status == "Accepted" ? "Accepted" : "None"; 
+                            dto.ReviewStatus = assignmentMatch.Status == "ACCEPTED" ? "Accepted" : "None"; 
                             // Nếu vẫn ở trạng thái Pending (Chờ reviewer nhấn Accept phân công)
-                            if (assignmentMatch.Status == "Pending") dto.ReviewStatus = "Pending";
+                            if (assignmentMatch.Status == "PENDING") dto.ReviewStatus = "Pending";
                         }
 
                         resultList.Add(dto);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[GetReviewableSubmissionsAsync] Error processing item: {ex.Message}");
+                        }
                     }
                     return resultList;
                 }

@@ -46,7 +46,7 @@ export const SubmissionManagement: React.FC<SubmissionManagementProps> = ({
     try {
       const res = await reviewApi.getSubmissionsForDecision(conferenceId);
       if (res.success && res.data) {
-        setSubmissions(res.data);
+        setSubmissions(res.data.items || []);
       }
     } catch (error) {
       console.error("Failed to load submissions", error);

@@ -77,7 +77,7 @@ namespace Review.Service.Controllers
 
         // 2. API Thảo luận nội bộ (PC Members / Chairs / Reviewers)
         [HttpPost("discussion")]
-        [Authorize(Roles = "chair,admin,reviewer")]
+        [Authorize(Policy = "RequireReviewCreate")]
         public async Task<IActionResult> AddDiscussion([FromBody] DiscussionCommentDTO dto)
         {
             try
@@ -93,7 +93,7 @@ namespace Review.Service.Controllers
 
         // 3. API Lấy danh sách thảo luận của một bài báo
         [HttpGet("discussion/{paperId}")]
-        [Authorize(Roles = "chair,admin,reviewer")]
+        [Authorize(Policy = "RequireReviewCreate")]
         public async Task<IActionResult> GetDiscussions(string paperId)
         {
             var comments = await _reviewService.GetDiscussionAsync(paperId);
@@ -132,12 +132,25 @@ namespace Review.Service.Controllers
 
         [HttpGet("submissions-for-decision")]
         [AllowAnonymous] // Tạm thời mở để test
-        public async Task<IActionResult> GetSubmissionsForDecision([FromQuery] string? conferenceId = null)
+        public async Task<IActionResult> GetSubmissionsForDecision([FromQuery] string? conferenceId = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
             try
             {
                 var submissions = await _reviewService.GetSubmissionsForDecisionAsync(conferenceId);
-                return Ok(ApiResponse<List<SubmissionForDecisionDTO>>.SuccessResponse(submissions));
+                // Simple pagination
+                var totalItems = submissions.Count;
+                var paginatedItems = submissions.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+                
+                var response = new
+                {
+                    items = paginatedItems,
+                    totalItems = totalItems,
+                    page = page,
+                    pageSize = pageSize,
+                    totalPages = (int)Math.Ceiling((double)totalItems / pageSize)
+                };
+                
+                return Ok(ApiResponse<object>.SuccessResponse(response));
             }
             catch (Exception ex)
             {
@@ -147,12 +160,13 @@ namespace Review.Service.Controllers
 
         // API: Lấy danh sách phân công (cho reviewer hiện tại) - chỉ show những phân công thực sự (Accepted/Completed)
         [HttpGet("assignments")]
-        public async Task<IActionResult> GetMyAssignments([FromQuery] string? status = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        [AllowAnonymous] // Temporarily allow anonymous for testing
+        public async Task<IActionResult> GetMyAssignments([FromQuery] string? userId = null, [FromQuery] string? status = null, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
             try
             {
-                var userId = GetUserId();
-                var assignments = await _reviewService.GetAssignmentsForReviewerAsync(userId, status, page, pageSize);
+                var actualUserId = userId ?? GetUserId();
+                var assignments = await _reviewService.GetAssignmentsForReviewerAsync(actualUserId, status, page, pageSize);
                 return Ok(ApiResponse<IEnumerable<ReviewAssignmentDTO>>.SuccessResponse(assignments));
             }
             catch (Exception ex)

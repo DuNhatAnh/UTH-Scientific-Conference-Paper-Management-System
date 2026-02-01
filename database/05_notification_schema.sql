@@ -15,7 +15,9 @@ CREATE TABLE notifications (
     title VARCHAR(255) NOT NULL,
     message TEXT NOT NULL,
     is_read BOOLEAN DEFAULT FALSE,
+    read_at TIMESTAMP,
     action_url VARCHAR(500),
+    related_entity_id UUID,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -56,3 +58,18 @@ INSERT INTO email_templates (name, subject, body_template, template_type) VALUES
 ('submission_confirmation', 'Submission Confirmation', 'Your paper "{{title}}" has been submitted successfully.', 'SUBMISSION'),
 ('review_invitation', 'Review Invitation', 'You have been invited to review paper {{paper_number}}.', 'REVIEW'),
 ('decision_notification', 'Decision Notification', 'The decision for your paper "{{title}}" is: {{decision}}.', 'DECISION');
+
+-- ============================================
+-- SEED DATA
+-- ============================================
+
+INSERT INTO notifications (user_id, type, title, message, is_read, created_at)
+SELECT 
+    user_id,
+    'SYSTEM',
+    'Welcome to UTH-ConfMS',
+    'Welcome to the conference management system.',
+    FALSE,
+    CURRENT_TIMESTAMP
+FROM users WHERE email = 'author@uth.edu.vn'
+AND NOT EXISTS (SELECT 1 FROM notifications WHERE title = 'Welcome to UTH-ConfMS');

@@ -77,3 +77,132 @@ $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER update_submissions_updated_at BEFORE UPDATE ON submissions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
+-- SEED DATA
+-- ============================================
+
+-- 1. Create Dummy Submission
+INSERT INTO submissions (conference_id, track_id, paper_number, title, abstract, status, submitted_by, submitted_at)
+SELECT 
+    c.conference_id, 
+    t.track_id, 
+    101, 
+    'Deep Learning for Autonomous Vehicles', 
+    'This paper explores advanced DL techniques for self-driving cars.', 
+    'SUBMITTED', 
+    u.user_id, 
+    CURRENT_TIMESTAMP
+FROM conferences c
+JOIN conference_tracks t ON c.conference_id = t.conference_id
+JOIN users u ON u.email = 'author@uth.edu.vn'
+WHERE c.acronym = 'ICCS 2026' AND t.name = 'Artificial Intelligence'
+AND NOT EXISTS (SELECT 1 FROM submissions WHERE title = 'Deep Learning for Autonomous Vehicles');
+
+-- 2. Add Author to Submission
+INSERT INTO submission_authors (submission_id, user_id, full_name, email, affiliation, is_corresponding, author_order)
+SELECT 
+    s.id, 
+    u.user_id, 
+    u.full_name, 
+    u.email, 
+    u.affiliation, 
+    TRUE, 
+    1
+FROM submissions s
+JOIN users u ON u.email = 'author@uth.edu.vn'
+WHERE s.title = 'Deep Learning for Autonomous Vehicles'
+AND NOT EXISTS (SELECT 1 FROM submission_authors sa WHERE sa.submission_id = s.id AND sa.email = 'author@uth.edu.vn');
+
+-- 3. Create More Submissions for ICCS 2026
+INSERT INTO submissions (conference_id, track_id, paper_number, title, abstract, status, submitted_by, submitted_at)
+SELECT 
+    c.conference_id, 
+    t.track_id, 
+    102, 
+    'Blockchain Technology for Secure Data Management', 
+    'This paper presents a novel blockchain-based approach for securing sensitive data in distributed systems. We propose a decentralized architecture that ensures data integrity and privacy.', 
+    'SUBMITTED', 
+    u.user_id, 
+    CURRENT_TIMESTAMP - INTERVAL '2 days'
+FROM conferences c
+JOIN conference_tracks t ON c.conference_id = t.conference_id
+JOIN users u ON u.email = 'pandaxm2911@gmail.com'
+WHERE c.acronym = 'ICCS 2026' AND t.name = 'Software Engineering'
+AND NOT EXISTS (SELECT 1 FROM submissions WHERE title = 'Blockchain Technology for Secure Data Management');
+
+INSERT INTO submission_authors (submission_id, user_id, full_name, email, affiliation, is_corresponding, author_order)
+SELECT 
+    s.id, 
+    u.user_id, 
+    u.full_name, 
+    u.email, 
+    u.affiliation, 
+    TRUE, 
+    1
+FROM submissions s
+JOIN users u ON u.email = 'pandaxm2911@gmail.com'
+WHERE s.title = 'Blockchain Technology for Secure Data Management'
+AND NOT EXISTS (SELECT 1 FROM submission_authors sa WHERE sa.submission_id = s.id AND sa.email = 'pandaxm2911@gmail.com');
+
+-- 4. Create Submission for ICCS 2026 - AI Track
+INSERT INTO submissions (conference_id, track_id, paper_number, title, abstract, status, submitted_by, submitted_at)
+SELECT 
+    c.conference_id, 
+    t.track_id, 
+    103, 
+    'Natural Language Processing with Transformer Models', 
+    'We explore state-of-the-art transformer architectures for various NLP tasks including machine translation, sentiment analysis, and question answering. Experimental results demonstrate significant improvements over baseline models.', 
+    'UNDER_REVIEW', 
+    u.user_id, 
+    CURRENT_TIMESTAMP - INTERVAL '5 days'
+FROM conferences c
+JOIN conference_tracks t ON c.conference_id = t.conference_id
+JOIN users u ON u.email = 'author@uth.edu.vn'
+WHERE c.acronym = 'ICCS 2026' AND t.name = 'Artificial Intelligence'
+AND NOT EXISTS (SELECT 1 FROM submissions WHERE title = 'Natural Language Processing with Transformer Models');
+
+INSERT INTO submission_authors (submission_id, user_id, full_name, email, affiliation, is_corresponding, author_order)
+SELECT 
+    s.id, 
+    u.user_id, 
+    u.full_name, 
+    u.email, 
+    u.affiliation, 
+    TRUE, 
+    1
+FROM submissions s
+JOIN users u ON u.email = 'author@uth.edu.vn'
+WHERE s.title = 'Natural Language Processing with Transformer Models'
+AND NOT EXISTS (SELECT 1 FROM submission_authors sa WHERE sa.submission_id = s.id AND sa.email = 'author@uth.edu.vn');
+
+-- 5. Create Draft Submission (not yet submitted)
+INSERT INTO submissions (conference_id, track_id, paper_number, title, abstract, status, submitted_by, submitted_at)
+SELECT 
+    c.conference_id, 
+    t.track_id, 
+    104, 
+    'Edge Computing for IoT Applications', 
+    'A comprehensive study on edge computing architectures optimized for Internet of Things deployments. We analyze latency, bandwidth, and computational efficiency trade-offs.', 
+    'DRAFT', 
+    u.user_id,
+    NULL
+FROM conferences c
+JOIN conference_tracks t ON c.conference_id = t.conference_id
+JOIN users u ON u.email = 'pandaxm2911@gmail.com'
+WHERE c.acronym = 'ICCS 2026' AND t.name = 'Artificial Intelligence'
+AND NOT EXISTS (SELECT 1 FROM submissions WHERE title = 'Edge Computing for IoT Applications');
+
+INSERT INTO submission_authors (submission_id, user_id, full_name, email, affiliation, is_corresponding, author_order)
+SELECT 
+    s.id, 
+    u.user_id, 
+    u.full_name, 
+    u.email, 
+    u.affiliation, 
+    TRUE, 
+    1
+FROM submissions s
+JOIN users u ON u.email = 'pandaxm2911@gmail.com'
+WHERE s.title = 'Edge Computing for IoT Applications'
+AND NOT EXISTS (SELECT 1 FROM submission_authors sa WHERE sa.submission_id = s.id AND sa.email = 'pandaxm2911@gmail.com');

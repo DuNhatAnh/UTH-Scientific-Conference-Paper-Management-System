@@ -98,3 +98,22 @@ $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER update_reviews_updated_at BEFORE UPDATE ON reviews
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
+-- SEED DATA
+-- ============================================
+
+-- 1. Create Review Assignment
+INSERT INTO review_assignments (submission_id, reviewer_id, assigned_by, deadline, status)
+SELECT 
+    s.id, 
+    u_reviewer.user_id, 
+    u_chair.user_id, 
+    '2026-11-15', 
+    'PENDING'
+FROM submissions s
+JOIN users u_reviewer ON u_reviewer.email = 'reviewer@uth.edu.vn'
+JOIN users u_chair ON u_chair.email = 'chair@uth.edu.vn'
+WHERE s.title = 'Deep Learning for Autonomous Vehicles'
+AND NOT EXISTS (SELECT 1 FROM review_assignments ra WHERE ra.submission_id = s.id AND ra.reviewer_id = u_reviewer.user_id);
+

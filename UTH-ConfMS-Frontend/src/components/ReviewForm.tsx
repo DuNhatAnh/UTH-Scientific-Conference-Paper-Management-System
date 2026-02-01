@@ -3,14 +3,14 @@ import apiClient from '../services/apiClient';
 
 // Định nghĩa kiểu dữ liệu cho Discussion
 interface Discussion {
-    paperId: number;
+    paperId: string;
     content: string;
     userName: string;
     createdAt: string;
 }
 
 interface ReviewFormProps {
-    paperId?: string | number; // Nhận ID bài báo từ cha
+    paperId?: string; // Nhận ID bài báo từ cha
     onSuccess?: () => void; // Callback khi gửi thành công
 }
 

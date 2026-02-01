@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ViewState } from '../../App';
 import { authApi } from '../../services/authApi';
 import logo from '../../assets/logo.png';
@@ -103,14 +104,13 @@ export const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onNavigate }) =>
                         ) : "Gửi yêu cầu phục hồi"}
                     </button>
                     
-                    <button 
-                        type="button"
-                        onClick={() => onNavigate('login')}
+                    <Link
+                        to="/login"
                         className="text-sm font-medium text-text-sec-light hover:text-primary transition-colors flex items-center justify-center gap-1"
                     >
                         <span className="material-symbols-outlined text-[18px]">arrow_back</span>
                         Quay lại đăng nhập
-                    </button>
+                    </Link>
                 </form>
             ) : (
                 <div className="flex flex-col items-center gap-6 py-4 animate-in fade-in zoom-in duration-300">
@@ -123,12 +123,12 @@ export const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onNavigate }) =>
                             Mật khẩu mới (hoặc link reset) đã được gửi về email <span className="font-bold text-text-main-light dark:text-text-main-dark">{email}</span>. Vui lòng kiểm tra hộp thư đến hoặc thư rác (Spam).
                         </p>
                     </div>
-                    <button 
-                        onClick={() => onNavigate('login')}
-                        className="w-full h-11 rounded-lg bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md transition-all"
+                    <Link
+                        to="/login"
+                        className="w-full h-11 rounded-lg bg-primary hover:bg-primary-hover text-white font-bold text-sm shadow-md transition-all flex items-center justify-center"
                     >
                         Quay lại đăng nhập ngay
-                    </button>
+                    </Link>
                 </div>
             )}
         </div>

@@ -78,6 +78,49 @@ export const authApi = {
     const response = await apiClient.post<ApiResponse<void>>('/api/auth/forgot-password', { email });
     return response.data;
   },
+
+  // --- Role Context API (Multi-role support) ---
+  getAvailableContexts: async (conferenceId?: string): Promise<ApiResponse<any>> => {
+    const params = conferenceId ? { conferenceId } : {};
+    const response = await apiClient.get<ApiResponse<any>>('/api/rolecontext/contexts', { params });
+    return response.data;
+  },
+
+  switchRoleContext: async (conferenceId: string, roleName: string): Promise<ApiResponse<any>> => {
+    const response = await apiClient.post<ApiResponse<any>>('/api/rolecontext/switch', {
+      conferenceId,
+      roleName
+    });
+    return response.data;
+  },
+
+  getCurrentContext: async (): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get<ApiResponse<any>>('/api/rolecontext/current');
+    return response.data;
+  },
+
+  // --- Notification API ---
+  getNotifications: async (page = 1, pageSize = 20): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get<ApiResponse<any>>('/api/notifications', {
+      params: { page, pageSize }
+    });
+    return response.data;
+  },
+
+  getUnreadCount: async (): Promise<ApiResponse<any>> => {
+    const response = await apiClient.get<ApiResponse<any>>('/api/notifications/unread-count');
+    return response.data;
+  },
+
+  markAsRead: async (notificationId: string): Promise<ApiResponse<void>> => {
+    const response = await apiClient.put<ApiResponse<void>>(`/api/notifications/${notificationId}/read`);
+    return response.data;
+  },
+
+  markAllAsRead: async (): Promise<ApiResponse<void>> => {
+    const response = await apiClient.put<ApiResponse<void>>('/api/notifications/mark-all-read');
+    return response.data;
+  },
 };
 
 export default authApi;

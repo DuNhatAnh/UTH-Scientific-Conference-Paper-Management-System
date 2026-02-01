@@ -84,8 +84,9 @@ export const PaperAssignment: React.FC<PaperAssignmentProps> = ({ conferenceId, 
         try {
             const payload = {
                 paperId: selectedPaper.id,
+                reviewerUserId: member.userId, // Send userId (Guid) for proper assignment
                 reviewerEmail: member.email,
-                reviewerId: 0 // AssignmentService handles lookup by email if id is 0
+                reviewerId: 0
             };
 
             const res = await apiClient.post('/api/assignments', payload);

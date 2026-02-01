@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { ViewState } from '../../App';
 import { authApi } from '../../services/authApi';
 import logo from '../../assets/logo.png';
@@ -8,6 +9,7 @@ interface RegisterProps {
 }
 
 export const Register: React.FC<RegisterProps> = ({ onNavigate }) => {
+  const navigate = useNavigate();
   // 1. State lưu dữ liệu form
   const [formData, setFormData] = useState({
       fullName: '',
@@ -64,7 +66,7 @@ export const Register: React.FC<RegisterProps> = ({ onNavigate }) => {
             
             // Đợi 2 giây cho người dùng đọc thông báo rồi mới chuyển trang
             setTimeout(() => {
-                onNavigate('login');
+                navigate('/login');
             }, 2000);
         } else {
             setError(response.message || 'Đăng ký thất bại. Vui lòng thử lại.');
@@ -215,7 +217,7 @@ export const Register: React.FC<RegisterProps> = ({ onNavigate }) => {
             <div className="mt-6 text-center">
                 <p className="text-sm text-text-sec-light dark:text-text-sec-dark">
                     Đã có tài khoản?{" "}
-                    <button onClick={() => onNavigate('login')} className="font-semibold text-primary hover:text-primary-hover transition-colors">Đăng nhập</button>
+                    <Link to="/login" className="font-semibold text-primary hover:text-primary-hover transition-colors">Đăng nhập</Link>
                 </p>
             </div>
         </div>

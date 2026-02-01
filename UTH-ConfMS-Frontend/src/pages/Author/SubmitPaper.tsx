@@ -5,6 +5,7 @@ import { AISpellCheck } from "../../components/AISpellCheck";
 import { useAuth } from "../../contexts/AuthContext";
 import { paperApi, AuthorSubmission } from "../../services/paper";
 import conferenceApi, { ConferenceDto, TrackDto } from "../../services/conferenceApi";
+import { useSearchParams } from "react-router-dom";
 
 interface SubmitProps {
   onNavigate: (view: ViewState) => void;
@@ -14,6 +15,7 @@ interface SubmitProps {
 
 export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate, editMode = false, submissionId }) => {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingSubmission, setIsLoadingSubmission] = useState(false);
@@ -95,13 +97,19 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate, editMode = fals
           // @ts-ignore - Handle backend inconsistency (Items vs Data)
           const list = response.data.items || response.data.data || [];
           setConferences(list);
+          
+          // Auto-select conference from URL params if available
+          const conferenceIdFromUrl = searchParams.get('conferenceId');
+          if (conferenceIdFromUrl && !editMode) {
+            setConferenceId(conferenceIdFromUrl);
+          }
         }
       } catch (error) {
         console.error("Failed to fetch conferences:", error);
       }
     };
     fetchConferences();
-  }, []);
+  }, [searchParams, editMode]);
 
   // Load tracks khi chọn conference
   useEffect(() => {

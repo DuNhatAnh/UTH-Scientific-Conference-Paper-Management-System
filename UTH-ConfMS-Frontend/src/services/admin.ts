@@ -11,6 +11,8 @@ export interface CreateConferenceDto {
 export interface AssignReviewerDto {
   paperId: number;
   reviewerId: number;
+  reviewerUserId?: string; // Added for UserID based assignment
+  reviewerEmail?: string; // Added for Email fallback
 }
 
 export interface InviteReviewerDto {
@@ -27,7 +29,7 @@ export const adminApi = {
     });
     // Xử lý trường hợp apiClient đã trả về data qua interceptor hoặc chưa
     return response.data || response;
-  }, 
+  },
   updateUser: async (id: string, data: any) => {
     const response = await apiClient.put(`/api/users/${id}`, data);
     return response.data;
@@ -41,7 +43,7 @@ export const adminApi = {
     const response = await apiClient.get('/api/roles/allroles');
     return response.data || response;
   },
-  
+
 
   // --- Quản lý Hội nghị & Track ---
   createConference: async (data: CreateConferenceDto) => {
@@ -79,7 +81,7 @@ export const adminApi = {
     const response = await apiClient.post('/api/assignments', data);
     return response.data;
   },
-  
+
   // 3. Chạy thuật toán tự động phân công (Gọi xuống thuật toán matching)
   autoAssign: async (conferenceId: number) => {
     const response = await apiClient.post(`/api/assignments/auto-assign/${conferenceId}`, {});

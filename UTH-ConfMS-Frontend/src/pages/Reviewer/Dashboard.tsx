@@ -57,7 +57,7 @@ export const ReviewerDashboard: React.FC = () => {
         }
     };
 
-    const handleAcceptAssignment = async (assignmentId: number) => {
+    const handleAcceptAssignment = async (assignmentId: string) => {
         try {
             const res = await reviewApi.acceptAssignment(assignmentId);
             // Check success if present, otherwise assume success if no error thrown
@@ -71,7 +71,7 @@ export const ReviewerDashboard: React.FC = () => {
         }
     };
 
-    const handleRejectAssignment = async (assignmentId: number) => {
+    const handleRejectAssignment = async (assignmentId: string) => {
         if (!window.confirm('Bạn có chắc chắn muốn từ chối phân công này?')) return;
         try {
             const res = await reviewApi.declineAssignment(assignmentId);

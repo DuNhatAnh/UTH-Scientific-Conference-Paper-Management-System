@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ViewState } from '../../App';
 import { useAuth } from '../../contexts/AuthContext';
 import { authApi } from '../../services/authApi';
@@ -164,7 +165,7 @@ export const Login: React.FC<LoginProps> = ({ onNavigate }) => {
             <div className="mt-6 text-center">
                 <p className="text-sm text-text-sec-light dark:text-text-sec-dark">
                     Chưa có tài khoản?{" "}
-                    <button onClick={() => onNavigate('register')} className="font-semibold text-primary hover:text-primary-hover transition-colors">Đăng ký ngay</button>
+                    <Link to="/register" className="font-semibold text-primary hover:text-primary-hover transition-colors">Đăng ký ngay</Link>
                 </p>
             </div>
         </div>

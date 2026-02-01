@@ -185,7 +185,7 @@ const CFPDetailView: React.FC<{ conference: ConferenceDto, cfp: CallForPapersDto
                             </p>
                             <div className="flex flex-wrap gap-4 justify-center md:justify-start">
                                 <Link
-                                    to="/author/submit"
+                                    to={`/author/submit?conferenceId=${conference.conferenceId}`}
                                     className="group relative px-8 py-4 bg-white text-primary font-black rounded-2xl hover:scale-105 transition-all shadow-[0_10px_30px_rgba(255,255,255,0.2)]"
                                 >
                                     <span className="flex items-center gap-2">
@@ -416,7 +416,7 @@ const CFPCard: React.FC<{ conference: ConferenceDto, cfp: CallForPapersDto, form
                         Chi tiết
                     </Link>
                     <Link
-                        to="/author/submit"
+                        to={`/author/submit?conferenceId=${conference.conferenceId}`}
                         className="flex-1 px-4 py-3 bg-primary text-white font-bold rounded-xl hover:bg-primary/90 transition-all text-center flex items-center justify-center gap-2 group"
                     >
                         Nộp bài

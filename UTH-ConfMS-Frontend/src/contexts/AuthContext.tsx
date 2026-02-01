@@ -8,7 +8,8 @@ interface User {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
+  role: UserRole; // Primary role (for backward compatibility)
+  roles: UserRole[]; // All roles the user has
   avatarUrl?: string;
 }
 
@@ -23,20 +24,43 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // --- HÀM HELPER QUAN TRỌNG ---
-// Hàm này giúp map các Role từ Backend (thường viết hoa hoặc có tiền tố) 
-// sang 4 role chuẩn của Frontend định nghĩa ở trên.
-const mapToUserRole = (backendRole: string | string[]): UserRole => {
-  if (!backendRole) return 'author';
-
-  // Handle array of roles if decoded as array
-  const roleString = Array.isArray(backendRole) ? backendRole.join(',') : backendRole.toString();
-  const upperRole = roleString.toUpperCase();
-
-  // Priority: Admin > Chair > Reviewer > Author
+// Hàm này giúp map các Role từ Backend sang frontend role
+const normalizeRole = (backendRole: string): UserRole | null => {
+  const upperRole = backendRole.toUpperCase();
+  
   if (upperRole.includes('ADMIN')) return 'admin';
   if (upperRole.includes('CHAIR')) return 'chair';
-  if (upperRole.includes('REVIEWER')) return 'reviewer';
+  if (upperRole.includes('REVIEWER') || upperRole.includes('PC_MEMBER')) return 'reviewer';
+  if (upperRole.includes('AUTHOR')) return 'author';
+  
+  return null;
+};
 
+// Map all backend roles to frontend roles
+const mapToUserRoles = (backendRole: string | string[]): UserRole[] => {
+  if (!backendRole) return ['author'];
+
+  // Handle array of roles
+  const roleArray = Array.isArray(backendRole) ? backendRole : [backendRole.toString()];
+  
+  const mappedRoles: UserRole[] = [];
+  
+  roleArray.forEach(role => {
+    const normalized = normalizeRole(role);
+    if (normalized && !mappedRoles.includes(normalized)) {
+      mappedRoles.push(normalized);
+    }
+  });
+  
+  // If no roles mapped, default to author
+  return mappedRoles.length > 0 ? mappedRoles : ['author'];
+};
+
+// Get primary role based on priority: Admin > Chair > Reviewer > Author
+const getPrimaryRole = (roles: UserRole[]): UserRole => {
+  if (roles.includes('admin')) return 'admin';
+  if (roles.includes('chair')) return 'chair';
+  if (roles.includes('reviewer')) return 'reviewer';
   return 'author';
 };
 
@@ -58,16 +82,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ||
         'author';
 
-      // 4. Mapping Claims sang object User
+      // 4. Map all roles
+      const userRoles = mapToUserRoles(rawRole);
+      const primaryRole = getPrimaryRole(userRoles);
+
+      // 5. Mapping Claims sang object User
       const userData: User = {
         id: decoded.nameid || decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'],
         email: decoded.email || decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'],
         name: decoded.unique_name || decoded.name || decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'],
-
-        // SỬ DỤNG HÀM MAP ROLE ĐÃ VIẾT Ở TRÊN
-        role: mapToUserRole(rawRole),
+        role: primaryRole, // Primary role for compatibility
+        roles: userRoles, // All roles
       };
 
+      console.log('User decoded with roles:', userData);
       setUser(userData);
     } catch (error) {
       console.error("Lỗi giải mã token:", error);

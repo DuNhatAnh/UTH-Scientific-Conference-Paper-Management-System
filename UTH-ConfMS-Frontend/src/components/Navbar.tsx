@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ViewState } from '../App';
 import { useAuth } from '../contexts/AuthContext';
+import { NotificationCenter } from './NotificationCenter';
 import logo from '../assets/logo.png';
 
 interface NavbarProps {
@@ -45,33 +46,44 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentView }) => {
                 </div>
 
                 {user ? (
-                  <div className="relative">
-                    <button
-                      onClick={() => setIsMenuOpen(!isMenuOpen)}
-                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border-light hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                    >
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-                        {user.name.charAt(0)}
-                      </div>
-                      <span className="text-sm font-medium hidden md:block">{user.name}</span>
-                    </button>
-                    {isMenuOpen && (
-                      <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-card-dark rounded-xl shadow-xl border border-border-light dark:border-border-dark py-2 flex flex-col z-50">
-                        <div className="px-4 py-2 border-b border-border-light dark:border-border-dark">
-                          <p className="text-xs font-bold text-primary uppercase">{user.role}</p>
+                  <div className="flex items-center gap-4">
+                    <NotificationCenter />
+                    <div className="relative">
+                      <button
+                        onClick={() => setIsMenuOpen(!isMenuOpen)}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border-light hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                          {user.name.charAt(0)}
                         </div>
-                        <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800">Hồ sơ cá nhân</Link>
-                        {user.role === 'author' && <Link to="/author/dashboard" onClick={() => setIsMenuOpen(false)} className="px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800">Dashboard Tác giả</Link>}
-                        {user.role === 'reviewer' && <Link to="/reviewer/dashboard" onClick={() => setIsMenuOpen(false)} className="px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800">Dashboard Phản biện</Link>}
-                        {user.role === 'chair' && <Link to="/chair/dashboard" onClick={() => setIsMenuOpen(false)} className="px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800">Dashboard Chủ tọa</Link>}
-                        {user.role === 'admin' && <Link to="/admin/dashboard" onClick={() => setIsMenuOpen(false)} className="px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800">Dashboard Admin</Link>}
+                        <span className="text-sm font-medium hidden md:block">{user.name}</span>
+                      </button>
+                      {isMenuOpen && (
+                        <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-card-dark rounded-xl shadow-xl border border-border-light dark:border-border-dark py-2 flex flex-col z-50">
+                          <div className="px-4 py-2 border-b border-border-light dark:border-border-dark">
+                            <p className="text-xs font-bold text-primary uppercase">{user.roles.join(', ')}</p>
+                          </div>
+                          <Link to="/profile" onClick={() => setIsMenuOpen(false)} className="px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800">Hồ sơ cá nhân</Link>
+                          {user.roles.includes('author') && <Link to="/author/dashboard" onClick={() => setIsMenuOpen(false)} className="px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800">Dashboard Tác giả</Link>}
+                          {user.roles.includes('reviewer') && <Link to="/reviewer/dashboard" onClick={() => setIsMenuOpen(false)} className="px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800">Dashboard Phản biện</Link>}
+                          {user.roles.includes('chair') && <Link to="/chair/dashboard" onClick={() => setIsMenuOpen(false)} className="px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800">Dashboard Chủ tọa</Link>}
+                          {user.roles.includes('admin') && <Link to="/admin/dashboard" onClick={() => setIsMenuOpen(false)} className="px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-800">Dashboard Admin</Link>}
 
-                        <button onClick={() => { logout(); onNavigate('home'); setIsMenuOpen(false) }} className="px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-50 dark:hover:bg-gray-800">Đăng xuất</button>
-                      </div>
-                    )}
+                          <button onClick={() => { logout(); onNavigate('home'); setIsMenuOpen(false) }} className="px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-50 dark:hover:bg-gray-800">Đăng xuất</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="flex gap-2">
+                    {!isActive('/register') && (
+                      <Link
+                        to="/register"
+                        className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-9 px-4 bg-white border border-border-light hover:bg-gray-50 text-text-main-light text-sm font-bold leading-normal tracking-[0.015em] transition-colors shadow-sm"
+                      >
+                        <span className="truncate">Đăng ký</span>
+                      </Link>
+                    )}
                     {!isActive('/login') && (
                       <Link
                         to="/login"
@@ -80,21 +92,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, currentView }) => {
                         <span className="truncate">Đăng nhập</span>
                       </Link>
                     )}
-                    {isActive('/login') && (
-                      <Link
-                        to="/register"
-                        className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-9 px-4 bg-white border border-border-light hover:bg-gray-50 text-text-main-light text-sm font-bold leading-normal tracking-[0.015em] transition-colors shadow-sm"
-                      >
-                        <span className="truncate">Đăng ký</span>
-                      </Link>
-                    )}
                   </div>
                 )}
               </div>
             </header>
           </div>
         </div>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 };

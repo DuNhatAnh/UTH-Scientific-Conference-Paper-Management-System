@@ -35,7 +35,13 @@ export const Profile: React.FC = () => {
                     </div>
                      <div className="flex flex-col gap-1.5">
                         <label className="text-sm font-bold text-text-sec-light">Vai trò hệ thống</label>
-                        <span className="inline-block px-3 py-1 rounded bg-blue-100 text-blue-800 font-bold text-xs w-fit uppercase">{user.role}</span>
+                        <div className="flex gap-2 flex-wrap">
+                          {user.roles.map((role) => (
+                            <span key={role} className="inline-block px-3 py-1 rounded bg-blue-100 text-blue-800 font-bold text-xs uppercase">
+                              {role}
+                            </span>
+                          ))}
+                        </div>
                     </div>
 
                     <div className="pt-4 flex gap-4">

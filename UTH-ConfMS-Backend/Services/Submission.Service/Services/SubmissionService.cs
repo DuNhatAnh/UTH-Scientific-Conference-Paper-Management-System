@@ -39,7 +39,21 @@ public class SubmissionService : ISubmissionService
         var totalCount = await _unitOfWork.Submissions.CountAsync(conferenceId, status);
         var submissions = await _unitOfWork.Submissions.GetAllAsync(conferenceId, status, (page - 1) * pageSize, pageSize);
 
-        var items = submissions.Select(s => MapToDto(s)).ToList();
+        List<TrackDto>? tracks = null;
+        if (conferenceId.HasValue)
+        {
+            try 
+            {
+                var conf = await _conferenceClient.GetConferenceByIdAsync(conferenceId.Value);
+                tracks = conf.Tracks;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not fetch tracks for conference {ConferenceId}", conferenceId.Value);
+            }
+        }
+
+        var items = submissions.Select(s => MapToDto(s, tracks)).ToList();
 
         return new PagedResponse<SubmissionDto>
         {
@@ -57,7 +71,26 @@ public class SubmissionService : ISubmissionService
         var totalCount = await _unitOfWork.Submissions.CountByUserAsync(userId, conferenceId, status, excludeWithdrawn: true);
         var submissions = await _unitOfWork.Submissions.GetByUserAsync(userId, conferenceId, status, (page - 1) * pageSize, pageSize, excludeWithdrawn: true);
 
-        var items = submissions.Select(s => MapToDto(s)).ToList();
+        var items = new List<SubmissionDto>();
+        var conferenceTracks = new Dictionary<Guid, List<TrackDto>>();
+
+        foreach (var s in submissions)
+        {
+            if (!conferenceTracks.ContainsKey(s.ConferenceId))
+            {
+                try 
+                {
+                    var conf = await _conferenceClient.GetConferenceByIdAsync(s.ConferenceId);
+                    conferenceTracks[s.ConferenceId] = conf.Tracks;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not fetch tracks for conference {ConferenceId}", s.ConferenceId);
+                    conferenceTracks[s.ConferenceId] = new List<TrackDto>();
+                }
+            }
+            items.Add(MapToDto(s, conferenceTracks[s.ConferenceId]));
+        }
 
         return new PagedResponse<SubmissionDto>
         {
@@ -75,6 +108,17 @@ public class SubmissionService : ISubmissionService
         if (submission == null)
         {
             throw new InvalidOperationException("Submission not found");
+        }
+
+        List<TrackDto>? tracks = null;
+        try 
+        {
+            var conference = await _conferenceClient.GetConferenceByIdAsync(submission.ConferenceId);
+            tracks = conference.Tracks;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not fetch tracks for conference {ConferenceId}", submission.ConferenceId);
         }
 
         return new SubmissionDetailDto(
@@ -106,12 +150,19 @@ public class SubmissionService : ISubmissionService
             )).ToList()
         )
         {
-            TrackName = GetTrackName(submission.TrackId)
+            TrackName = GetTrackName(submission.TrackId, tracks)
         };
     }
 
     public async Task<SubmissionDto> CreateSubmissionAsync(CreateSubmissionRequest request, Guid submitterId)
     {
+        // Check if author has reached the limit of 3 submissions per conference
+        var submissionCount = await _unitOfWork.Submissions.CountByUserAsync(submitterId, request.ConferenceId, null, excludeWithdrawn: true);
+        if (submissionCount >= 3)
+        {
+            throw new InvalidOperationException("Bạn đã đạt giới hạn tối đa nộp 3 bài báo cho hội nghị này.");
+        }
+
         // TODO: Check if conference is accepting submissions (call conference service)
         
         // Generate paper number
@@ -153,24 +204,30 @@ public class SubmissionService : ISubmissionService
         _logger.LogInformation("Submission #{Number} created for conference {ConferenceId}",
             submission.PaperNumber, submission.ConferenceId);
 
-        // Reload with authors
-        submission = await _unitOfWork.Submissions.GetByIdWithAuthorsAsync(submission.Id);
-
-        // Handle file upload if provided
         if (request.File != null && request.File.Length > 0)
         {
             try 
             {
                 await UploadFileAsync(submission.Id, request.File, submitterId);
-                // Reload again to include file info if needed, or just rely on the fact it's saved
-                // For now, MapToDto doesn't strictly require the file list unless we want to return it immediately
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to upload initial file for submission {SubmissionId}", submission.Id);
-                // We don't rollback the submission but we log the error. 
-                // Alternatively, we could throw to let the controller handle it, but the submission is technically created.
             }
+        }
+
+        // Reload with all details (authors and files) to return complete DTO
+        submission = await _unitOfWork.Submissions.GetByIdWithDetailsAsync(submission.Id);
+
+        List<TrackDto>? tracks = null;
+        try 
+        {
+            var conference = await _conferenceClient.GetConferenceByIdAsync(submission!.ConferenceId);
+            tracks = conference.Tracks;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not fetch tracks for conference {ConferenceId}", submission!.ConferenceId);
         }
 
         // Publish PaperSubmittedEvent to notify author
@@ -211,7 +268,7 @@ public class SubmissionService : ISubmissionService
             // Don't throw - notification failure shouldn't fail the submission
         }
 
-        return MapToDto(submission!);
+        return MapToDto(submission!, tracks);
     }
 
     public async Task<SubmissionDto> UpdateSubmissionAsync(Guid submissionId, UpdateSubmissionRequest request, Guid userId)
@@ -227,13 +284,13 @@ public class SubmissionService : ISubmissionService
         // Check ownership - chỉ người submit mới có quyền update
         if (submission.SubmittedBy != userId)
         {
-            throw new UnauthorizedAccessException("Only the submitter can update the submission");
+            throw new UnauthorizedAccessException("Chỉ người nộp bài mới có quyền cập nhật bài báo này.");
         }
 
-        // Check if submission can be updated based on status
+        // Check if if submission can be updated based on status
         if (submission.Status == "ACCEPTED" || submission.Status == "REJECTED" || submission.Status == "WITHDRAWN")
         {
-            throw new InvalidOperationException($"Cannot update submission with status {submission.Status}");
+            throw new InvalidOperationException($"Không thể cập nhật bài báo đang ở trạng thái {submission.Status}");
         }
 
         // Check deadline - gọi Conference Service để lấy thông tin deadline
@@ -242,13 +299,13 @@ public class SubmissionService : ISubmissionService
             var conference = await _conferenceClient.GetConferenceByIdAsync(submission.ConferenceId);
             if (DateTime.UtcNow > conference.SubmissionDeadline)
             {
-                throw new InvalidOperationException("Submission deadline has passed. Cannot update submission.");
+                throw new InvalidOperationException("Hạn nộp bài đã qua. Không thể cập nhật bài báo.");
             }
         }
         catch (Exception ex) when (ex is not InvalidOperationException)
         {
             _logger.LogError(ex, "Failed to check conference deadline for submission {SubmissionId}", submissionId);
-            throw new InvalidOperationException("Unable to verify submission deadline. Please try again later.", ex);
+            throw new InvalidOperationException("Không thể xác minh hạn nộp bài. Vui lòng thử lại sau.", ex);
         }
 
         // Update metadata
@@ -297,8 +354,20 @@ public class SubmissionService : ISubmissionService
 
         _logger.LogInformation("Submission {SubmissionId} updated by user {UserId}", submission.Id, userId);
 
-        submission = await _unitOfWork.Submissions.GetByIdWithAuthorsAsync(submission.Id);
-        return MapToDto(submission!);
+        submission = await _unitOfWork.Submissions.GetByIdWithDetailsAsync(submission.Id);
+        
+        List<TrackDto>? tracks = null;
+        try 
+        {
+            var conference = await _conferenceClient.GetConferenceByIdAsync(submission!.ConferenceId);
+            tracks = conference.Tracks;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not fetch tracks for conference {ConferenceId}", submission!.ConferenceId);
+        }
+
+        return MapToDto(submission!, tracks);
     }
 
     public async Task WithdrawSubmissionAsync(Guid submissionId, Guid userId, string reason)
@@ -306,13 +375,13 @@ public class SubmissionService : ISubmissionService
         var submission = await _unitOfWork.Submissions.GetByIdAsync(submissionId);
         if (submission == null)
         {
-            throw new InvalidOperationException("Submission not found");
+            throw new InvalidOperationException("Không tìm thấy bài báo.");
         }
 
         // Check if user has permission to withdraw
         if (submission.SubmittedBy != userId)
         {
-            throw new UnauthorizedAccessException("Only the submitter can withdraw the submission");
+            throw new UnauthorizedAccessException("Chỉ người nộp bài mới có quyền rút bài báo.");
         }
 
         submission.Status = "WITHDRAWN";
@@ -328,7 +397,7 @@ public class SubmissionService : ISubmissionService
         var submission = await _unitOfWork.Submissions.GetByIdAsync(submissionId);
         if (submission == null)
         {
-            throw new InvalidOperationException("Submission not found");
+            throw new InvalidOperationException("Không tìm thấy bài báo.");
         }
 
         submission.Status = status.ToUpper();
@@ -343,7 +412,7 @@ public class SubmissionService : ISubmissionService
         var submission = await _unitOfWork.Submissions.GetByIdAsync(submissionId);
         if (submission == null)
         {
-            throw new InvalidOperationException("Submission not found");
+            throw new InvalidOperationException("Không tìm thấy bài báo.");
         }
 
         // If uploading camera-ready, update status
@@ -355,11 +424,12 @@ public class SubmissionService : ISubmissionService
         var directory = $"submissions/{submission.ConferenceId}/{submissionId}";
         var filePath = await _fileStorage.SaveFileAsync(file, directory);
 
+        var originalFileName = Path.GetFileName(file.FileName);
         var submissionFile = new SubmissionFile
         {
             FileId = Guid.NewGuid(),
             SubmissionId = submissionId,
-            FileName = file.FileName, // Use original filename
+            FileName = originalFileName, // Use original filename
             FilePath = filePath,
             FileSizeBytes = file.Length,
             FileType = fileType.ToUpper(),
@@ -388,7 +458,7 @@ public class SubmissionService : ISubmissionService
 
         if (file == null)
         {
-            throw new FileNotFoundException("File not found");
+            throw new FileNotFoundException("Không tìm thấy tệp tin.");
         }
 
         var fileBytes = await _fileStorage.ReadFileAsync(file.FilePath);
@@ -435,7 +505,7 @@ public class SubmissionService : ISubmissionService
         );
     }
 
-    private SubmissionDto MapToDto(Entities.Submission submission)
+    private SubmissionDto MapToDto(Entities.Submission submission, List<TrackDto>? tracks = null)
     {
         return new SubmissionDto(
             submission.Id,
@@ -459,13 +529,19 @@ public class SubmissionService : ISubmissionService
             null // Deadline will be populated separately if needed to avoid N+1 or use a cache
         )
         {
-            TrackName = GetTrackName(submission.TrackId)
+            TrackName = GetTrackName(submission.TrackId, tracks)
         };
     }
 
-    private string GetTrackName(Guid? trackId)
+    private string GetTrackName(Guid? trackId, List<TrackDto>? tracks = null)
     {
         if (!trackId.HasValue) return "N/A";
+
+        if (tracks != null)
+        {
+            var track = tracks.FirstOrDefault(t => t.TrackId == trackId.Value);
+            if (track != null) return track.Name;
+        }
 
         var idString = trackId.Value.ToString().ToLower();
         return idString switch

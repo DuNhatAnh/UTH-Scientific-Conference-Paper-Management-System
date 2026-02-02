@@ -267,36 +267,55 @@ export const AuthorDashboard: React.FC<DashboardProps> = ({
                               )}
                             {sub.status.toLowerCase() === "accepted" && (
                               <>
-                                <button
-                                  onClick={() => onNavigate("decision")}
-                                  className="text-primary font-medium hover:underline text-xs mr-3"
-                                >
-                                  Kết quả
-                                </button>
-                                <label className="text-purple-600 font-medium hover:underline text-xs cursor-pointer">
-                                  Nộp Camera-ready
-                                  <input
-                                    type="file"
-                                    className="hidden"
-                                    accept=".pdf"
-                                    onChange={(e) => {
-                                      const file = e.target.files?.[0];
-                                      if (file) handleCameraReadyUpload(sub.id, file);
-                                    }}
-                                  />
-                                </label>
+                                <div className="flex flex-col gap-2">
+                                  <button
+                                    onClick={() => onNavigate("decision")}
+                                    className="w-full bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold py-1.5 px-3 rounded text-[10px] uppercase tracking-tighter transition-all flex items-center justify-center gap-1"
+                                  >
+                                    <span className="material-symbols-outlined text-sm">visibility</span>
+                                    Xem kết quả
+                                  </button>
+                                  <label className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-1.5 px-3 rounded text-[10px] uppercase tracking-tighter transition-all flex items-center justify-center gap-1 cursor-pointer shadow-sm shadow-purple-200">
+                                    <span className="material-symbols-outlined text-sm">upload_file</span>
+                                    Nộp Camera-ready
+                                    <input
+                                      type="file"
+                                      className="hidden"
+                                      accept=".pdf"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) handleCameraReadyUpload(sub.id, file);
+                                      }}
+                                    />
+                                  </label>
+                                </div>
                               </>
                             )}
-                            {sub.status.toLowerCase() === "camera_ready" && (
-                              <span className="text-text-sec-light text-xs italic">
-                                Chờ Chair duyệt
-                              </span>
-                            )}
-                            {sub.status.toLowerCase() === "finalized" && (
-                              <span className="text-green-600 text-xs font-medium">
-                                Đã chốt kỷ yếu
-                              </span>
-                            )}
+                             {sub.status.toLowerCase() === "camera_ready" && (
+                               <div className="flex flex-col gap-1 items-center">
+                                 <span className="bg-purple-50 text-purple-600 text-[10px] font-black px-3 py-1 rounded-full border border-purple-100 italic">
+                                   Đang chờ duyệt
+                                 </span>
+                                 <label className="text-purple-400 hover:text-purple-600 text-[10px] font-bold cursor-pointer underline decoration-dotted">
+                                   Nộp bản thay thế
+                                   <input
+                                     type="file"
+                                     className="hidden"
+                                     accept=".pdf"
+                                     onChange={(e) => {
+                                       const file = e.target.files?.[0];
+                                       if (file) handleCameraReadyUpload(sub.id, file);
+                                     }}
+                                   />
+                                 </label>
+                               </div>
+                             )}
+                             {sub.status.toLowerCase() === "finalized" && (
+                               <div className="flex items-center gap-1 text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-100">
+                                 <span className="material-symbols-outlined text-sm font-black">verified</span>
+                                 <span className="text-[10px] font-black uppercase">Đã vào kỷ yếu</span>
+                               </div>
+                             )}
                           </td>
                         </tr>
                       ))

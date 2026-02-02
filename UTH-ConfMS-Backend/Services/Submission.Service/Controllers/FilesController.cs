@@ -25,6 +25,51 @@ public class FilesController : ControllerBase
     }
 
     /// <summary>
+    /// Get all files for a submission
+    /// </summary>
+    [HttpGet]
+    [AllowAnonymous] // Allow Review Service to fetch files
+    public async Task<IActionResult> GetFiles(Guid submissionId)
+    {
+        try
+        {
+            var submission = await _submissionService.GetSubmissionByIdAsync(submissionId);
+            if (submission == null)
+            {
+                return NotFound(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = "Submission not found"
+                });
+            }
+
+            var files = submission.Files.Select(f => new
+            {
+                fileId = f.Id,
+                fileName = f.FileName,
+                fileSizeBytes = f.FileSizeBytes,
+                fileType = f.FileType,
+                uploadedAt = f.UploadedAt
+            }).OrderByDescending(f => f.uploadedAt).ToList();
+
+            return Ok(new ApiResponse<object>
+            {
+                Success = true,
+                Data = files
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Get files failed for submission {SubmissionId}", submissionId);
+            return BadRequest(new ApiResponse<object>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
     /// Upload submission file
     /// </summary>
     [HttpPost]

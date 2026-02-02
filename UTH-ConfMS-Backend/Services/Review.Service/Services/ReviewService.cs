@@ -189,36 +189,14 @@ namespace Review.Service.Services
                 .Where(r => r.Assignment.SubmissionId == submissionGuid)
                 .ToListAsync();
 
-            if (!paperReviews.Any())
-            {
-                return new ReviewSummaryDTO
-                {
-                    PaperId = paperId,
-                    TotalReviews = 0,
-                    OverallAverageScore = 0,
-                    AverageNoveltyScore = 0,
-                    AverageMethodologyScore = 0,
-                    AveragePresentationScore = 0,
-                    Reviews = new List<ReviewDetailDTO>(),
-                    Files = files // Return files even if no reviews
-                };
-            }
+            // Tính toán thống kê ngay cả khi paperReviews trống để tránh lỗi null/không đồng nhất
+            var overallAvg = paperReviews.Any() ? paperReviews.Average(r => r.OverallScore) : 0;
+            var acceptCount = paperReviews.Count(r => r.Recommendation?.ToLower() == "accept");
+            var rejectCount = paperReviews.Count(r => r.Recommendation?.ToLower() == "reject");
+            var revisionCount = paperReviews.Count(r => r.Recommendation?.ToLower().Contains("revision") == true);
 
-            // Tính điểm trung bình
-            var overallAvg = paperReviews.Average(r => r.OverallScore);
-            
-            // Đếm số lượng recommendation
-            var acceptCount = paperReviews.Count(r => 
-                r.Recommendation?.ToLower() == "accept");
-            var rejectCount = paperReviews.Count(r => 
-                r.Recommendation?.ToLower() == "reject");
-            var revisionCount = paperReviews.Count(r => 
-                r.Recommendation?.ToLower().Contains("revision") == true);
-            
-            // Tạo danh sách chi tiết
             var reviewDetails = paperReviews.Select((r, index) => new ReviewDetailDTO
             {
-                // Sử dụng UserId (String/GUID) từ Reviewer thay vì PK int
                 ReviewerId = r.Assignment.Reviewer?.UserId ?? r.Assignment.ReviewerId.ToString(), 
                 ReviewerName = r.Assignment.Reviewer?.FullName ?? $"Reviewer {r.Assignment.ReviewerId}",
                 NoveltyScore = r.OverallScore,
@@ -227,7 +205,7 @@ namespace Review.Service.Services
                 CommentsForAuthor = r.Comments,
                 ConfidentialComments = r.Comments,
                 Recommendation = r.Recommendation,
-                SubmittedAt = DateTime.Now // Since we don't have CreatedAt, use current time
+                SubmittedAt = r.SubmittedAt
             }).ToList();
             
             var summary = new ReviewSummaryDTO
@@ -245,7 +223,7 @@ namespace Review.Service.Services
                 Files = files.OrderByDescending(f => f.UploadedAt).ToList()
             };
             
-            Console.WriteLine($"[ReviewService] Generated DB summary for Paper {paperId}: {summary.TotalReviews} reviews, avg: {summary.OverallAverageScore}");
+            Console.WriteLine($"[ReviewService] Generated summary for Paper {paperId}: {summary.TotalReviews} reviews, {summary.Files.Count} files");
             
             return summary;
         }

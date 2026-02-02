@@ -183,9 +183,13 @@ export interface ReviewSummaryDto {
   averageMethodologyScore: number;
   averagePresentationScore: number;
   overallAverageScore: number;
-  AcceptCount: number;
-  RejectCount: number;
-  RevisionCount: number;
+  // Backend returns PascalCase, support both
+  acceptCount?: number;
+  rejectCount?: number;
+  revisionCount?: number;
+  AcceptCount?: number;
+  RejectCount?: number;
+  RevisionCount?: number;
   reviews: ReviewDetailDto[];
   files: ReviewSummaryFileDto[];
 }

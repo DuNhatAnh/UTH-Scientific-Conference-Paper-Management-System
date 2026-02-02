@@ -161,7 +161,7 @@ export const ReviewSummaryModal: React.FC<ReviewSummaryModalProps> = ({ isOpen, 
                                 <tbody className="divide-y divide-gray-100">
                                     {summary.reviews.map((review, idx) => (
                                         <tr key={idx} className="hover:bg-gray-50">
-                                            <td className="px-4 py-3 font-medium text-gray-900">{review.reviewerName || `Reviewer ${review.reviewerId}`}</td>
+                                            <td className="px-4 py-3 font-medium text-gray-900">Reviewer {idx + 1}</td>
                                             <td className="px-4 py-3 text-center">{review.noveltyScore}</td>
                                             <td className="px-4 py-3 text-center">{review.methodologyScore}</td>
                                             <td className="px-4 py-3 text-center">{review.presentationScore}</td>

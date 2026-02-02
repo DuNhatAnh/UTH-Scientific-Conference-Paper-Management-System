@@ -28,6 +28,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId, onSuccess }) =>
 
     const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
     const [loading, setLoading] = useState(false);
+    const [isExistingReview, setIsExistingReview] = useState(false);
 
     // State cho phần Thảo luận (Discussion)
     const [discussions, setDiscussions] = useState<Discussion[]>([]);
@@ -74,6 +75,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId, onSuccess }) =>
                     confidentialComments: d.confidentialComments || '',
                     recommendation: d.recommendation || 'Accept'
                 }));
+                setIsExistingReview(true);
             }
         } catch (error) {
             console.error("Lỗi tải bài đánh giá cũ:", error);
@@ -109,8 +111,12 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId, onSuccess }) =>
             const response = await apiClient.post('/api/reviews/submit', payload);
 
             if (response.status === 200 || response.status === 201) {
-                setMessage({ text: '✅ Đánh giá đã được gửi thành công!', type: 'success' });
+                const successText = isExistingReview
+                    ? '✅ Cập nhật đánh giá bài báo thành công!'
+                    : '✅ Đánh giá bài báo thành công!';
+                setMessage({ text: successText, type: 'success' });
                 console.log('Response:', response.data);
+                setIsExistingReview(true);
                 if (onSuccess) onSuccess();
             }
         } catch (error: any) {
@@ -145,7 +151,9 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId, onSuccess }) =>
     return (
         <div className="w-full bg-background-light dark:bg-background-dark py-4 px-2 md:px-5 flex justify-center">
             <div className="w-full flex flex-col gap-8">
-                <h1 className="text-2xl font-bold text-center text-primary">Đánh Giá Bài Báo (Review)</h1>
+                <h1 className="text-2xl font-bold text-center text-primary">
+                    {isExistingReview ? 'Cập Nhật Đánh Giá Bài Báo' : 'Đánh Giá Bài Báo (Review)'}
+                </h1>
 
                 <div className="bg-white dark:bg-card-dark p-8 rounded-xl border border-border-light shadow-sm">
                     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -233,7 +241,14 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId, onSuccess }) =>
                                 disabled={loading}
                                 className={`px-6 py-2 rounded bg-primary text-white font-bold text-sm shadow-md flex items-center gap-2 ${loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-hover'}`}
                             >
-                                {loading ? 'Đang gửi...' : <><span className="material-symbols-outlined text-[18px]">send</span> Gửi đánh giá</>}
+                                {loading ? 'Đang gửi...' : (
+                                    <>
+                                        <span className="material-symbols-outlined text-[18px]">
+                                            {isExistingReview ? 'update' : 'send'}
+                                        </span>
+                                        {isExistingReview ? 'Cập nhật đánh giá' : 'Gửi đánh giá'}
+                                    </>
+                                )}
                             </button>
                         </div>
                     </form>
@@ -278,7 +293,7 @@ export const ReviewForm: React.FC<ReviewFormProps> = ({ paperId, onSuccess }) =>
                         </button>
                     </div>
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };

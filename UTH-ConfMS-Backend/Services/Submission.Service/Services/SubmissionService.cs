@@ -18,6 +18,7 @@ public class SubmissionService : ISubmissionService
     private readonly ILogger<SubmissionService> _logger;
     private readonly IConferenceClient _conferenceClient;
     private readonly IPublishEndpoint _publishEndpoint;
+    private readonly Dictionary<Guid, string> _trackCache = new();
 
     public SubmissionService(
         IUnitOfWork unitOfWork,
@@ -34,26 +35,12 @@ public class SubmissionService : ISubmissionService
     }
 
     public async Task<PagedResponse<SubmissionDto>> GetSubmissionsAsync(
-        Guid? conferenceId, string? status, int page, int pageSize)
+        Guid? conferenceId, string? status, int page, int pageSize, Guid? requesterId = null)
     {
         var totalCount = await _unitOfWork.Submissions.CountAsync(conferenceId, status);
         var submissions = await _unitOfWork.Submissions.GetAllAsync(conferenceId, status, (page - 1) * pageSize, pageSize);
 
-        List<TrackDto>? tracks = null;
-        if (conferenceId.HasValue)
-        {
-            try 
-            {
-                var conf = await _conferenceClient.GetConferenceByIdAsync(conferenceId.Value);
-                tracks = conf.Tracks;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Could not fetch tracks for conference {ConferenceId}", conferenceId.Value);
-            }
-        }
-
-        var items = submissions.Select(s => MapToDto(s, tracks)).ToList();
+        var items = submissions.Select(s => MapToDto(s)).ToList();
 
         return new PagedResponse<SubmissionDto>
         {
@@ -71,26 +58,7 @@ public class SubmissionService : ISubmissionService
         var totalCount = await _unitOfWork.Submissions.CountByUserAsync(userId, conferenceId, status, excludeWithdrawn: true);
         var submissions = await _unitOfWork.Submissions.GetByUserAsync(userId, conferenceId, status, (page - 1) * pageSize, pageSize, excludeWithdrawn: true);
 
-        var items = new List<SubmissionDto>();
-        var conferenceTracks = new Dictionary<Guid, List<TrackDto>>();
-
-        foreach (var s in submissions)
-        {
-            if (!conferenceTracks.ContainsKey(s.ConferenceId))
-            {
-                try 
-                {
-                    var conf = await _conferenceClient.GetConferenceByIdAsync(s.ConferenceId);
-                    conferenceTracks[s.ConferenceId] = conf.Tracks;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Could not fetch tracks for conference {ConferenceId}", s.ConferenceId);
-                    conferenceTracks[s.ConferenceId] = new List<TrackDto>();
-                }
-            }
-            items.Add(MapToDto(s, conferenceTracks[s.ConferenceId]));
-        }
+        var items = submissions.Select(s => MapToDto(s)).ToList();
 
         return new PagedResponse<SubmissionDto>
         {
@@ -101,24 +69,13 @@ public class SubmissionService : ISubmissionService
         };
     }
 
-    public async Task<SubmissionDetailDto> GetSubmissionByIdAsync(Guid submissionId)
+    public async Task<SubmissionDetailDto> GetSubmissionByIdAsync(Guid submissionId, Guid? requesterId = null)
     {
         var submission = await _unitOfWork.Submissions.GetByIdWithDetailsAsync(submissionId);
 
         if (submission == null)
         {
             throw new InvalidOperationException("Submission not found");
-        }
-
-        List<TrackDto>? tracks = null;
-        try 
-        {
-            var conference = await _conferenceClient.GetConferenceByIdAsync(submission.ConferenceId);
-            tracks = conference.Tracks;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Could not fetch tracks for conference {ConferenceId}", submission.ConferenceId);
         }
 
         return new SubmissionDetailDto(
@@ -133,14 +90,7 @@ public class SubmissionService : ISubmissionService
             submission.SubmittedAt,
             submission.CreatedAt,
             submission.UpdatedAt,
-            submission.Authors.OrderBy(a => a.AuthorOrder).Select(a => new AuthorDto(
-                a.AuthorId,
-                a.FullName,
-                a.Email,
-                a.Affiliation,
-                a.AuthorOrder,
-                a.IsCorresponding
-            )).ToList(),
+            authorsDto,
             submission.Files.OrderByDescending(f => f.UploadedAt).Select(f => new FileInfoDto(
                 f.FileId,
                 f.FileName,
@@ -150,7 +100,7 @@ public class SubmissionService : ISubmissionService
             )).ToList()
         )
         {
-            TrackName = GetTrackName(submission.TrackId, tracks)
+            TrackName = GetTrackName(submission.TrackId)
         };
     }
 
@@ -268,7 +218,7 @@ public class SubmissionService : ISubmissionService
             // Don't throw - notification failure shouldn't fail the submission
         }
 
-        return MapToDto(submission!, tracks);
+        return MapToDto(submission!);
     }
 
     public async Task<SubmissionDto> UpdateSubmissionAsync(Guid submissionId, UpdateSubmissionRequest request, Guid userId)
@@ -293,11 +243,14 @@ public class SubmissionService : ISubmissionService
             throw new InvalidOperationException($"Không thể cập nhật bài báo đang ở trạng thái {submission.Status}");
         }
 
-        // Check deadline - gọi Conference Service để lấy thông tin deadline
+        // Check deadline - call Conference Service to get deadline
+        // Exception: Allow updates if status is REVISION or REVISION_REQUIRED
         try
         {
             var conference = await _conferenceClient.GetConferenceByIdAsync(submission.ConferenceId);
-            if (DateTime.UtcNow > conference.SubmissionDeadline)
+            if (DateTime.UtcNow > conference.SubmissionDeadline && 
+                submission.Status != "REVISION" && 
+                submission.Status != "REVISION_REQUIRED")
             {
                 throw new InvalidOperationException("Hạn nộp bài đã qua. Không thể cập nhật bài báo.");
             }
@@ -354,20 +307,8 @@ public class SubmissionService : ISubmissionService
 
         _logger.LogInformation("Submission {SubmissionId} updated by user {UserId}", submission.Id, userId);
 
-        submission = await _unitOfWork.Submissions.GetByIdWithDetailsAsync(submission.Id);
-        
-        List<TrackDto>? tracks = null;
-        try 
-        {
-            var conference = await _conferenceClient.GetConferenceByIdAsync(submission!.ConferenceId);
-            tracks = conference.Tracks;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Could not fetch tracks for conference {ConferenceId}", submission!.ConferenceId);
-        }
-
-        return MapToDto(submission!, tracks);
+        submission = await _unitOfWork.Submissions.GetByIdWithAuthorsAsync(submission.Id);
+        return MapToDto(submission!);
     }
 
     public async Task WithdrawSubmissionAsync(Guid submissionId, Guid userId, string reason)
@@ -505,8 +446,11 @@ public class SubmissionService : ISubmissionService
         );
     }
 
-    private SubmissionDto MapToDto(Entities.Submission submission, List<TrackDto>? tracks = null)
+    private SubmissionDto MapToDto(Entities.Submission submission)
     {
+        // Double-Blind logic: Mask authors if requester is not the submitter
+        bool shouldMask = requesterId == null || submission.SubmittedBy != requesterId;
+
         return new SubmissionDto(
             submission.Id,
             submission.PaperNumber,
@@ -517,31 +461,59 @@ public class SubmissionService : ISubmissionService
             submission.SubmittedAt,
             submission.Authors.OrderBy(a => a.AuthorOrder).Select(a => new AuthorDto(
                 a.AuthorId,
-                a.FullName,
-                a.Email,
-                a.Affiliation,
+                shouldMask ? "Author Hidden" : a.FullName,
+                shouldMask ? "hidden@confms.org" : a.Email,
+                shouldMask ? "Hidden" : a.Affiliation,
                 a.AuthorOrder,
                 a.IsCorresponding
             )).ToList(),
             submission.Files.OrderByDescending(f => f.UploadedAt).FirstOrDefault()?.FileName,
             submission.Files.OrderByDescending(f => f.UploadedAt).FirstOrDefault()?.FileId,
             submission.Files.OrderByDescending(f => f.UploadedAt).FirstOrDefault()?.FileSizeBytes,
-            null // Deadline will be populated separately if needed to avoid N+1 or use a cache
+            null
         )
         {
             TrackName = GetTrackName(submission.TrackId, tracks)
         };
     }
 
-    private string GetTrackName(Guid? trackId, List<TrackDto>? tracks = null)
+    private async Task EnsureTrackCacheAsync(Guid conferenceId)
+    {
+        try
+        {
+            var conference = await _conferenceClient.GetConferenceByIdAsync(conferenceId);
+            if (conference?.Tracks != null)
+            {
+                foreach (var track in conference.Tracks)
+                {
+                    _trackCache[track.TrackId] = track.Name;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not populate track cache for conference {ConferenceId}", conferenceId);
+        }
+    }
+
+    private async Task<string> GetTrackNameAsync(Guid conferenceId, Guid? trackId)
     {
         if (!trackId.HasValue) return "N/A";
 
-        if (tracks != null)
+        if (_trackCache.TryGetValue(trackId.Value, out var name))
         {
-            var track = tracks.FirstOrDefault(t => t.TrackId == trackId.Value);
-            if (track != null) return track.Name;
+            return name;
         }
+
+        // Try to refresh cache if not found
+        await EnsureTrackCacheAsync(conferenceId);
+
+        return _trackCache.TryGetValue(trackId.Value, out var newName) ? newName : "Chủ đề khác";
+    }
+
+    private string GetTrackName(Guid? trackId, List<TrackDto>? tracks = null)
+    {
+        if (!trackId.HasValue) return "N/A";
 
         var idString = trackId.Value.ToString().ToLower();
         return idString switch

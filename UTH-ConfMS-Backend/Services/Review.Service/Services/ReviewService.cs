@@ -138,82 +138,41 @@ namespace Review.Service.Services
             }
 
             // Lấy tất cả reviews của paper này bằng cách join với Assignment
-            var paperReviews = await _context.Reviews
-                .Include(r => r.Assignment)
-                .Where(r => r.Assignment.SubmissionId == submissionGuid)
-                .ToListAsync();
-            
-            if (!paperReviews.Any())
-            {
-                return new ReviewSummaryDTO
-                {
-                    PaperId = paperId,
-                    TotalReviews = 0,
-                    Reviews = new List<ReviewDetailDTO>(),
-                    Files = new List<ReviewSubmissionFileDTO>()
-                };
-            }
-            
-            // Lấy thông tin bài báo và file từ Submission Service
-            List<ReviewSubmissionFileDTO> files = new();
+            // 1. Fetch file information from Submission Service (ALWAYS)
+            var files = new List<ReviewSubmissionFileDTO>();
             try
             {
                 var client = _httpClientFactory.CreateClient();
                 var submissionUrl = _configuration["Services:SubmissionServiceUrl"] ?? _configuration["ServiceUrls:Submission"] ?? "http://localhost:5003";
 
-                // Add Authorization Header for Chair/Admin requests
+                // Add Authorization Header for context propagation
                 var token = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].ToString();
                 if (!string.IsNullOrEmpty(token))
                 {
                     client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", token);
                 }
 
-                var response = await client.GetAsync($"{submissionUrl}/api/submissions/{paperId}");
+                var response = await client.GetAsync($"{submissionUrl}/api/submissions/{paperId}/files");
                 if (response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadAsStringAsync();
                     using var doc = JsonDocument.Parse(content);
                     var root = doc.RootElement;
                     
-                    JsonElement data = root;
-                    if (root.TryGetProperty("data", out var dataProp) && dataProp.ValueKind == JsonValueKind.Object)
+                    JsonElement dataElement = root;
+                    if (root.TryGetProperty("data", out var dataProp)) dataElement = dataProp;
+
+                    if (dataElement.ValueKind == JsonValueKind.Array)
                     {
-                        data = dataProp;
-                    }
-                    
-                    if (data.TryGetProperty("files", out var filesProp) && filesProp.ValueKind == JsonValueKind.Array)
-                    {
-                        foreach (var file in filesProp.EnumerateArray())
+                        foreach (var file in dataElement.EnumerateArray())
                         {
-                            // Try multiple property name variants for better resilience
-                            Guid fileId = Guid.Empty;
-                            if (file.TryGetProperty("id", out var idProp)) fileId = idProp.GetGuid();
-                            else if (file.TryGetProperty("Id", out var idProp2)) fileId = idProp2.GetGuid();
-                            else if (file.TryGetProperty("fileId", out var idProp3)) fileId = idProp3.GetGuid();
-
-                            string fileName = "";
-                            if (file.TryGetProperty("fileName", out var nameProp)) fileName = nameProp.GetString() ?? "";
-                            else if (file.TryGetProperty("FileName", out var nameProp2)) fileName = nameProp2.GetString() ?? "";
-
-                            string? fileType = null;
-                            if (file.TryGetProperty("fileType", out var typeProp)) fileType = typeProp.GetString();
-                            else if (file.TryGetProperty("FileType", out var typeProp2)) fileType = typeProp2.GetString();
-
-                            long fileSizeBytes = 0;
-                            if (file.TryGetProperty("fileSizeBytes", out var sizeProp)) fileSizeBytes = sizeProp.GetInt64();
-                            else if (file.TryGetProperty("FileSizeBytes", out var sizeProp2)) fileSizeBytes = sizeProp2.GetInt64();
-
-                            DateTime uploadedAt = DateTime.MinValue;
-                            if (file.TryGetProperty("uploadedAt", out var dateProp)) uploadedAt = dateProp.GetDateTime();
-                            else if (file.TryGetProperty("UploadedAt", out var dateProp2)) uploadedAt = dateProp2.GetDateTime();
-
                             files.Add(new ReviewSubmissionFileDTO
                             {
-                                FileId = fileId,
-                                FileName = fileName,
-                                FileSizeBytes = fileSizeBytes,
-                                FileType = fileType,
-                                UploadedAt = uploadedAt
+                                FileId = file.GetProperty("fileId").GetGuid(),
+                                FileName = file.GetProperty("fileName").GetString() ?? "Unknown",
+                                FileType = file.GetProperty("fileType").GetString(),
+                                FileSizeBytes = file.GetProperty("fileSizeBytes").GetInt64(),
+                                UploadedAt = file.GetProperty("uploadedAt").GetDateTime()
                             });
                         }
                     }
@@ -221,9 +180,30 @@ namespace Review.Service.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error fetching submission files for Paper {paperId}");
+                _logger.LogError(ex, "Failed to fetch files from Submission Service for paper {PaperId}", paperId);
             }
-            
+
+            // 2. Fetch reviews
+            var paperReviews = await _context.Reviews
+                .Include(r => r.Assignment)
+                .Where(r => r.Assignment.SubmissionId == submissionGuid)
+                .ToListAsync();
+
+            if (!paperReviews.Any())
+            {
+                return new ReviewSummaryDTO
+                {
+                    PaperId = paperId,
+                    TotalReviews = 0,
+                    OverallAverageScore = 0,
+                    AverageNoveltyScore = 0,
+                    AverageMethodologyScore = 0,
+                    AveragePresentationScore = 0,
+                    Reviews = new List<ReviewDetailDTO>(),
+                    Files = files // Return files even if no reviews
+                };
+            }
+
             // Tính điểm trung bình
             var overallAvg = paperReviews.Average(r => r.OverallScore);
             

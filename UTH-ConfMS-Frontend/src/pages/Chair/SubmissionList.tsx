@@ -16,6 +16,8 @@ interface Submission {
     affiliation?: string;
   }>;
   paperNumber?: number;
+  fileId?: string;
+  fileName?: string;
 }
 
 export const SubmissionList: React.FC<SubmissionListProps> = ({
@@ -37,6 +39,22 @@ export const SubmissionList: React.FC<SubmissionListProps> = ({
   useEffect(() => {
     loadSubmissions();
   }, [conferenceId, activeTab, page]);
+
+  const handleDownload = async (fileId: string, fileName: string, submissionId: string) => {
+    try {
+      const response = await paperApi.downloadFile(submissionId, fileId);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+    } catch (error) {
+      console.error("Download failed:", error);
+      alert("Không thể tải file. Vui lòng thử lại sau.");
+    }
+  };
 
   const loadSubmissions = async () => {
     try {
@@ -210,38 +228,21 @@ export const SubmissionList: React.FC<SubmissionListProps> = ({
               <tr>
                 <th className="p-4">Số TT</th>
                 <th className="p-4">Tiêu Đề</th>
-                <th className="p-4">Tác Giả Chính</th>
-                <th className="p-4">Ngày Nộp</th>
-                <th className="p-4">Trạng Thái</th>
+                <th className="p-4 text-left font-semibold text-gray-700 dark:text-gray-200">Ngày nộp</th>
+                <th className="p-4 text-left font-semibold text-gray-700 dark:text-gray-200">Trạng thái</th>
+                <th className="p-4 text-right font-semibold text-gray-700 dark:text-gray-200">Chức năng</th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {submissions.map((submission) => (
-                <tr
-                  key={submission.id}
-                  className="hover:bg-gray-50 transition-colors"
-                >
+                <tr key={submission.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                   <td className="p-4 font-medium text-primary">
                     {submission.paperNumber || "-"}
                   </td>
-                  <td className="p-4">
-                    <div className="font-medium text-gray-900 max-w-xs truncate">
-                      {submission.title}
-                    </div>
+                  <td className="p-4 text-gray-800 dark:text-gray-200">
+                    <div className="font-medium max-w-xs">{submission.title}</div>
                   </td>
-                  <td className="p-4">
-                    <div>
-                      <div className="font-medium">
-                        {submission.authors?.[0]?.fullName || "N/A"}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {submission.authors?.length
-                          ? `${submission.authors.length} tác giả`
-                          : "N/A"}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-4 text-gray-600">
+                  <td className="p-4 text-gray-600 dark:text-gray-400">
                     {formatDate(submission.submissionDate)}
                   </td>
                   <td className="p-4">
@@ -253,12 +254,34 @@ export const SubmissionList: React.FC<SubmissionListProps> = ({
                       {getStatusText(submission.status)}
                     </span>
                   </td>
+                  <td className="p-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      {(() => {
+                        const fileId = submission.fileId || (submission as any).FileId || (submission as any).files?.[0]?.fileId || (submission as any).files?.[0]?.id;
+                        const fileName = submission.fileName || (submission as any).FileName || (submission as any).files?.[0]?.fileName || "paper.pdf";
+
+                        if (fileId) {
+                          return (
+                            <button
+                              onClick={() => handleDownload(fileId, fileName, submission.id)}
+                              className="inline-flex items-center gap-1.5 text-primary hover:text-primary-dark font-medium text-xs transition-colors p-1.5 hover:bg-primary/10 rounded"
+                              title="Tải bài báo"
+                            >
+                              <span className="material-symbols-outlined text-lg">download</span>
+                              Tải bài
+                            </button>
+                          );
+                        }
+                        return <span className="text-gray-400 italic text-xs">N/A</span>;
+                      })()}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
+          </table >
+        </div >
       )}
-    </div>
+    </div >
   );
 };

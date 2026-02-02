@@ -302,8 +302,8 @@ export const ReviewerDashboard: React.FC = () => {
                                 <h2 className="text-2xl md:text-3xl font-bold mb-4 leading-tight">{selectedPaper.title}</h2>
                                 <div className="flex flex-wrap items-center gap-6 text-sm opacity-90">
                                     <div className="flex items-center gap-2">
-                                        <span className="material-symbols-outlined text-[18px]">group</span>
-                                        Tác giả: {selectedPaper.authors.join(', ')}
+                                        <span className="material-symbols-outlined text-[18px]">category</span>
+                                        Track: {selectedPaper.trackName}
                                     </div>
                                     <div className="flex items-center gap-2 text-primary bg-white px-3 py-1 rounded-full font-bold text-xs">
                                         <span className="material-symbols-outlined text-[18px]">check_circle</span>

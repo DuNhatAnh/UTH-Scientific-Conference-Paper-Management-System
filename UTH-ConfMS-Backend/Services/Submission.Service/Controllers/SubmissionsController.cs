@@ -38,7 +38,9 @@ public class SubmissionsController : ControllerBase
     {
         try
         {
-            var result = await _submissionService.GetSubmissionsAsync(conferenceId, status, page, pageSize);
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            Guid? userId = string.IsNullOrEmpty(userIdStr) ? null : Guid.Parse(userIdStr);
+            var result = await _submissionService.GetSubmissionsAsync(conferenceId, status, page, pageSize, userId);
             return Ok(new ApiResponse<PagedResponse<SubmissionDto>>
             {
                 Success = true,
@@ -95,7 +97,9 @@ public class SubmissionsController : ControllerBase
     {
         try
         {
-            var submission = await _submissionService.GetSubmissionByIdAsync(submissionId);
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            Guid? userId = string.IsNullOrEmpty(userIdStr) ? null : Guid.Parse(userIdStr);
+            var submission = await _submissionService.GetSubmissionByIdAsync(submissionId, userId);
             return Ok(new ApiResponse<SubmissionDetailDto>
             {
                 Success = true,

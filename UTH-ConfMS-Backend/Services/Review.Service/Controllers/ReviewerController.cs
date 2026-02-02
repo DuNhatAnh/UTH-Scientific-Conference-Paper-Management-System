@@ -169,7 +169,7 @@ namespace Review.Service.Controllers
                 var actualUserId = userId ?? GetUserId();
                 if (actualUserId == "0") return Unauthorized(new { message = "Unauthorized" });
 
-                var submissions = await _reviewerService.GetAllReviewableSubmissionsAsync(userId);
+                var submissions = await _reviewerService.GetAllReviewableSubmissionsAsync(actualUserId);
                 return Ok(submissions);
             }
             catch (Exception ex)

@@ -7,9 +7,9 @@ namespace Submission.Service.Interfaces.Services;
 
 public interface ISubmissionService
 {
-    Task<PagedResponse<SubmissionDto>> GetSubmissionsAsync(Guid? conferenceId, string? status, int page, int pageSize);
+    Task<PagedResponse<SubmissionDto>> GetSubmissionsAsync(Guid? conferenceId, string? status, int page, int pageSize, Guid? requesterId = null);
     Task<PagedResponse<SubmissionDto>> GetUserSubmissionsAsync(Guid userId, Guid? conferenceId, string? status, int page, int pageSize);
-    Task<SubmissionDetailDto> GetSubmissionByIdAsync(Guid submissionId);
+    Task<SubmissionDetailDto> GetSubmissionByIdAsync(Guid submissionId, Guid? requesterId = null);
     Task<SubmissionDto> CreateSubmissionAsync(CreateSubmissionRequest request, Guid submitterId);
     Task<SubmissionDto> UpdateSubmissionAsync(Guid submissionId, UpdateSubmissionRequest request, Guid userId);
     Task WithdrawSubmissionAsync(Guid submissionId, Guid userId, string reason);

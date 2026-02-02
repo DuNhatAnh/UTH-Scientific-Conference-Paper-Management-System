@@ -211,6 +211,14 @@ namespace Review.Service.Services
                 throw new Exception("Invalid paper ID format.");
             }
 
+            var currentAssignmentsCount = await _context.Assignments
+                .CountAsync(a => a.SubmissionId == submissionGuid);
+
+            if (currentAssignmentsCount >= 3)
+            {
+                throw new Exception("Bài báo này đã đủ số lượng Reviewer tối đa (3 người).");
+            }
+
             var exists = await _context.Assignments
                 .AnyAsync(a => a.SubmissionId == submissionGuid && a.ReviewerId == reviewerGuid);
             

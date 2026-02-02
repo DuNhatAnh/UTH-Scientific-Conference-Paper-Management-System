@@ -6,5 +6,6 @@ public class ConferenceDto
     public string Title { get; set; } = string.Empty;
     public string Acronym { get; set; } = string.Empty;
     public DateTime SubmissionDeadline { get; set; }
+    public string Status { get; set; } = string.Empty;
     public List<TrackDto> Tracks { get; set; } = new();
 }

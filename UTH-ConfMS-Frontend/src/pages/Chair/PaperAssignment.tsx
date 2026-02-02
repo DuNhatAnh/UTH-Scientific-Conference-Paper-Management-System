@@ -167,7 +167,7 @@ export const PaperAssignment: React.FC<PaperAssignmentProps> = ({ conferenceId, 
                                                 <li key={i} className="flex justify-between items-center p-2 bg-green-50 rounded border border-green-100 animate-slide-in">
                                                     <span className="text-sm font-medium">{a.reviewerName}</span>
                                                     <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold uppercase ${a.status === 'Accepted' ? 'bg-green-100 border-green-200 text-green-700' : 'bg-white border-yellow-200 text-yellow-700'}`}>
-                                                        {a.status}
+                                                        {a.status === 'Accepted' ? 'Đã nhận' : 'Đang chờ'}
                                                     </span>
                                                 </li>
                                             ))}

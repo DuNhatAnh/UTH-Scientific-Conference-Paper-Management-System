@@ -40,7 +40,7 @@ public class SubmissionService : ISubmissionService
         var totalCount = await _unitOfWork.Submissions.CountAsync(conferenceId, status);
         var submissions = await _unitOfWork.Submissions.GetAllAsync(conferenceId, status, (page - 1) * pageSize, pageSize);
 
-        var items = submissions.Select(s => MapToDto(s)).ToList();
+        var items = submissions.Select(s => MapToDto(s, requesterId)).ToList();
 
         return new PagedResponse<SubmissionDto>
         {
@@ -58,7 +58,7 @@ public class SubmissionService : ISubmissionService
         var totalCount = await _unitOfWork.Submissions.CountByUserAsync(userId, conferenceId, status, excludeWithdrawn: true);
         var submissions = await _unitOfWork.Submissions.GetByUserAsync(userId, conferenceId, status, (page - 1) * pageSize, pageSize, excludeWithdrawn: true);
 
-        var items = submissions.Select(s => MapToDto(s)).ToList();
+        var items = submissions.Select(s => MapToDto(s, userId)).ToList();
 
         return new PagedResponse<SubmissionDto>
         {
@@ -77,6 +77,18 @@ public class SubmissionService : ISubmissionService
         {
             throw new InvalidOperationException("Submission not found");
         }
+
+        // Check if authors should be masked (Double-Blind)
+        bool shouldMask = requesterId != null && submission.SubmittedBy != requesterId;
+
+        var authorsDto = submission.Authors.OrderBy(a => a.AuthorOrder).Select(a => new AuthorDto(
+            a.AuthorId,
+            shouldMask ? "Author Hidden" : a.FullName,
+            shouldMask ? "hidden@confms.org" : a.Email,
+            shouldMask ? "Hidden" : a.Affiliation,
+            a.AuthorOrder,
+            a.IsCorresponding
+        )).ToList();
 
         return new SubmissionDetailDto(
             submission.Id,
@@ -113,7 +125,12 @@ public class SubmissionService : ISubmissionService
             throw new InvalidOperationException("Bạn đã đạt giới hạn tối đa nộp 3 bài báo cho hội nghị này.");
         }
 
-        // TODO: Check if conference is accepting submissions (call conference service)
+        // Check if conference is accepting submissions (call conference service)
+        var conference = await _conferenceClient.GetConferenceByIdAsync(request.ConferenceId);
+        if (conference == null || conference.Status != "CFP_OPEN")
+        {
+            throw new InvalidOperationException("Hội nghị này hiện chưa chấp nhận nộp bài báo.");
+        }
         
         // Generate paper number
         var lastNumber = await _unitOfWork.Submissions.GetMaxSubmissionNumberAsync(request.ConferenceId) ?? 0;
@@ -169,34 +186,14 @@ public class SubmissionService : ISubmissionService
         // Reload with all details (authors and files) to return complete DTO
         submission = await _unitOfWork.Submissions.GetByIdWithDetailsAsync(submission.Id);
 
-        List<TrackDto>? tracks = null;
-        try 
-        {
-            var conference = await _conferenceClient.GetConferenceByIdAsync(submission!.ConferenceId);
-            tracks = conference.Tracks;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Could not fetch tracks for conference {ConferenceId}", submission!.ConferenceId);
-        }
+        List<TrackDto>? tracks = conference?.Tracks;
 
         // Publish PaperSubmittedEvent to notify author
         try
         {
             // Get author info - corresponding author or first author
             var correspondingAuthor = authors.FirstOrDefault(a => a.IsCorresponding) ?? authors.FirstOrDefault();
-            var conferenceName = "Conference"; // Default fallback
-            
-            // Try to get conference name from conference service
-            try
-            {
-                var conference = await _conferenceClient.GetConferenceByIdAsync(submission.ConferenceId);
-                conferenceName = conference?.Title ?? conferenceName;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Could not retrieve conference name for {ConferenceId}", submission.ConferenceId);
-            }
+            var conferenceName = conference?.Title ?? "Conference";
 
             await _publishEndpoint.Publish(new PaperSubmittedEvent
             {
@@ -218,7 +215,7 @@ public class SubmissionService : ISubmissionService
             // Don't throw - notification failure shouldn't fail the submission
         }
 
-        return MapToDto(submission!);
+        return MapToDto(submission!, submitterId);
     }
 
     public async Task<SubmissionDto> UpdateSubmissionAsync(Guid submissionId, UpdateSubmissionRequest request, Guid userId)
@@ -308,7 +305,7 @@ public class SubmissionService : ISubmissionService
         _logger.LogInformation("Submission {SubmissionId} updated by user {UserId}", submission.Id, userId);
 
         submission = await _unitOfWork.Submissions.GetByIdWithAuthorsAsync(submission.Id);
-        return MapToDto(submission!);
+        return MapToDto(submission!, userId);
     }
 
     public async Task WithdrawSubmissionAsync(Guid submissionId, Guid userId, string reason)
@@ -446,10 +443,10 @@ public class SubmissionService : ISubmissionService
         );
     }
 
-    private SubmissionDto MapToDto(Entities.Submission submission)
+    private SubmissionDto MapToDto(Entities.Submission submission, Guid? requesterId = null)
     {
         // Double-Blind logic: Mask authors if requester is not the submitter
-        bool shouldMask = requesterId == null || submission.SubmittedBy != requesterId;
+        bool shouldMask = requesterId != null && submission.SubmittedBy != requesterId;
 
         return new SubmissionDto(
             submission.Id,
@@ -473,7 +470,7 @@ public class SubmissionService : ISubmissionService
             null
         )
         {
-            TrackName = GetTrackName(submission.TrackId, tracks)
+            TrackName = GetTrackName(submission.TrackId)
         };
     }
 

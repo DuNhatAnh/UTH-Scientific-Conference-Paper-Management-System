@@ -95,8 +95,10 @@ export const SubmitPaper: React.FC<SubmitProps> = ({ onNavigate, editMode = fals
         const response = await conferenceApi.getConferences();
         if (response.success && response.data) {
           // @ts-ignore - Handle backend inconsistency (Items vs Data)
-          const list = response.data.items || response.data.data || [];
-          setConferences(list);
+          const list = (response.data.items || response.data.data || []) as ConferenceDto[];
+          // Chỉ lấy các hội nghị đang mở nộp bài (CFP_OPEN)
+          const openConferences = list.filter(c => c.status === "CFP_OPEN");
+          setConferences(openConferences);
           
           // Auto-select conference from URL params if available
           const conferenceIdFromUrl = searchParams.get('conferenceId');

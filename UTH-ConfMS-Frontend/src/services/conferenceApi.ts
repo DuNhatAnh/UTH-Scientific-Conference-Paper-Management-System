@@ -59,6 +59,7 @@ export interface CreateConferenceRequest {
     cameraReadyDeadline?: string;
     location?: string;
     website?: string;
+    tracks: string[];
 }
 
 export interface CallForPapersDto {
@@ -192,12 +193,6 @@ export interface CommitteeMemberDto {
     createdAt: string;
 }
 
-export interface CommitteeMemberLegacyDto { // Renaming old one to avoid conflict if used elsewhere, or just update it
-    id: number;
-    userId: number;
-    userName: string;
-    role: string;
-    affiliation?: string;
-}
+// CommitteeMemberLegacyDto removed (duplicate)
 
 export default conferenceApi;

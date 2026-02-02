@@ -188,11 +188,38 @@ export const ChairDashboard: React.FC<DashboardProps> = ({
                         })()}
                       </td>
                       <td className="p-3">
-                        <span
-                          className={`px-2 py-1 rounded text-xs font-bold ${conf.status === "PUBLISHED" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}`}
-                        >
-                          {conf.status || "DRAFT"}
-                        </span>
+                        {(() => {
+                          const status = conf.status?.toUpperCase() || "DRAFT";
+                          let label = status;
+                          let color = "bg-gray-100 text-gray-700";
+
+                          switch (status) {
+                            case "DRAFT":
+                              label = "Đang thiết lập";
+                              color = "bg-gray-100 text-gray-700";
+                              break;
+                            case "CFP_OPEN":
+                              label = "Đang nhận bài";
+                              color = "bg-blue-100 text-blue-700";
+                              break;
+                            case "REVIEW_PHASE":
+                              label = "Đang phản biện";
+                              color = "bg-yellow-100 text-yellow-700";
+                              break;
+                            case "PUBLISHED":
+                              label = "Đã công bố";
+                              color = "bg-green-100 text-green-700";
+                              break;
+                            default:
+                              label = status;
+                          }
+
+                          return (
+                            <span className={`px-2 py-1 rounded text-xs font-bold ${color}`}>
+                              {label}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="p-3 flex gap-3 text-sm">
                         {isOwner ? (

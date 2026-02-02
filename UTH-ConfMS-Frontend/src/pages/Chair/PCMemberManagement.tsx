@@ -154,7 +154,7 @@ export const PCMemberManagement: React.FC<PCMemberManagementProps> = ({
                     <td className="p-4 border-b">{r.email}</td>
                     <td className="p-4 border-b">
                       <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">
-                        Active
+                        Đang hoạt động
                       </span>
                     </td>
                   </tr>
@@ -175,7 +175,14 @@ export const PCMemberManagement: React.FC<PCMemberManagementProps> = ({
                               : "bg-yellow-100 text-yellow-700"
                           }`}
                       >
-                        {inv.status}
+                        {(() => {
+                          switch (inv.status) {
+                            case "Accepted": return "Đã chấp nhận";
+                            case "Declined": return "Đã từ chối";
+                            case "Pending": return "Đang chờ";
+                            default: return inv.status;
+                          }
+                        })()}
                       </span>
                     </td>
                     <td className="p-4 border-b text-sm text-gray-500">

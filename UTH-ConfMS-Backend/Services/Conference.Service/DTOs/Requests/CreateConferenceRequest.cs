@@ -10,4 +10,5 @@ public class CreateConferenceRequest
     public DateTime? EndDate { get; set; }
     public DateTime? SubmissionDeadline { get; set; }
     public string? ReviewMode { get; set; }
+    public List<string>? Tracks { get; set; }
 }

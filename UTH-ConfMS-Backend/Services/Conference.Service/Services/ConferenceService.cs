@@ -100,6 +100,23 @@ public class ConferenceService : IConferenceService
         };
 
         await _unitOfWork.CallForPapers.CreateAsync(cfp);
+
+        // Create tracks if provided
+        if (request.Tracks != null && request.Tracks.Any())
+        {
+            foreach (var trackName in request.Tracks.Where(t => !string.IsNullOrWhiteSpace(t)))
+            {
+                var track = new ConferenceTrack
+                {
+                    TrackId = Guid.NewGuid(),
+                    ConferenceId = conference.ConferenceId,
+                    Name = trackName.Trim(),
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _unitOfWork.Tracks.CreateAsync(track);
+            }
+        }
+
         await _unitOfWork.SaveChangesAsync();
 
         _logger.LogInformation("Conference {Acronym} created by user {UserId}", conference.Acronym, createdBy);

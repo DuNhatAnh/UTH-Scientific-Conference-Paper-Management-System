@@ -5,6 +5,8 @@ using Identity.Service.Entities;
 using Identity.Service.Interfaces;
 using Identity.Service.Interfaces.Services;
 using Microsoft.Extensions.Configuration;
+using MassTransit;
+using UTH.ConfMS.Shared.Infrastructure.EventBus;
 
 namespace Identity.Service.Services;
 
@@ -14,17 +16,20 @@ public class AuthService : IAuthService
     private readonly IJwtTokenService _jwtTokenService;
     private readonly ILogger<AuthService> _logger;
     private readonly IConfiguration _config;
+    private readonly IPublishEndpoint _publishEndpoint;
 
     public AuthService(
         IUnitOfWork unitOfWork,
         IJwtTokenService jwtTokenService,
         ILogger<AuthService> logger,
-        IConfiguration config)
+        IConfiguration config,
+        IPublishEndpoint publishEndpoint)
     {
         _unitOfWork = unitOfWork;
         _jwtTokenService = jwtTokenService;
         _logger = logger;
         _config = config;
+        _publishEndpoint = publishEndpoint;
     }
 
     public async Task<LoginResponse> LoginAsync(LoginRequest request)
@@ -99,6 +104,31 @@ public class AuthService : IAuthService
 
         _logger.LogInformation("User {Email} logged in successfully", user.Email);
 
+        // Send welcome notification on login
+        try
+        {
+            var loginEvent = new CreateNotificationEvent
+            {
+                UserId = user.UserId,
+                UserEmail = user.Email,
+                NotificationType = "SYSTEM",
+                Title = "Welcome Back!",
+                Message = $"Welcome back {user.FullName}! You have successfully logged in to UTH-ConfMS.",
+                ActionUrl = roles.Contains("CHAIR") ? "/chair/dashboard" : 
+                           roles.Contains("REVIEWER") ? "/reviewer/dashboard" : 
+                           "/author/dashboard",
+                SendEmail = false // In-app notification only for login
+            };
+
+            await _publishEndpoint.Publish(loginEvent);
+            _logger.LogInformation("Published login welcome notification for user {Email}", user.Email);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to publish login notification for user {Email}", user.Email);
+            // Don't throw - login should succeed even if notification fails
+        }
+
         var userDto = new UserDto
         {
             Id = user.UserId,
@@ -165,6 +195,45 @@ public class AuthService : IAuthService
         await _unitOfWork.SaveChangesAsync();
 
         _logger.LogInformation("New user registered: {Email}", user.Email);
+
+        // Send welcome notification
+        try
+        {
+            var welcomeEvent = new CreateNotificationEvent
+            {
+                UserId = user.UserId,
+                UserEmail = user.Email,
+                NotificationType = "SYSTEM",
+                Title = "Welcome to UTH-ConfMS",
+                Message = $"Welcome {user.FullName}! Thank you for registering. Manage your papers and reviews efficiently with UTH Conference Management System.",
+                ActionUrl = "/author/dashboard",
+                SendEmail = true,
+                EmailSubject = "Welcome to UTH-ConfMS",
+                EmailBody = $@"
+                    <h2>Welcome to UTH Conference Management System!</h2>
+                    <p>Dear {user.FullName},</p>
+                    <p>Thank you for registering with UTH-ConfMS. Your account has been successfully created.</p>
+                    <p><strong>Email:</strong> {user.Email}</p>
+                    <p>You can now:</p>
+                    <ul>
+                        <li>Submit papers to conferences</li>
+                        <li>Track your submission status</li>
+                        <li>Receive review feedback</li>
+                        <li>Manage your profile</li>
+                    </ul>
+                    <p>Get started by exploring available conferences and submitting your research!</p>
+                    <p>Best regards,<br/>UTH-ConfMS Team</p>
+                "
+            };
+
+            await _publishEndpoint.Publish(welcomeEvent);
+            _logger.LogInformation("Published welcome notification for user {Email}", user.Email);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to publish welcome notification for user {Email}", user.Email);
+            // Don't throw - registration should succeed even if notification fails
+        }
 
         return new UserDto
         {

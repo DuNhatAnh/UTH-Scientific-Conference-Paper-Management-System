@@ -6,6 +6,7 @@ using System.Text;
 using Serilog;
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using MassTransit;
 using Identity.Service.Data;
 using Identity.Service.Services;
 using Identity.Service.Validators; // TODO: Add validators
@@ -153,6 +154,23 @@ builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
 
 // MediatR
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
+
+// MassTransit Configuration
+builder.Services.AddMassTransit(x =>
+{
+    // Configure RabbitMQ
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        var rabbitMqHost = builder.Configuration.GetConnectionString("RabbitMQ") ?? "rabbitmq";
+        cfg.Host(rabbitMqHost, "/", h =>
+        {
+            h.Username("guest");
+            h.Password("guest");
+        });
+
+        cfg.ConfigureEndpoints(context);
+    });
+});
 
 // Health checks
 builder.Services.AddHealthChecks()

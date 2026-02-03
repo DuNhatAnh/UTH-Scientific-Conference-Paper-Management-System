@@ -363,11 +363,57 @@ public class SubmissionService : ISubmissionService
             throw new InvalidOperationException("Không tìm thấy bài báo.");
         }
 
+        var oldStatus = submission.Status;
         submission.Status = status.ToUpper();
         submission.UpdatedAt = DateTime.UtcNow;
 
         await _unitOfWork.SaveChangesAsync();
         _logger.LogInformation("Submission {SubmissionId} status updated to {Status}", submissionId, status);
+
+        // Publish event for decision statuses (ACCEPTED, REJECTED, REVISION_REQUIRED)
+        var decisionStatuses = new[] { "ACCEPTED", "REJECTED", "REVISION_REQUIRED" };
+        if (decisionStatuses.Contains(status.ToUpper()) && oldStatus != status.ToUpper())
+        {
+            try
+            {
+                // Get author information
+                var submissionWithAuthor = await _unitOfWork.Submissions.GetByIdWithDetailsAsync(submissionId);
+                if (submissionWithAuthor != null)
+                {
+                    var author = submissionWithAuthor.Authors.FirstOrDefault(a => a.IsCorresponding)
+                                ?? submissionWithAuthor.Authors.FirstOrDefault();
+
+                    if (author != null)
+                    {
+                        // Get conference information
+                        var conference = await _conferenceClient.GetConferenceByIdAsync(submissionWithAuthor.ConferenceId);
+
+                        var decisionEvent = new PaperDecisionMadeEvent
+                        {
+                            PaperId = submissionId,
+                            PaperTitle = submissionWithAuthor.Title,
+                            AuthorId = author.AuthorId,
+                            AuthorEmail = author.Email,
+                            AuthorName = author.FullName,
+                            ConferenceId = submissionWithAuthor.ConferenceId,
+                            ConferenceName = conference?.Title ?? "Conference",
+                            Decision = status.ToUpper(),
+                            Feedback = "", // Can be populated from review aggregation if available
+                            DecidedAt = DateTime.UtcNow,
+                            DecidedBy = Guid.Empty // Can be passed as parameter if needed
+                        };
+
+                        await _publishEndpoint.Publish(decisionEvent);
+                        _logger.LogInformation("Published PaperDecisionMadeEvent for submission {SubmissionId}", submissionId);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to publish PaperDecisionMadeEvent for submission {SubmissionId}", submissionId);
+                // Don't throw - notification failure shouldn't prevent status update
+            }
+        }
     }
 
     public async Task<FileInfoDto> UploadFileAsync(Guid submissionId, IFormFile file, Guid userId, string fileType = "PAPER")
@@ -379,7 +425,8 @@ public class SubmissionService : ISubmissionService
         }
 
         // If uploading camera-ready, update status
-        if (fileType.ToUpper() == "CAMERA_READY")
+        bool isCameraReady = fileType.ToUpper() == "CAMERA_READY";
+        if (isCameraReady)
         {
             submission.Status = "CAMERA_READY";
         }
@@ -405,6 +452,39 @@ public class SubmissionService : ISubmissionService
         submission.UpdatedAt = DateTime.UtcNow;
 
         await _unitOfWork.SaveChangesAsync();
+
+        // Send notification when camera-ready is uploaded
+        if (isCameraReady)
+        {
+            try
+            {
+                var submissionDetails = await _unitOfWork.Submissions.GetByIdWithDetailsAsync(submissionId);
+                if (submissionDetails != null)
+                {
+                    var conference = await _conferenceClient.GetConferenceByIdAsync(submissionDetails.ConferenceId);
+                    
+                    // Notify conference chairs about camera-ready upload
+                    var notificationEvent = new CreateNotificationEvent
+                    {
+                        UserId = userId,
+                        UserEmail = "", // Will be populated if needed
+                        NotificationType = "SUBMISSION",
+                        Title = "Camera-Ready Uploaded",
+                        Message = $"Camera-ready version has been uploaded for paper: {submissionDetails.Title}",
+                        ActionUrl = $"/author/submissions/{submissionId}",
+                        SendEmail = false // In-app notification only
+                    };
+
+                    await _publishEndpoint.Publish(notificationEvent);
+                    _logger.LogInformation("Published camera-ready upload notification for submission {SubmissionId}", submissionId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to publish camera-ready notification for submission {SubmissionId}", submissionId);
+                // Don't throw - notification failure shouldn't prevent file upload
+            }
+        }
 
         return new FileInfoDto(
             submissionFile.FileId,

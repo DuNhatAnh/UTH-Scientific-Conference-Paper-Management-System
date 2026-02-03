@@ -59,17 +59,3 @@ INSERT INTO email_templates (name, subject, body_template, template_type) VALUES
 ('review_invitation', 'Review Invitation', 'You have been invited to review paper {{paper_number}}.', 'REVIEW'),
 ('decision_notification', 'Decision Notification', 'The decision for your paper "{{title}}" is: {{decision}}.', 'DECISION');
 
--- ============================================
--- SEED DATA
--- ============================================
-
-INSERT INTO notifications (user_id, type, title, message, is_read, created_at)
-SELECT 
-    user_id,
-    'SYSTEM',
-    'Welcome to UTH-ConfMS',
-    'Welcome to the conference management system.',
-    FALSE,
-    CURRENT_TIMESTAMP
-FROM users WHERE email = 'author@uth.edu.vn'
-AND NOT EXISTS (SELECT 1 FROM notifications WHERE title = 'Welcome to UTH-ConfMS');

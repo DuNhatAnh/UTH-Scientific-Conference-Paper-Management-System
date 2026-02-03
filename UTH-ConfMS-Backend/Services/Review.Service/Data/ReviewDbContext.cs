@@ -46,10 +46,14 @@ public class ReviewDbContext : DbContext
             entity.ToTable("reviews");
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.AssignmentId).HasColumnName("assignment_id");
+            entity.Property(e => e.NoveltyScore).HasColumnName("novelty_score");
+            entity.Property(e => e.MethodologyScore).HasColumnName("methodology_score");
+            entity.Property(e => e.PresentationScore).HasColumnName("presentation_score");
             entity.Property(e => e.OverallScore).HasColumnName("overall_score");
             entity.Property(e => e.Confidence).HasColumnName("confidence");
             entity.Property(e => e.Recommendation).HasColumnName("recommendation");
-            entity.Property(e => e.Comments).HasColumnName("comments");
+            entity.Property(e => e.CommentsForAuthor).HasColumnName("comments_for_author");
+            entity.Property(e => e.ConfidentialComments).HasColumnName("confidential_comments");
             entity.Property(e => e.SubmittedAt).HasColumnName("submitted_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
         });

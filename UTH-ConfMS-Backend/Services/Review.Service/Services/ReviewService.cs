@@ -70,8 +70,12 @@ namespace Review.Service.Services
             if (existingReview != null)
             {
                 // Update review nếu đã tồn tại
-                existingReview.OverallScore = (dto.NoveltyScore + dto.MethodologyScore + dto.PresentationScore) / 3;
-                existingReview.Comments = dto.CommentsForAuthor;
+                existingReview.NoveltyScore = dto.NoveltyScore;
+                existingReview.MethodologyScore = dto.MethodologyScore;
+                existingReview.PresentationScore = dto.PresentationScore;
+                existingReview.OverallScore = (dto.NoveltyScore + dto.MethodologyScore + dto.PresentationScore) / 3.0;
+                existingReview.CommentsForAuthor = dto.CommentsForAuthor ?? string.Empty;
+                existingReview.ConfidentialComments = dto.ConfidentialComments;
                 existingReview.Recommendation = dto.Recommendation;
                 existingReview.UpdatedAt = DateTime.UtcNow;
 
@@ -83,8 +87,12 @@ namespace Review.Service.Services
                 var review = new PaperReview
                 {
                     AssignmentId = assignment.Id,
-                    OverallScore = (dto.NoveltyScore + dto.MethodologyScore + dto.PresentationScore) / 3,
-                    Comments = dto.CommentsForAuthor,
+                    NoveltyScore = dto.NoveltyScore,
+                    MethodologyScore = dto.MethodologyScore,
+                    PresentationScore = dto.PresentationScore,
+                    OverallScore = (dto.NoveltyScore + dto.MethodologyScore + dto.PresentationScore) / 3.0,
+                    CommentsForAuthor = dto.CommentsForAuthor ?? string.Empty,
+                    ConfidentialComments = dto.ConfidentialComments,
                     Recommendation = dto.Recommendation,
                     SubmittedAt = DateTime.UtcNow
                 };
@@ -190,6 +198,9 @@ namespace Review.Service.Services
                 .ToListAsync();
 
             // Tính toán thống kê ngay cả khi paperReviews trống để tránh lỗi null/không đồng nhất
+            var avgNovelty = paperReviews.Any() ? paperReviews.Average(r => r.NoveltyScore) : 0;
+            var avgMethodology = paperReviews.Any() ? paperReviews.Average(r => r.MethodologyScore) : 0;
+            var avgPresentation = paperReviews.Any() ? paperReviews.Average(r => r.PresentationScore) : 0;
             var overallAvg = paperReviews.Any() ? paperReviews.Average(r => r.OverallScore) : 0;
             var acceptCount = paperReviews.Count(r => r.Recommendation?.ToLower() == "accept");
             var rejectCount = paperReviews.Count(r => r.Recommendation?.ToLower() == "reject");
@@ -199,11 +210,11 @@ namespace Review.Service.Services
             {
                 ReviewerId = r.Assignment.Reviewer?.UserId ?? r.Assignment.ReviewerId.ToString(), 
                 ReviewerName = r.Assignment.Reviewer?.FullName ?? $"Reviewer {r.Assignment.ReviewerId}",
-                NoveltyScore = r.OverallScore,
-                MethodologyScore = r.OverallScore,
-                PresentationScore = r.OverallScore,
-                CommentsForAuthor = r.Comments,
-                ConfidentialComments = r.Comments,
+                NoveltyScore = r.NoveltyScore,
+                MethodologyScore = r.MethodologyScore,
+                PresentationScore = r.PresentationScore,
+                CommentsForAuthor = r.CommentsForAuthor,
+                ConfidentialComments = r.ConfidentialComments,
                 Recommendation = r.Recommendation,
                 SubmittedAt = r.SubmittedAt
             }).ToList();
@@ -212,10 +223,10 @@ namespace Review.Service.Services
             {
                 PaperId = paperId,
                 TotalReviews = paperReviews.Count,
-                AverageNoveltyScore = Math.Round(overallAvg, 2),
-                AverageMethodologyScore = Math.Round(overallAvg, 2),
-                AveragePresentationScore = Math.Round(overallAvg, 2),
-                OverallAverageScore = Math.Round(overallAvg, 2),
+                AverageNoveltyScore = Math.Round(avgNovelty, 1),
+                AverageMethodologyScore = Math.Round(avgMethodology, 1),
+                AveragePresentationScore = Math.Round(avgPresentation, 1),
+                OverallAverageScore = Math.Round(overallAvg, 1),
                 AcceptCount = acceptCount,
                 RejectCount = rejectCount,
                 RevisionCount = revisionCount,
@@ -428,12 +439,12 @@ namespace Review.Service.Services
                     var client = _httpClientFactory.CreateClient();
                     var submissionUrl = _configuration["Services:SubmissionServiceUrl"] ?? _configuration["ServiceUrls:Submission"] ?? "http://localhost:5003";
 
-                    // For internal calls, skip auth for now (demo purposes)
-                    // var token = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].ToString();
-                    // if (!string.IsNullOrEmpty(token))
-                    // {
-                    //     client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", token);
-                    // }
+                    // For internal calls, pass the authorization token to the submission service
+                    var token = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].ToString();
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", token);
+                    }
                     
                     var response = await client.GetAsync($"{submissionUrl}/api/submissions/{group.SubmissionId}");
                     if (response.IsSuccessStatusCode)
@@ -450,7 +461,7 @@ namespace Review.Service.Services
                         }
                         
                         if (data.TryGetProperty("title", out var titleProp)) title = titleProp.GetString() ?? title;
-                        if (data.TryGetProperty("topicName", out var topicProp)) topicName = topicProp.GetString() ?? topicName;
+                        if (data.TryGetProperty("trackName", out var trackProp)) topicName = trackProp.GetString() ?? topicName;
                         
                         if (data.TryGetProperty("authors", out var authorsProp) && authorsProp.ValueKind == JsonValueKind.Array)
                         {
@@ -559,11 +570,11 @@ namespace Review.Service.Services
             return new SubmitReviewDTO
             {
                 PaperId = review.Assignment.SubmissionId.ToString(),
-                NoveltyScore = review.OverallScore,
-                MethodologyScore = review.OverallScore,
-                PresentationScore = review.OverallScore,
-                CommentsForAuthor = review.Comments,
-                ConfidentialComments = review.Comments,
+                NoveltyScore = review.NoveltyScore,
+                MethodologyScore = review.MethodologyScore,
+                PresentationScore = review.PresentationScore,
+                CommentsForAuthor = review.CommentsForAuthor,
+                ConfidentialComments = review.ConfidentialComments,
                 Recommendation = review.Recommendation
             };
         }

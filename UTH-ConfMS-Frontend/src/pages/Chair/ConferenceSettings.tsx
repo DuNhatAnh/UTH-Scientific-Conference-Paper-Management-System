@@ -42,7 +42,7 @@ export const ConferenceSettings: React.FC<ConferenceSettingsProps> = ({ conferen
                         endDate: data.endDate ? data.endDate.split('T')[0] : '',
                         submissionDeadline: data.submissionDeadline ? data.submissionDeadline.split('T')[0] : ''
                     });
-                    
+
                     // Load tracks
                     if (data.tracks) {
                         setTracks(data.tracks);
@@ -136,10 +136,10 @@ export const ConferenceSettings: React.FC<ConferenceSettingsProps> = ({ conferen
     if (isLoading) return <div className="p-8 text-center text-gray-500">Đang tải cấu hình...</div>;
 
     return (
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-8 max-w-3xl mx-auto">
             {/* Thông tin cơ bản */}
             <div className="flex flex-col gap-6">
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1 text-center">
                     <h3 className="text-lg font-bold text-gray-800">Cấu hình thông tin cơ bản</h3>
                     <p className="text-sm text-gray-500">Cập nhật tên, thời gian và hạn nộp của hội nghị.</p>
                 </div>
@@ -196,7 +196,7 @@ export const ConferenceSettings: React.FC<ConferenceSettingsProps> = ({ conferen
 
             {/* Quản lý Track */}
             <div className="flex flex-col gap-6 border-t border-gray-200 pt-8">
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1 text-center">
                     <h3 className="text-lg font-bold text-gray-800">Quản lý Track/Chủ đề</h3>
                     <p className="text-sm text-gray-500">Thêm các track cho hội nghị để tác giả có thể chọn khi nộp bài.</p>
                 </div>
@@ -248,11 +248,10 @@ export const ConferenceSettings: React.FC<ConferenceSettingsProps> = ({ conferen
                                     <button
                                         onClick={() => handleDeleteTrack(track.trackId)}
                                         disabled={deletingTrackId === track.trackId}
-                                        className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                                            deletingTrackId === track.trackId
-                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                : 'text-red-600 hover:bg-red-50'
-                                        }`}
+                                        className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm font-medium transition-colors ${deletingTrackId === track.trackId
+                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                            : 'text-red-600 hover:bg-red-50'
+                                            }`}
                                         title="Xóa track"
                                     >
                                         <span className="material-symbols-outlined text-[18px]">

@@ -1,53 +1,60 @@
-
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-
-export type UserRole = 'public' | 'author' | 'reviewer' | 'chair' | 'admin';
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  avatarUrl?: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  login: (role: UserRole) => void;
-  logout: () => void;
-  isAuthenticated: boolean;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-
-  const login = (role: UserRole) => {
-    // Simulation of a login
-    setUser({
-      id: '123',
-      name: role === 'author' ? 'Nguyễn Văn A' : role === 'chair' ? 'Trần Văn Chair' : 'Reviewer One',
-      email: 'user@uth.edu.vn',
-      role: role,
-    });
-  };
-
-  const logout = () => {
-    setUser(null);
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+{
+  "common": {
+    "submit": "Nộp bài",
+    "cancel": "Hủy",
+    "save": "Lưu",
+    "delete": "Xóa",
+    "edit": "Chỉnh sửa",
+    "loading": "Đang tải...",
+    "search": "Tìm kiếm",
+    "back": "Quay lại",
+    "next": "Tiếp theo",
+    "previous": "Trước đó",
+    "close": "Đóng",
+    "confirm": "Xác nhận",
+    "yes": "Có",
+    "no": "Không"
+  },
+  "auth": {
+    "login": "Đăng nhập",
+    "logout": "Đăng xuất",
+    "register": "Đăng ký",
+    "email": "Email",
+    "password": "Mật khẩu",
+    "forgotPassword": "Quên mật khẩu?"
+  },
+  "navigation": {
+    "home": "Trang chủ",
+    "conferences": "Hội nghị",
+    "submissions": "Bài nộp",
+    "reviews": "Đánh giá",
+    "profile": "Hồ sơ",
+    "settings": "Cài đặt"
+  },
+  "conference": {
+    "title": "Tiêu đề",
+    "description": "Mô tả",
+    "deadline": "Hạn nộp",
+    "callForPapers": "Thông báo mời bài",
+    "topics": "Chủ đề",
+    "dates": "Ngày quan trọng"
+  },
+  "submission": {
+    "title": "Tiêu đề bài báo",
+    "abstract": "Tóm tắt",
+    "authors": "Tác giả",
+    "keywords": "Từ khóa",
+    "uploadFile": "Tải lên tập tin",
+    "status": "Trạng thái",
+    "pending": "Đang chờ",
+    "accepted": "Được chấp nhận",
+    "rejected": "Bị từ chối",
+    "underReview": "Đang đánh giá"
+  },
+  "review": {
+    "score": "Điểm",
+    "comments": "Nhận xét",
+    "recommendation": "Đề xuất",
+    "submitReview": "Gửi đánh giá"
   }
-  return context;
-};
+}

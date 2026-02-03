@@ -14,18 +14,35 @@ public class PaperReview
     // Navigation property to Assignment
     public Assignment Assignment { get; set; } = null!;
 
-    // Overall score 1-10
+    // Điểm chi tiết từng tiêu chí (1-10)
+    [Column("novelty_score")]
+    public int NoveltyScore { get; set; }
+    
+    [Column("methodology_score")]
+    public int MethodologyScore { get; set; }
+    
+    [Column("presentation_score")]
+    public int PresentationScore { get; set; }
+    
+    // Overall score 1-10 (trung bình của 3 điểm trên)
     [Column("overall_score")]
-    public int OverallScore { get; set; }
+    public double OverallScore { get; set; }
+    
     // Confidence 1-5
     [Column("confidence")]
     public int Confidence { get; set; }
+    
     // Recommendation
     [Column("recommendation")]
     public string Recommendation { get; set; } = string.Empty;
-    // Comments
-    [Column("comments")]
-    public string Comments { get; set; } = string.Empty;
+    
+    // Nhận xét cho tác giả (public)
+    [Column("comments_for_author")]
+    public string CommentsForAuthor { get; set; } = string.Empty;
+    
+    // Nhận xét riêng cho hội đồng (confidential)
+    [Column("confidential_comments")]
+    public string? ConfidentialComments { get; set; }
 
     [Column("submitted_at")]
     public DateTime SubmittedAt { get; set; } = DateTime.UtcNow;

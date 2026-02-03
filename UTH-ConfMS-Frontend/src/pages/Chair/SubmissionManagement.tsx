@@ -213,12 +213,12 @@ export const SubmissionManagement: React.FC<SubmissionManagementProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-light">
-                {submissions.map((sub) => (
+                {submissions.map((sub, index) => (
                   <tr
                     key={sub.submissionId}
                     className="hover:bg-gray-50 transition-colors"
                   >
-                    <td className="p-3 text-gray-500">#{sub.submissionId}</td>
+                    <td className="p-3 text-gray-500">#{index + 1}</td>
                     <td className="p-3 font-medium text-primary">
                       {sub.title}
                       <div className="text-xs text-gray-500 font-normal mt-1">

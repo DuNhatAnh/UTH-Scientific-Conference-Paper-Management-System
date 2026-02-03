@@ -9,7 +9,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- REVIEW_ASSIGNMENTS TABLE
 -- ============================================
 CREATE TABLE review_assignments (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
     submission_id UUID NOT NULL,
     reviewer_id UUID NOT NULL,
     assigned_by UUID NOT NULL,
@@ -19,8 +19,9 @@ CREATE TABLE review_assignments (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_review_assignments_submission_id ON review_assignments(submission_id);
-CREATE INDEX idx_review_assignments_reviewer_id ON review_assignments(reviewer_id);
+CREATE INDEX idx_review_assignments_submission_id ON review_assignments (submission_id);
+
+CREATE INDEX idx_review_assignments_reviewer_id ON review_assignments (reviewer_id);
 
 -- ============================================
 -- REVIEWS TABLE
@@ -28,38 +29,45 @@ CREATE INDEX idx_review_assignments_reviewer_id ON review_assignments(reviewer_i
 CREATE TABLE reviews (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     assignment_id UUID NOT NULL REFERENCES review_assignments(id) ON DELETE CASCADE,
-    
-    overall_score INT NOT NULL, -- 1-10
-    confidence INT NOT NULL, -- 1-5
-    recommendation VARCHAR(50) NOT NULL, -- ACCEPT, REJECT, MAJOR_REVISION, MINOR_REVISION
-    
-    comments TEXT NOT NULL,
+
+-- Điểm chi tiết từng tiêu chí (1-10)
+novelty_score INT NOT NULL DEFAULT 5,
+methodology_score INT NOT NULL DEFAULT 5,
+presentation_score INT NOT NULL DEFAULT 5,
+overall_score INT NOT NULL, -- 1-10 (trung bình của 3 điểm trên)
+confidence INT NOT NULL, -- 1-5
+recommendation VARCHAR(50) NOT NULL, -- ACCEPT, REJECT, MAJOR_REVISION, MINOR_REVISION
+
+-- Nhận xét cho tác giả (public)
+comments_for_author TEXT NOT NULL,
+    -- Nhận xét riêng cho hội đồng (confidential)
+    confidential_comments TEXT,
     
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_reviews_assignment_id ON reviews(assignment_id);
+CREATE INDEX idx_reviews_assignment_id ON reviews (assignment_id);
 
 -- ============================================
 -- REVIEW_SCORES TABLE
 -- ============================================
 CREATE TABLE review_scores (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    review_id UUID NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
+    review_id UUID NOT NULL REFERENCES reviews (id) ON DELETE CASCADE,
     criteria_name VARCHAR(100) NOT NULL, -- Originality, Quality, Clarity
     score INT NOT NULL,
     max_score INT DEFAULT 10,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_review_scores_review_id ON review_scores(review_id);
+CREATE INDEX idx_review_scores_review_id ON review_scores (review_id);
 
 -- ============================================
 -- DECISIONS TABLE
 -- ============================================
 CREATE TABLE decisions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
     submission_id UUID NOT NULL,
     decision_type VARCHAR(50) NOT NULL, -- ACCEPT, REJECT, MAJOR_REVISION, MINOR_REVISION
     decision_by UUID NOT NULL,
@@ -68,13 +76,13 @@ CREATE TABLE decisions (
     is_final BOOLEAN DEFAULT TRUE
 );
 
-CREATE INDEX idx_decisions_submission_id ON decisions(submission_id);
+CREATE INDEX idx_decisions_submission_id ON decisions (submission_id);
 
 -- ============================================
 -- CONFLICTS_OF_INTEREST TABLE
 -- ============================================
 CREATE TABLE conflicts_of_interest (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4 (),
     submission_id UUID NOT NULL,
     reviewer_id UUID NOT NULL,
     conflict_type VARCHAR(50) NOT NULL, -- COAUTHOR, ADVISOR, INSTITUTION
@@ -82,8 +90,9 @@ CREATE TABLE conflicts_of_interest (
     UNIQUE (submission_id, reviewer_id)
 );
 
-CREATE INDEX idx_conflicts_submission_id ON conflicts_of_interest(submission_id);
-CREATE INDEX idx_conflicts_reviewer_id ON conflicts_of_interest(reviewer_id);
+CREATE INDEX idx_conflicts_submission_id ON conflicts_of_interest (submission_id);
+
+CREATE INDEX idx_conflicts_reviewer_id ON conflicts_of_interest (reviewer_id);
 
 -- ============================================
 -- TRIGGERS
@@ -104,16 +113,25 @@ CREATE TRIGGER update_reviews_updated_at BEFORE UPDATE ON reviews
 -- ============================================
 
 -- 1. Create Review Assignment
-INSERT INTO review_assignments (submission_id, reviewer_id, assigned_by, deadline, status)
-SELECT 
-    s.id, 
-    u_reviewer.user_id, 
-    u_chair.user_id, 
-    '2026-11-15', 
-    'PENDING'
-FROM submissions s
-JOIN users u_reviewer ON u_reviewer.email = 'reviewer@uth.edu.vn'
-JOIN users u_chair ON u_chair.email = 'chair@uth.edu.vn'
-WHERE s.title = 'Deep Learning for Autonomous Vehicles'
-AND NOT EXISTS (SELECT 1 FROM review_assignments ra WHERE ra.submission_id = s.id AND ra.reviewer_id = u_reviewer.user_id);
-
+INSERT INTO
+    review_assignments (
+        submission_id,
+        reviewer_id,
+        assigned_by,
+        deadline,
+        status
+    )
+SELECT s.id, u_reviewer.user_id, u_chair.user_id, '2026-11-15', 'PENDING'
+FROM
+    submissions s
+    JOIN users u_reviewer ON u_reviewer.email = 'reviewer@uth.edu.vn'
+    JOIN users u_chair ON u_chair.email = 'chair@uth.edu.vn'
+WHERE
+    s.title = 'Deep Learning for Autonomous Vehicles'
+    AND NOT EXISTS (
+        SELECT 1
+        FROM review_assignments ra
+        WHERE
+            ra.submission_id = s.id
+            AND ra.reviewer_id = u_reviewer.user_id
+    );

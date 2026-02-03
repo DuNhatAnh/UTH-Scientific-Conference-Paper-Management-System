@@ -37,6 +37,11 @@ public class SubmissionService : ISubmissionService
     public async Task<PagedResponse<SubmissionDto>> GetSubmissionsAsync(
         Guid? conferenceId, string? status, int page, int pageSize, Guid? requesterId = null)
     {
+        if (conferenceId.HasValue)
+        {
+            await EnsureTrackCacheAsync(conferenceId.Value);
+        }
+
         var totalCount = await _unitOfWork.Submissions.CountAsync(conferenceId, status);
         var submissions = await _unitOfWork.Submissions.GetAllAsync(conferenceId, status, (page - 1) * pageSize, pageSize);
 
@@ -58,6 +63,13 @@ public class SubmissionService : ISubmissionService
         var totalCount = await _unitOfWork.Submissions.CountByUserAsync(userId, conferenceId, status, excludeWithdrawn: true);
         var submissions = await _unitOfWork.Submissions.GetByUserAsync(userId, conferenceId, status, (page - 1) * pageSize, pageSize, excludeWithdrawn: true);
 
+        // Populate cache for all unique conferences in the list
+        var uniqueConfIds = submissions.Select(s => s.ConferenceId).Distinct().ToList();
+        foreach (var confId in uniqueConfIds)
+        {
+            await EnsureTrackCacheAsync(confId);
+        }
+
         var items = submissions.Select(s => MapToDto(s, userId)).ToList();
 
         return new PagedResponse<SubmissionDto>
@@ -77,6 +89,9 @@ public class SubmissionService : ISubmissionService
         {
             throw new InvalidOperationException("Submission not found");
         }
+
+        // Ensure track cache is populated for this conference
+        await EnsureTrackCacheAsync(submission.ConferenceId);
 
         // Check if authors should be masked (Double-Blind)
         bool shouldMask = requesterId != null && submission.SubmittedBy != requesterId;
@@ -186,7 +201,14 @@ public class SubmissionService : ISubmissionService
         // Reload with all details (authors and files) to return complete DTO
         submission = await _unitOfWork.Submissions.GetByIdWithDetailsAsync(submission.Id);
 
-        List<TrackDto>? tracks = conference?.Tracks;
+        // Populate track cache from the conference we already fetched
+        if (conference?.Tracks != null)
+        {
+            foreach (var track in conference.Tracks)
+            {
+                _trackCache[track.TrackId] = track.Name;
+            }
+        }
 
         // Publish PaperSubmittedEvent to notify author
         try
@@ -301,6 +323,9 @@ public class SubmissionService : ISubmissionService
         submission.UpdatedAt = DateTime.UtcNow;
 
         await _unitOfWork.SaveChangesAsync();
+
+        // Populate track cache before returning
+        await EnsureTrackCacheAsync(submission.ConferenceId);
 
         _logger.LogInformation("Submission {SubmissionId} updated by user {UserId}", submission.Id, userId);
 
@@ -476,6 +501,8 @@ public class SubmissionService : ISubmissionService
 
     private async Task EnsureTrackCacheAsync(Guid conferenceId)
     {
+        if (_trackCache.Count > 0) return; // Basic guard: already populated for some conference (could be improved if multi-conference lists are frequent)
+
         try
         {
             var conference = await _conferenceClient.GetConferenceByIdAsync(conferenceId);
@@ -493,7 +520,7 @@ public class SubmissionService : ISubmissionService
         }
     }
 
-    private async Task<string> GetTrackNameAsync(Guid conferenceId, Guid? trackId)
+    private string GetTrackName(Guid? trackId)
     {
         if (!trackId.HasValue) return "N/A";
 
@@ -502,16 +529,7 @@ public class SubmissionService : ISubmissionService
             return name;
         }
 
-        // Try to refresh cache if not found
-        await EnsureTrackCacheAsync(conferenceId);
-
-        return _trackCache.TryGetValue(trackId.Value, out var newName) ? newName : "Chủ đề khác";
-    }
-
-    private string GetTrackName(Guid? trackId, List<TrackDto>? tracks = null)
-    {
-        if (!trackId.HasValue) return "N/A";
-
+        // Fallback for hardcoded test tracks if any
         var idString = trackId.Value.ToString().ToLower();
         return idString switch
         {

@@ -8,6 +8,10 @@ namespace Review.Service.DTOs
         public string PaperId { get; set; }
         public int TotalReviews { get; set; }
         
+        // Quyết định cuối cùng của Chair
+        public string? FinalStatus { get; set; }
+        public string? ChairComments { get; set; }
+        
         // Điểm trung bình từng tiêu chí
         public double AverageNoveltyScore { get; set; }
         public double AverageMethodologyScore { get; set; }

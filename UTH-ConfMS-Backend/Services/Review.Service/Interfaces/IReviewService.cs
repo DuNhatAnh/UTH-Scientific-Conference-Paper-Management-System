@@ -14,7 +14,7 @@ namespace Review.Service.Interfaces
         /// <summary>
         /// Lấy tổng hợp điểm và nhận xét từ tất cả reviewer cho một bài báo
         /// </summary>
-        Task<ReviewSummaryDTO> GetReviewSummaryAsync(string paperId);
+        Task<ReviewSummaryDTO> GetReviewSummaryAsync(string paperId, bool isAuthorView = false);
 
         Task<IEnumerable<ReviewAssignmentDTO>> GetAssignmentsForReviewerAsync(string userId, string? status = null, int page = 1, int pageSize = 20);
 

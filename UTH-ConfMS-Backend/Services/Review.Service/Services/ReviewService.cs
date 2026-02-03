@@ -132,7 +132,7 @@ namespace Review.Service.Services
             Console.WriteLine($"[ReviewService] Author {authorId} submitted rebuttal for Paper {dto.PaperId}");
         }
 
-        public async Task<ReviewSummaryDTO> GetReviewSummaryAsync(string paperId)
+        public async Task<ReviewSummaryDTO> GetReviewSummaryAsync(string paperId, bool isAuthorView = false)
         {
             // Parse paperId string to Guid
             if (!Guid.TryParse(paperId, out var submissionGuid))
@@ -208,21 +208,26 @@ namespace Review.Service.Services
 
             var reviewDetails = paperReviews.Select((r, index) => new ReviewDetailDTO
             {
-                ReviewerId = r.Assignment.Reviewer?.UserId ?? r.Assignment.ReviewerId.ToString(), 
-                ReviewerName = r.Assignment.Reviewer?.FullName ?? $"Reviewer {r.Assignment.ReviewerId}",
+                ReviewerId = isAuthorView ? $"Reviewer {index + 1}" : (r.Assignment.Reviewer?.UserId ?? r.Assignment.ReviewerId.ToString()), 
+                ReviewerName = isAuthorView ? $"Reviewer {index + 1}" : (r.Assignment.Reviewer?.FullName ?? $"Reviewer {r.Assignment.ReviewerId}"),
                 NoveltyScore = r.NoveltyScore,
                 MethodologyScore = r.MethodologyScore,
                 PresentationScore = r.PresentationScore,
                 CommentsForAuthor = r.CommentsForAuthor,
-                ConfidentialComments = r.ConfidentialComments,
+                ConfidentialComments = isAuthorView ? null : r.ConfidentialComments, // Mask confidential comments for authors
                 Recommendation = r.Recommendation,
                 SubmittedAt = r.SubmittedAt
             }).ToList();
+
+            // 3. Fetch Chair Decision
+            var decision = await _context.Decisions.FirstOrDefaultAsync(d => d.PaperId == paperId);
             
             var summary = new ReviewSummaryDTO
             {
                 PaperId = paperId,
                 TotalReviews = paperReviews.Count,
+                FinalStatus = decision?.Status,
+                ChairComments = decision?.Comments,
                 AverageNoveltyScore = Math.Round(avgNovelty, 1),
                 AverageMethodologyScore = Math.Round(avgMethodology, 1),
                 AveragePresentationScore = Math.Round(avgPresentation, 1),
@@ -234,7 +239,7 @@ namespace Review.Service.Services
                 Files = files.OrderByDescending(f => f.UploadedAt).ToList()
             };
             
-            Console.WriteLine($"[ReviewService] Generated summary for Paper {paperId}: {summary.TotalReviews} reviews, {summary.Files.Count} files");
+            Console.WriteLine($"[ReviewService] Generated summary for Paper {paperId}: {summary.TotalReviews} reviews, {summary.Files.Count} files (isAuthorView: {isAuthorView})");
             
             return summary;
         }

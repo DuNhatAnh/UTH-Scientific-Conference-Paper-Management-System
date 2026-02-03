@@ -7,12 +7,14 @@ interface DashboardProps {
   onNavigate: (view: ViewState) => void;
   onViewPaper?: (id: string) => void;
   onEditPaper?: (id: string) => void;
+  onViewDecision?: (id: string) => void;
 }
 
 export const AuthorDashboard: React.FC<DashboardProps> = ({
   onNavigate,
   onViewPaper,
   onEditPaper,
+  onViewDecision,
 }) => {
   const [submissions, setSubmissions] = useState<PaperResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -271,7 +273,7 @@ export const AuthorDashboard: React.FC<DashboardProps> = ({
                               <>
                                 <div className="flex flex-col gap-2">
                                   <button
-                                    onClick={() => onNavigate("decision")}
+                                    onClick={() => onViewDecision && onViewDecision(sub.id)}
                                     className="w-full bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold py-1.5 px-3 rounded text-[10px] uppercase tracking-tighter transition-all flex items-center justify-center gap-1"
                                   >
                                     <span className="material-symbols-outlined text-sm">visibility</span>

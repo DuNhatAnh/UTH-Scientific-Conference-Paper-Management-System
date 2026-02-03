@@ -179,6 +179,8 @@ export interface ReviewerStats {
 export interface ReviewSummaryDto {
   paperId: string | number;
   totalReviews: number;
+  finalStatus?: string;
+  chairComments?: string;
   averageNoveltyScore: number;
   averageMethodologyScore: number;
   averagePresentationScore: number;

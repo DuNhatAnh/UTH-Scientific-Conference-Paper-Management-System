@@ -133,14 +133,13 @@ const App: React.FC = () => {
             <Route path="/about" element={<AboutUs />} />
             <Route path="/invite/accept" element={<AcceptInvitation />} />
             <Route path="/invitation/:token" element={<InvitationDetail />} />
-            <Route path="/decision" element={<DecisionNotification />} />
-
             {/* Author Routes */}
             <Route path="/author/dashboard" element={renderProtected(['author', 'admin', 'chair', 'reviewer'],
               <AuthorDashboard
                 onNavigate={handleNavigate}
                 onViewPaper={(id) => navigate(`/author/papers/${id}`)}
                 onEditPaper={(id) => navigate(`/author/submit/${id}`)}
+                onViewDecision={(id) => navigate(`/author/decision/${id}`)}
               />
             )} />
             <Route path="/author/submit" element={renderProtected(['author', 'admin', 'chair', 'reviewer'],
@@ -151,6 +150,9 @@ const App: React.FC = () => {
             )} />
             <Route path="/author/papers/:id" element={renderProtected(['author', 'admin', 'chair', 'reviewer'],
               <PaperDetailWrapper onNavigate={handleNavigate} />
+            )} />
+            <Route path="/author/decision/:id" element={renderProtected(['author', 'admin', 'chair', 'reviewer'],
+              <DecisionNotificationWrapper />
             )} />
 
             {/* Reviewer Routes */}
@@ -238,6 +240,11 @@ const PCManagementWrapper: React.FC<{ onNavigate: (view: ViewState) => void }> =
 const SubmissionManagementWrapper: React.FC<{ onNavigate: (view: ViewState) => void }> = ({ onNavigate }) => {
   const { id } = useParams<{ id: string }>();
   return <SubmissionManagement onNavigate={onNavigate} conferenceId={id} />;
+};
+
+const DecisionNotificationWrapper: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  return <DecisionNotification paperId={id || null} />;
 };
 
 export default App;

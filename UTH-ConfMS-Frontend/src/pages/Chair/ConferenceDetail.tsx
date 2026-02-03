@@ -24,14 +24,14 @@ export const ConferenceDetail: React.FC<ConferenceDetailProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<
     "submissions" | "assignment" | "decision" | "cfp" | "pc" | "settings"
-  >("submissions");
+  >("cfp");
 
   const tabs = [
+    { id: "cfp", label: "Gọi Bài Báo", icon: "announcement" },
     { id: "submissions", label: "Danh Sách Bài Nộp", icon: "description" },
+    { id: "pc", label: "Hội Đồng Chương Trình", icon: "groups" },
     { id: "assignment", label: "Phân Công Bài Báo", icon: "assignment_ind" },
     { id: "decision", label: "Quyết Định Bài Báo", icon: "fact_check" },
-    { id: "cfp", label: "Gọi Bài Báo", icon: "announcement" },
-    { id: "pc", label: "Hội Đồng Chương Trình", icon: "groups" },
     { id: "settings", label: "Cài Đặt Hội Nghị", icon: "settings" },
   ] as const;
 

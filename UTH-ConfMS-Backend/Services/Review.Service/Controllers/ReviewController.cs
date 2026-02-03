@@ -116,12 +116,15 @@ namespace Review.Service.Controllers
         /// <param name="paperId">ID của bài báo</param>
         /// <returns>Tổng hợp điểm trung bình, thống kê recommendation và danh sách chi tiết</returns>
         [HttpGet("summary/{paperId}")]
-        [AllowAnonymous] // Tạm thời mở để test
         public async Task<IActionResult> GetReviewSummary(string paperId)
         {
             try
             {
-                var summary = await _reviewService.GetReviewSummaryAsync(paperId);
+                // Kiểm tra xem có phải Tác giả đang xem không để ẩn danh tính Reviewer
+                // Nếu User có Role author và không phải chair/admin thì coi như là Author View
+                bool isAuthorView = User.IsInRole("author") && !User.IsInRole("chair") && !User.IsInRole("admin");
+                
+                var summary = await _reviewService.GetReviewSummaryAsync(paperId, isAuthorView);
                 return Ok(ApiResponse<ReviewSummaryDTO>.SuccessResponse(summary));
             }
             catch (Exception ex)
